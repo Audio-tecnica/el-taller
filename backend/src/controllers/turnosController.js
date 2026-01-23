@@ -1,0 +1,197 @@
+const { Turno, Local, Usuario, Pedido, Cortesia } = require('../models');
+const { Op } = require('sequelize');
+
+const turnosController = {
+  // Abrir turno
+  abrirTurno: async (req, res) => {
+    try {
+      const { local_id, efectivo_inicial } = req.body;
+      const usuario_id = req.usuario.id;
+
+      // Verificar si ya hay turno abierto en este local
+      const turnoExistente = await Turno.findOne({
+        where: { local_id, estado: 'abierto' }
+      });
+
+      if (turnoExistente) {
+        return res.status(400).json({ 
+          error: 'Ya hay un turno abierto en este local',
+          turno_id: turnoExistente.id
+        });
+      }
+
+      const turno = await Turno.create({
+        local_id,
+        usuario_id,
+        efectivo_inicial: efectivo_inicial || 0,
+        efectivo_esperado: efectivo_inicial || 0,
+        estado: 'abierto',
+        fecha_apertura: new Date()
+      });
+
+      const turnoCompleto = await Turno.findByPk(turno.id, {
+        include: [
+          { model: Local, as: 'local' },
+          { model: Usuario, as: 'usuario', attributes: ['id', 'nombre', 'email'] }
+        ]
+      });
+
+      res.status(201).json(turnoCompleto);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Obtener turno activo de un local
+  getTurnoActivo: async (req, res) => {
+    try {
+      const { local_id } = req.params;
+
+      const turno = await Turno.findOne({
+        where: { local_id, estado: 'abierto' },
+        include: [
+          { model: Local, as: 'local' },
+          { model: Usuario, as: 'usuario', attributes: ['id', 'nombre', 'email'] }
+        ]
+      });
+
+      if (!turno) {
+        return res.status(404).json({ error: 'No hay turno abierto' });
+      }
+
+      // Calcular ventas del turno
+      const pedidos = await Pedido.findAll({
+        where: {
+          local_id,
+          estado: 'cerrado',
+          closed_at: { [Op.gte]: turno.fecha_apertura }
+        }
+      });
+
+      const resumen = {
+        total_ventas: 0,
+        total_efectivo: 0,
+        total_transferencias: 0,
+        total_nequi: 0,
+        total_cortesias: 0,
+        cantidad_pedidos: pedidos.length
+      };
+
+      pedidos.forEach(p => {
+        const total = parseFloat(p.total_final) || 0;
+        resumen.total_ventas += total;
+        resumen.total_cortesias += parseFloat(p.monto_cortesia) || 0;
+
+        if (p.metodo_pago === 'efectivo') resumen.total_efectivo += total;
+        if (p.metodo_pago === 'transferencia') resumen.total_transferencias += total;
+        if (p.metodo_pago === 'nequi') resumen.total_nequi += total;
+      });
+
+      resumen.efectivo_esperado = parseFloat(turno.efectivo_inicial) + resumen.total_efectivo;
+
+      res.json({ ...turno.toJSON(), resumen });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Cerrar turno
+  cerrarTurno: async (req, res) => {
+    try {
+      const { turno_id } = req.params;
+      const { efectivo_real, notas_cierre } = req.body;
+
+      const turno = await Turno.findByPk(turno_id);
+
+      if (!turno || turno.estado !== 'abierto') {
+        return res.status(400).json({ error: 'Turno no válido o ya cerrado' });
+      }
+
+      // Calcular ventas del turno
+      const pedidos = await Pedido.findAll({
+        where: {
+          local_id: turno.local_id,
+          estado: 'cerrado',
+          closed_at: { [Op.gte]: turno.fecha_apertura }
+        }
+      });
+
+      let total_ventas = 0;
+      let total_efectivo = 0;
+      let total_transferencias = 0;
+      let total_nequi = 0;
+      let total_cortesias = 0;
+
+      pedidos.forEach(p => {
+        const total = parseFloat(p.total_final) || 0;
+        total_ventas += total;
+        total_cortesias += parseFloat(p.monto_cortesia) || 0;
+
+        if (p.metodo_pago === 'efectivo') total_efectivo += total;
+        if (p.metodo_pago === 'transferencia') total_transferencias += total;
+        if (p.metodo_pago === 'nequi') total_nequi += total;
+      });
+
+      const efectivo_esperado = parseFloat(turno.efectivo_inicial) + total_efectivo;
+      const diferencia = parseFloat(efectivo_real) - efectivo_esperado;
+
+      await turno.update({
+        estado: 'cerrado',
+        efectivo_esperado,
+        efectivo_real,
+        diferencia,
+        total_efectivo,
+        total_transferencias,
+        total_nequi,
+        total_ventas,
+        total_cortesias,
+        cantidad_pedidos: pedidos.length,
+        fecha_cierre: new Date(),
+        notas_cierre
+      });
+
+      res.json({
+        message: 'Turno cerrado exitosamente',
+        resumen: {
+          efectivo_inicial: turno.efectivo_inicial,
+          total_ventas,
+          total_efectivo,
+          total_transferencias,
+          total_nequi,
+          total_cortesias,
+          efectivo_esperado,
+          efectivo_real,
+          diferencia,
+          cantidad_pedidos: pedidos.length
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Historial de turnos
+  getHistorial: async (req, res) => {
+    try {
+      const { local_id } = req.query;
+      const where = {};
+      if (local_id) where.local_id = local_id;
+
+      const turnos = await Turno.findAll({
+        where,
+        include: [
+          { model: Local, as: 'local' },
+          { model: Usuario, as: 'usuario', attributes: ['id', 'nombre'] }
+        ],
+        order: [['fecha_apertura', 'DESC']],
+        limit: 50
+      });
+
+      res.json(turnos);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+};
+
+module.exports = turnosController;

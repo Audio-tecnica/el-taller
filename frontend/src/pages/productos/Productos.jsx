@@ -1,0 +1,365 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { productosService } from '../../services/productosService';
+import toast from 'react-hot-toast';
+import logo from '../../assets/logo.jpeg';
+
+export default function Productos() {
+  const navigate = useNavigate();
+  const [productos, setProductos] = useState([]);
+  const [categorias, setCategorias] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [productoEditar, setProductoEditar] = useState(null);
+  const [filtroCategoria, setFiltroCategoria] = useState('');
+
+  const [formData, setFormData] = useState({
+    nombre: '',
+    categoria_id: '',
+    precio_venta: '',
+    precio_mayorista: '',
+    stock_local1: 0,
+    stock_local2: 0,
+    alerta_stock: 10,
+    disponible_b2b: false
+  });
+
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
+  const cargarDatos = async () => {
+    try {
+      const [prods, cats] = await Promise.all([
+        productosService.getProductos(),
+        productosService.getCategorias()
+      ]);
+      setProductos(prods);
+      setCategorias(cats);
+    } catch (error) {
+      toast.error('Error al cargar datos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (productoEditar) {
+        await productosService.actualizarProducto(productoEditar.id, formData);
+        toast.success('Producto actualizado');
+      } else {
+        await productosService.crearProducto(formData);
+        toast.success('Producto creado');
+      }
+      setModalOpen(false);
+      resetForm();
+      cargarDatos();
+    } catch (error) {
+      toast.error('Error al guardar producto');
+    }
+  };
+
+  const handleEditar = (producto) => {
+    setProductoEditar(producto);
+    setFormData({
+      nombre: producto.nombre,
+      categoria_id: producto.categoria_id || '',
+      precio_venta: producto.precio_venta,
+      precio_mayorista: producto.precio_mayorista || '',
+      stock_local1: producto.stock_local1,
+      stock_local2: producto.stock_local2,
+      alerta_stock: producto.alerta_stock,
+      disponible_b2b: producto.disponible_b2b
+    });
+    setModalOpen(true);
+  };
+
+  const handleEliminar = async (id) => {
+    if (window.confirm('¿Eliminar este producto?')) {
+      try {
+        await productosService.eliminarProducto(id);
+        toast.success('Producto eliminado');
+        cargarDatos();
+      } catch (error) {
+        toast.error('Error al eliminar');
+      }
+    }
+  };
+
+  const resetForm = () => {
+    setProductoEditar(null);
+    setFormData({
+      nombre: '',
+      categoria_id: '',
+      precio_venta: '',
+      precio_mayorista: '',
+      stock_local1: 0,
+      stock_local2: 0,
+      alerta_stock: 10,
+      disponible_b2b: false
+    });
+  };
+
+  const productosFiltrados = filtroCategoria
+    ? productos.filter(p => p.categoria_id === filtroCategoria)
+    : productos;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="text-[#D4B896] text-xl">Cargando...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0a]">
+      {/* Header */}
+      <header className="bg-[#0a0a0a] border-b border-[#2a2a2a]">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center space-x-4">
+            <button onClick={() => navigate('/dashboard')} className="flex items-center space-x-4 hover:opacity-80 transition">
+              <img src={logo} alt="El Taller" className="w-12 h-12 rounded-full object-cover" />
+              <div>
+                <h1 className="text-lg font-bold text-[#D4B896] tracking-wide">EL TALLER</h1>
+                <p className="text-xs text-gray-500">Productos</p>
+              </div>
+            </button>
+          </div>
+          <button
+            onClick={() => { resetForm(); setModalOpen(true); }}
+            className="px-5 py-2.5 bg-[#D4B896] text-[#0a0a0a] font-semibold rounded-lg hover:bg-[#C4A576] transition"
+          >
+            + Nuevo Producto
+          </button>
+        </div>
+      </header>
+
+      {/* Filtros */}
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setFiltroCategoria('')}
+            className={`px-4 py-2 rounded-lg font-medium transition ${
+              filtroCategoria === '' 
+                ? 'bg-[#D4B896] text-[#0a0a0a]' 
+                : 'bg-[#141414] text-gray-400 border border-[#2a2a2a] hover:border-[#D4B896]'
+            }`}
+          >
+            Todos
+          </button>
+          {categorias.map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => setFiltroCategoria(cat.id)}
+              className={`px-4 py-2 rounded-lg font-medium transition ${
+                filtroCategoria === cat.id 
+                  ? 'bg-[#D4B896] text-[#0a0a0a]' 
+                  : 'bg-[#141414] text-gray-400 border border-[#2a2a2a] hover:border-[#D4B896]'
+              }`}
+            >
+              {cat.icono} {cat.nombre}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Lista de Productos */}
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {productosFiltrados.map(producto => (
+            <div key={producto.id} className="bg-[#141414] rounded-xl p-5 border border-[#2a2a2a] hover:border-[#3a3a3a] transition">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-white font-semibold text-lg">{producto.nombre}</h3>
+                  <span className="text-sm text-gray-500">
+                    {producto.categoria?.icono} {producto.categoria?.nombre}
+                  </span>
+                </div>
+                <span className="text-[#D4B896] font-bold text-xl">
+                  ${Number(producto.precio_venta).toLocaleString()}
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="bg-[#1a1a1a] rounded-lg p-3 text-center">
+                  <p className="text-gray-500 text-xs mb-1">Local 1</p>
+                  <p className={`font-bold text-lg ${producto.stock_local1 <= producto.alerta_stock ? 'text-red-500' : 'text-emerald-500'}`}>
+                    {producto.stock_local1}
+                  </p>
+                </div>
+                <div className="bg-[#1a1a1a] rounded-lg p-3 text-center">
+                  <p className="text-gray-500 text-xs mb-1">Local 2</p>
+                  <p className={`font-bold text-lg ${producto.stock_local2 <= producto.alerta_stock ? 'text-red-500' : 'text-emerald-500'}`}>
+                    {producto.stock_local2}
+                  </p>
+                </div>
+              </div>
+
+              {producto.disponible_b2b && (
+                <div className="mb-4">
+                  <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
+                    B2B: ${Number(producto.precio_mayorista).toLocaleString()}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleEditar(producto)}
+                  className="flex-1 py-2.5 bg-[#1a1a1a] text-gray-300 rounded-lg hover:bg-[#2a2a2a] transition border border-[#2a2a2a]"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => handleEliminar(producto.id)}
+                  className="py-2.5 px-4 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition"
+                >
+                  🗑
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {productosFiltrados.length === 0 && (
+          <div className="text-center py-16">
+            <div className="text-6xl mb-4">📦</div>
+            <p className="text-gray-400 text-lg mb-2">No hay productos</p>
+            <p className="text-gray-600 text-sm mb-6">Agrega tu primer producto para empezar</p>
+            <button
+              onClick={() => { resetForm(); setModalOpen(true); }}
+              className="px-6 py-3 bg-[#D4B896] text-[#0a0a0a] font-semibold rounded-lg hover:bg-[#C4A576] transition"
+            >
+              Crear primer producto
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Modal */}
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-[#2a2a2a]">
+              <h2 className="text-xl font-bold text-white">
+                {productoEditar ? 'Editar Producto' : 'Nuevo Producto'}
+              </h2>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Nombre</label>
+                <input
+                  type="text"
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                  className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Categoría</label>
+                <select
+                  value={formData.categoria_id}
+                  onChange={(e) => setFormData({...formData, categoria_id: e.target.value})}
+                  className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white focus:ring-2 focus:ring-[#D4B896]"
+                >
+                  <option value="">Sin categoría</option>
+                  {categorias.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.icono} {cat.nombre}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Precio Venta</label>
+                  <input
+                    type="number"
+                    value={formData.precio_venta}
+                    onChange={(e) => setFormData({...formData, precio_venta: e.target.value})}
+                    className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white focus:ring-2 focus:ring-[#D4B896]"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Precio Mayorista</label>
+                  <input
+                    type="number"
+                    value={formData.precio_mayorista}
+                    onChange={(e) => setFormData({...formData, precio_mayorista: e.target.value})}
+                    className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white focus:ring-2 focus:ring-[#D4B896]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Stock Local 1</label>
+                  <input
+                    type="number"
+                    value={formData.stock_local1}
+                    onChange={(e) => setFormData({...formData, stock_local1: parseInt(e.target.value) || 0})}
+                    className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white focus:ring-2 focus:ring-[#D4B896]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Stock Local 2</label>
+                  <input
+                    type="number"
+                    value={formData.stock_local2}
+                    onChange={(e) => setFormData({...formData, stock_local2: parseInt(e.target.value) || 0})}
+                    className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white focus:ring-2 focus:ring-[#D4B896]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Alerta Stock Bajo</label>
+                <input
+                  type="number"
+                  value={formData.alerta_stock}
+                  onChange={(e) => setFormData({...formData, alerta_stock: parseInt(e.target.value) || 0})}
+                  className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white focus:ring-2 focus:ring-[#D4B896]"
+                />
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="disponible_b2b"
+                  checked={formData.disponible_b2b}
+                  onChange={(e) => setFormData({...formData, disponible_b2b: e.target.checked})}
+                  className="w-5 h-5 text-[#D4B896] bg-[#1a1a1a] border-[#2a2a2a] rounded focus:ring-[#D4B896]"
+                />
+                <label htmlFor="disponible_b2b" className="ml-3 text-sm text-gray-300">
+                  Disponible para venta B2B (mayorista)
+                </label>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="flex-1 py-3 bg-[#1a1a1a] text-gray-300 rounded-lg hover:bg-[#2a2a2a] transition border border-[#2a2a2a]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-[#D4B896] text-[#0a0a0a] font-semibold rounded-lg hover:bg-[#C4A576] transition"
+                >
+                  {productoEditar ? 'Guardar' : 'Crear'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
