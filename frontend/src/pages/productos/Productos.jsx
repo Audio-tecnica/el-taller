@@ -259,15 +259,16 @@ export default function Productos() {
                           <span className="text-[10px] text-gray-500">
                             Local 1
                           </span>
-                          {producto.barril_activo_local1 ? (
-                            <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1 rounded">
-                              EN MÁQUINA
-                            </span>
-                          ) : (
+                          <div className="flex gap-1 items-center">
+                            {producto.barril_activo_local1 && (
+                              <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1 rounded">
+                                EN MÁQUINA
+                              </span>
+                            )}
                             <span className="text-[9px] text-gray-600">
-                              Bodega: {producto.stock_local1}
+                              📦 {producto.stock_local1}
                             </span>
-                          )}
+                          </div>
                         </div>
 
                         {producto.barril_activo_local1 ? (
@@ -330,15 +331,16 @@ export default function Productos() {
                           <span className="text-[10px] text-gray-500">
                             Local 2
                           </span>
-                          {producto.barril_activo_local2 ? (
-                            <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1 rounded">
-                              EN MÁQUINA
-                            </span>
-                          ) : (
+                          <div className="flex gap-1 items-center">
+                            {producto.barril_activo_local2 && (
+                              <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1 rounded">
+                                EN MÁQUINA
+                              </span>
+                            )}
                             <span className="text-[9px] text-gray-600">
-                              Bodega: {producto.stock_local2}
+                              📦 {producto.stock_local2}
                             </span>
-                          )}
+                          </div>
                         </div>
 
                         {producto.barril_activo_local2 ? (

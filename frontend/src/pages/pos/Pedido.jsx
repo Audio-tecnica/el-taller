@@ -241,7 +241,36 @@ export default function Pedido() {
               </p>
               <p className="text-[#D4B896] font-bold text-sm mt-0.5">
                 ${Number(producto.precio_venta).toLocaleString()}
+                {producto.unidad_medida === "barriles" && (
+                  <span className="text-[9px] text-gray-500"> /vaso</span>
+                )}
               </p>
+
+              {/* Barra de progreso para barriles */}
+              {producto.unidad_medida === "barriles" &&
+                producto.barril_activo_local1 && (
+                  <div className="mt-1">
+                    <div className="w-full bg-gray-700 rounded-full h-1.5">
+                      <div
+                        className={`h-1.5 rounded-full transition-all ${
+                          producto.vasos_disponibles_local1 <= 15
+                            ? "bg-red-500"
+                            : producto.vasos_disponibles_local1 <= 30
+                              ? "bg-yellow-500"
+                              : "bg-emerald-500"
+                        }`}
+                        style={{
+                          width: `${(producto.vasos_disponibles_local1 / producto.capacidad_barril) * 100}%`,
+                        }}
+                      />
+                    </div>
+                    <p className="text-[9px] text-gray-500 text-center mt-0.5">
+                      {producto.vasos_disponibles_local1}/
+                      {producto.capacidad_barril} vasos
+                    </p>
+                  </div>
+                )}
+
               <p className="text-[9px] text-gray-500 mt-0.5 truncate">
                 {producto.categoria?.icono} {producto.categoria?.nombre}
               </p>
