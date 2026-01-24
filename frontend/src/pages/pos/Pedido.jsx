@@ -212,30 +212,38 @@ export default function Pedido() {
 
         {/* Grid de productos */}
         <div className="flex-1 overflow-y-auto p-4">
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-2">
             {productosFiltrados.map((producto) => (
               <button
                 key={producto.id}
                 onClick={() => handleAgregarProducto(producto)}
-                className={`bg-[#141414] rounded-xl p-2 text-left hover:bg-[#1a1a1a] transition-all active:scale-95 border-2 ${
-                  producto.categoria?.nombre?.includes('Barril') ? 'border-amber-500' :
-                  producto.categoria?.nombre?.includes('Botella') ? 'border-green-500' :
-                  producto.categoria?.nombre?.includes('Lata') ? 'border-blue-500' :
-                  producto.categoria?.nombre?.includes('Comida') || producto.categoria?.nombre?.includes('Piqueo') ? 'border-orange-500' :
-                  producto.categoria?.nombre?.includes('Bebida') ? 'border-purple-500' :
-                  'border-gray-700'
+                className={`bg-[#141414] rounded-xl p-4 sm:p-2 text-left hover:bg-[#1a1a1a] transition-all active:scale-95 border-2 ${
+                  producto.categoria?.nombre?.includes("Barril")
+                    ? "border-amber-500"
+                    : producto.categoria?.nombre?.includes("Botella")
+                      ? "border-green-500"
+                      : producto.categoria?.nombre?.includes("Lata")
+                        ? "border-blue-500"
+                        : producto.categoria?.nombre?.includes("Comida") ||
+                            producto.categoria?.nombre?.includes("Piqueo")
+                          ? "border-orange-500"
+                          : producto.categoria?.nombre?.includes("Bebida")
+                            ? "border-purple-500"
+                            : "border-gray-700"
                 }`}
               >
-                <p className="text-xs font-medium truncate">
+                <p className="text-base sm:text-xs font-medium truncate">
                   <span className="text-white">{producto.nombre}</span>
                   {producto.presentacion && (
-                    <span className="text-[#D4B896] font-bold ml-1">({producto.presentacion})</span>
+                    <span className="text-[#D4B896] font-bold ml-1">
+                      ({producto.presentacion})
+                    </span>
                   )}
                 </p>
-                <p className="text-[#D4B896] font-bold text-xs mt-0.5">
+                <p className="text-[#D4B896] font-bold text-lg sm:text-xs mt-1 sm:mt-0.5">
                   ${Number(producto.precio_venta).toLocaleString()}
                 </p>
-                <p className="text-[10px] text-gray-600 mt-0.5 hidden sm:block">
+                <p className="text-sm sm:text-[10px] text-gray-600 mt-1 sm:mt-0.5">
                   {producto.categoria?.icono} {producto.categoria?.nombre}
                 </p>
               </button>
@@ -245,7 +253,8 @@ export default function Pedido() {
       </div>
 
       {/* Panel derecho - Cuenta */}
-      <div className={`
+      <div
+        className={`
         fixed lg:relative
         lg:w-80 xl:w-96
         w-full
@@ -255,10 +264,11 @@ export default function Pedido() {
         border-l border-[#2a2a2a]
         flex flex-col
         transition-transform duration-300
-        ${mostrarCuentaMovil ? 'translate-y-0' : 'translate-y-full lg:translate-y-0'}
+        ${mostrarCuentaMovil ? "translate-y-0" : "translate-y-full lg:translate-y-0"}
         z-40
         max-h-[80vh] lg:max-h-full
-      `}>
+      `}
+      >
         {/* Botón para cerrar en móvil */}
         <button
           onClick={() => setMostrarCuentaMovil(false)}
