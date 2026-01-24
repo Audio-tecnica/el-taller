@@ -218,10 +218,10 @@ export default function Pedido() {
                 onClick={() => handleAgregarProducto(producto)}
                 className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-3 text-left hover:border-[#D4B896] hover:bg-[#1a1a1a] transition-all active:scale-95"
               >
-                <p className="text-sm text-white font-medium truncate">
-                  {producto.nombre}
+                <p className="text-sm font-medium truncate">
+                  <span className="text-white">{producto.nombre}</span>
                   {producto.presentacion && (
-                    <span className="text-xs text-[#D4B896] ml-1">
+                    <span className="text-[#D4B896] font-bold ml-1">
                       ({producto.presentacion})
                     </span>
                   )}
