@@ -5,7 +5,8 @@ export const authService = {
     const response = await api.post('/auth/login', { email, password });
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
-      localStorage.setItem('usuario', JSON.stringify(response.data.usuario));
+      // El backend devuelve "user", no "usuario"
+      localStorage.setItem('usuario', JSON.stringify(response.data.user));
     }
     return response.data;
   },
