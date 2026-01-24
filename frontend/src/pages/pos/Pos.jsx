@@ -35,7 +35,6 @@ export default function POS() {
     const interval = setInterval(() => {
       cargarDatos();
     }, 30000);
-
     return () => clearInterval(interval);
   }, [cargarDatos]);
 
@@ -43,7 +42,7 @@ export default function POS() {
     try {
       if (mesa.estado === "disponible") {
         const pedido = await pedidosService.abrirPedido(mesa.id);
-        toast.success("Pedido abierto en Mesa " + mesa.numero);
+        toast.success("Pedido abierto en " + mesa.numero);
         await cargarDatos();
         navigate("/pos/pedido/" + pedido.id);
       } else if (mesa.estado === "ocupada") {
@@ -51,22 +50,17 @@ export default function POS() {
           const pedido = await pedidosService.getPedidoMesa(mesa.id);
           navigate("/pos/pedido/" + pedido.id);
         } catch {
-          toast.error("No se encontro el pedido. Actualizando mesas...");
+          toast.error("No se encontro el pedido. Actualizando...");
           await cargarDatos();
         }
       }
     } catch (error) {
-      if (
-        error.response &&
-        error.response.data &&
-        error.response.data.pedido_id
-      ) {
+      if (error.response && error.response.data && error.response.data.pedido_id) {
         navigate("/pos/pedido/" + error.response.data.pedido_id);
       } else {
-        const mensaje =
-          error.response && error.response.data && error.response.data.error
-            ? error.response.data.error
-            : "Error al procesar";
+        const mensaje = error.response && error.response.data && error.response.data.error
+          ? error.response.data.error
+          : "Error al procesar";
         toast.error(mensaje);
         await cargarDatos();
       }
@@ -76,38 +70,47 @@ export default function POS() {
   const handleRefresh = async () => {
     setLoading(true);
     await cargarDatos();
-    toast.success("Mesas actualizadas", { duration: 1500 });
+    toast.success("Actualizado", { duration: 1500 });
   };
 
   const getEstadoStyles = (estado) => {
     switch (estado) {
       case "disponible":
-        return "border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20";
+        return "border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20 hover:scale-105";
       case "ocupada":
-        return "border-red-500 bg-red-500/10 hover:bg-red-500/20";
+        return "border-red-500 bg-red-500/10 hover:bg-red-500/20 hover:scale-105";
       case "reservada":
-        return "border-yellow-500 bg-yellow-500/10";
+        return "border-yellow-500 bg-yellow-500/10 hover:scale-105";
       default:
         return "border-gray-600";
     }
   };
 
-  const getEstadoTexto = (estado) => {
+  const getEstadoBadge = (estado) => {
     switch (estado) {
       case "disponible":
-        return { texto: "Disponible", color: "text-emerald-500" };
+        return "bg-emerald-500";
       case "ocupada":
-        return { texto: "Ocupada", color: "text-red-500" };
+        return "bg-red-500";
       case "reservada":
-        return { texto: "Reservada", color: "text-yellow-500" };
+        return "bg-yellow-500";
       default:
-        return { texto: estado, color: "text-gray-500" };
+        return "bg-gray-500";
     }
   };
 
+  // Filtrar mesas
   const mesasFiltradas = filtroLocal
     ? mesas.filter((m) => m.local_id === filtroLocal)
     : mesas;
+
+  // Agrupar mesas por local
+  const mesasPorLocal = locales
+    .map((local) => ({
+      ...local,
+      mesas: mesasFiltradas.filter((m) => m.local_id === local.id),
+    }))
+    .filter((local) => local.mesas.length > 0);
 
   if (loading && mesas.length === 0) {
     return (
@@ -119,38 +122,48 @@ export default function POS() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
-      <header className="bg-[#0a0a0a] border-b border-[#2a2a2a]">
+      {/* Header */}
+      <header className="bg-[#0a0a0a] border-b border-[#2a2a2a] sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="flex items-center space-x-4 hover:opacity-80 transition"
-            >
-              <img
-                src={logo}
-                alt="El Taller"
-                className="w-12 h-12 rounded-full object-contain bg-black"
-              />
-              <div>
-                <h1 className="text-lg font-bold text-[#D4B896] tracking-wide">
-                  EL TALLER
-                </h1>
-                <p className="text-xs text-gray-500">Punto de Venta</p>
-              </div>
-            </button>
-          </div>
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="flex items-center space-x-3 hover:opacity-80 transition"
+          >
+            <img
+              src={logo}
+              alt="El Taller"
+              className="w-10 h-10 rounded-full object-contain bg-black"
+            />
+            <div>
+              <h1 className="text-lg font-bold text-[#D4B896] tracking-wide">
+                EL TALLER
+              </h1>
+              <p className="text-xs text-gray-500">Punto de Venta</p>
+            </div>
+          </button>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* Leyenda */}
+            <div className="hidden sm:flex items-center gap-4 text-xs mr-4">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                <span className="text-gray-400">Disponible</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                <span className="text-gray-400">Ocupada</span>
+              </div>
+            </div>
+
+            {/* Botón refresh */}
             <button
               onClick={handleRefresh}
               disabled={loading}
-              className="p-2 rounded-lg bg-[#141414] border border-[#2a2a2a] hover:border-[#D4B896] transition disabled:opacity-50"
+              className="p-2.5 rounded-lg bg-[#141414] border border-[#2a2a2a] hover:border-[#D4B896] transition disabled:opacity-50"
               title="Actualizar mesas"
             >
               <svg
-                className={
-                  "w-5 h-5 text-[#D4B896]" + (loading ? " animate-spin" : "")
-                }
+                className={"w-5 h-5 text-[#D4B896]" + (loading ? " animate-spin" : "")}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -163,22 +176,17 @@ export default function POS() {
                 />
               </svg>
             </button>
-            <div className="text-right">
-              <p className="text-sm text-gray-400">Selecciona una mesa</p>
-              <p className="text-xs text-gray-600">
-                Verde = disponible - Rojo = ocupada
-              </p>
-            </div>
           </div>
         </div>
       </header>
 
+      {/* Filtro de locales */}
       <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setFiltroLocal("")}
             className={
-              "px-4 py-2 rounded-lg font-medium transition " +
+              "px-4 py-2 rounded-lg font-medium transition text-sm " +
               (filtroLocal === ""
                 ? "bg-[#D4B896] text-[#0a0a0a]"
                 : "bg-[#141414] text-gray-400 border border-[#2a2a2a] hover:border-[#D4B896]")
@@ -191,7 +199,7 @@ export default function POS() {
               key={local.id}
               onClick={() => setFiltroLocal(local.id)}
               className={
-                "px-4 py-2 rounded-lg font-medium transition " +
+                "px-4 py-2 rounded-lg font-medium transition text-sm " +
                 (filtroLocal === local.id
                   ? "bg-[#D4B896] text-[#0a0a0a]"
                   : "bg-[#141414] text-gray-400 border border-[#2a2a2a] hover:border-[#D4B896]")
@@ -203,36 +211,52 @@ export default function POS() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 pb-8">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {mesasFiltradas.map((mesa) => {
-            const estadoInfo = getEstadoTexto(mesa.estado);
-            return (
-              <button
-                key={mesa.id}
-                onClick={() => handleMesaClick(mesa)}
-                className={
-                  "p-4 rounded-xl border-2 transition-all duration-200 " +
-                  getEstadoStyles(mesa.estado)
-                }
-              >
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-white mb-1">
+      {/* Mesas agrupadas por local */}
+      <div className="max-w-7xl mx-auto px-4 pb-8 space-y-8">
+        {mesasPorLocal.map((local) => (
+          <div key={local.id}>
+            {/* Título del local (solo si no hay filtro) */}
+            {!filtroLocal && (
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-lg font-semibold text-[#D4B896]">
+                  {local.nombre}
+                </h2>
+                <div className="flex-1 h-px bg-[#2a2a2a]"></div>
+                <span className="text-xs text-gray-500">
+                  {local.mesas.filter((m) => m.estado === "disponible").length}/
+                  {local.mesas.length} disponibles
+                </span>
+              </div>
+            )}
+
+            {/* Grid de mesas */}
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+              {local.mesas.map((mesa) => (
+                <button
+                  key={mesa.id}
+                  onClick={() => handleMesaClick(mesa)}
+                  className={
+                    "relative p-4 rounded-xl border-2 transition-all duration-200 aspect-square flex flex-col items-center justify-center " +
+                    getEstadoStyles(mesa.estado)
+                  }
+                >
+                  {/* Indicador de estado */}
+                  <div
+                    className={
+                      "absolute top-2 right-2 w-2.5 h-2.5 rounded-full " +
+                      getEstadoBadge(mesa.estado)
+                    }
+                  ></div>
+
+                  {/* Número/Nombre de mesa */}
+                  <p className="text-lg font-bold text-white text-center leading-tight">
                     {mesa.numero}
                   </p>
-                  <p className={"text-xs font-medium " + estadoInfo.color}>
-                    {estadoInfo.texto}
-                  </p>
-                  {mesa.local && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      {mesa.local.nombre}
-                    </p>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
 
         {mesasFiltradas.length === 0 && (
           <div className="text-center py-12">
@@ -241,6 +265,7 @@ export default function POS() {
         )}
       </div>
 
+      {/* Indicador de carga */}
       {loading && mesas.length > 0 && (
         <div className="fixed bottom-4 right-4 bg-[#141414] border border-[#2a2a2a] rounded-lg px-4 py-2 flex items-center gap-2">
           <div className="w-4 h-4 border-2 border-[#D4B896] border-t-transparent rounded-full animate-spin"></div>
