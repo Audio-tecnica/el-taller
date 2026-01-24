@@ -3,6 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { productosService } from "../../services/productosService";
 import toast from "react-hot-toast";
 import logo from "../../assets/logo.jpeg";
+import { io } from "socket.io-client";
+
+const socket = io("https://el-taller.onrender.com", {
+  transports: ["websocket"],
+  auth: {
+    token: localStorage.getItem("token"),
+  },
+});
+
 
 export default function Productos() {
   const navigate = useNavigate();
@@ -34,6 +43,43 @@ export default function Productos() {
   useEffect(() => {
     cargarDatos();
   }, []);
+
+  useEffect(() => {
+  // 🟢 Producto creado / editado / eliminado
+  socket.on("producto_actualizado", ({ producto, accion }) => {
+    setProductos((prev) => {
+      if (accion === "eliminado") {
+        return prev.filter((p) => p.id !== producto.id);
+      }
+
+      const existe = prev.find((p) => p.id === producto.id);
+      if (existe) {
+        return prev.map((p) => (p.id === producto.id ? producto : p));
+      }
+
+      return [...prev, producto];
+    });
+  });
+
+  // 🍺 Barril activado / cambiado / consumo
+  socket.on("barril_actualizado", ({ producto }) => {
+    setProductos((prev) =>
+      prev.map((p) => (p.id === producto.id ? producto : p))
+    );
+  });
+
+  // 🪑 Pedido afecta stock
+  socket.on("pedido_actualizado", () => {
+    cargarDatos(); // aquí sí conviene refrescar
+  });
+
+  return () => {
+    socket.off("producto_actualizado");
+    socket.off("barril_actualizado");
+    socket.off("pedido_actualizado");
+  };
+}, []);
+
 
   const cargarDatos = async () => {
     try {
