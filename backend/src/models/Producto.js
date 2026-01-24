@@ -53,6 +53,40 @@ const Producto = sequelize.define(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
+    presentacion: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      defaultValue: null,
+    },
+    // Campos para gestión de barriles
+    unidad_medida: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+      defaultValue: "unidades", // 'unidades' o 'barriles'
+    },
+    capacidad_barril: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 85, // vasos por barril
+    },
+    // Local 1
+    barril_activo_local1: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    vasos_disponibles_local1: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+    },
+    // Local 2
+    barril_activo_local2: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    vasos_disponibles_local2: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+    },
     activo: {
       type: DataTypes.BOOLEAN,
       defaultValue: true,
