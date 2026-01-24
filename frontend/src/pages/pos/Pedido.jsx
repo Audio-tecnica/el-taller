@@ -18,6 +18,7 @@ export default function Pedido() {
   const [montoCortesia, setMontoCortesia] = useState(0);
   const [razonCortesia, setRazonCortesia] = useState("");
   const [mostrarCortesia, setMostrarCortesia] = useState(false);
+  const [mostrarCuentaMovil, setMostrarCuentaMovil] = useState(false);
 
   useEffect(() => {
     cargarDatos();
@@ -137,7 +138,7 @@ export default function Pedido() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex">
+    <div className="min-h-screen bg-[#0a0a0a] flex relative">
       {/* Panel izquierdo - Productos */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
@@ -211,33 +212,30 @@ export default function Pedido() {
 
         {/* Grid de productos */}
         <div className="flex-1 overflow-y-auto p-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2">
             {productosFiltrados.map((producto) => (
               <button
                 key={producto.id}
                 onClick={() => handleAgregarProducto(producto)}
-                className={`bg-[#141414] rounded-xl p-3 text-left hover:bg-[#1a1a1a] transition-all active:scale-95 border-2 ${
-                  producto.categoria?.nombre?.includes("Barril")
-                    ? "border-amber-500"
-                    : producto.categoria?.nombre?.includes("Botella")
-                      ? "border-green-500"
-                      : producto.categoria?.nombre?.includes("Lata")
-                        ? "border-blue-500"
-                        : producto.categoria?.nombre?.includes("Comida") ||
-                            producto.categoria?.nombre?.includes("Piqueo")
-                          ? "border-orange-500"
-                          : producto.categoria?.nombre?.includes("Bebida")
-                            ? "border-purple-500"
-                            : "border-gray-700"
+                className={`bg-[#141414] rounded-xl p-2 text-left hover:bg-[#1a1a1a] transition-all active:scale-95 border-2 ${
+                  producto.categoria?.nombre?.includes('Barril') ? 'border-amber-500' :
+                  producto.categoria?.nombre?.includes('Botella') ? 'border-green-500' :
+                  producto.categoria?.nombre?.includes('Lata') ? 'border-blue-500' :
+                  producto.categoria?.nombre?.includes('Comida') || producto.categoria?.nombre?.includes('Piqueo') ? 'border-orange-500' :
+                  producto.categoria?.nombre?.includes('Bebida') ? 'border-purple-500' :
+                  'border-gray-700'
                 }`}
               >
-                <p className="text-white font-medium truncate">
-                  {producto.nombre}
+                <p className="text-xs font-medium truncate">
+                  <span className="text-white">{producto.nombre}</span>
+                  {producto.presentacion && (
+                    <span className="text-[#D4B896] font-bold ml-1">({producto.presentacion})</span>
+                  )}
                 </p>
-                <p className="text-[#D4B896] font-bold mt-1">
+                <p className="text-[#D4B896] font-bold text-xs mt-0.5">
                   ${Number(producto.precio_venta).toLocaleString()}
                 </p>
-                <p className="text-xs text-gray-600 mt-1">
+                <p className="text-[10px] text-gray-600 mt-0.5 hidden sm:block">
                   {producto.categoria?.icono} {producto.categoria?.nombre}
                 </p>
               </button>
@@ -247,7 +245,28 @@ export default function Pedido() {
       </div>
 
       {/* Panel derecho - Cuenta */}
-      <div className="w-80 lg:w-96 bg-[#141414] border-l border-[#2a2a2a] flex flex-col">
+      <div className={`
+        fixed lg:relative
+        lg:w-80 xl:w-96
+        w-full
+        bottom-0 lg:bottom-auto
+        left-0 lg:left-auto
+        bg-[#141414]
+        border-l border-[#2a2a2a]
+        flex flex-col
+        transition-transform duration-300
+        ${mostrarCuentaMovil ? 'translate-y-0' : 'translate-y-full lg:translate-y-0'}
+        z-40
+        max-h-[80vh] lg:max-h-full
+      `}>
+        {/* Botón para cerrar en móvil */}
+        <button
+          onClick={() => setMostrarCuentaMovil(false)}
+          className="lg:hidden absolute top-2 right-2 w-8 h-8 bg-gray-700 rounded-full text-white flex items-center justify-center"
+        >
+          ✕
+        </button>
+
         {/* Header cuenta */}
         <div className="p-4 border-b border-[#2a2a2a]">
           <h2 className="text-lg font-bold text-white">Cuenta</h2>
@@ -328,6 +347,17 @@ export default function Pedido() {
           </button>
         </div>
       </div>
+
+      {/* Botón flotante para abrir cuenta en móvil */}
+      <button
+        onClick={() => setMostrarCuentaMovil(true)}
+        className="lg:hidden fixed bottom-4 right-4 bg-[#D4B896] text-[#0a0a0a] px-6 py-4 rounded-full shadow-lg font-bold z-30 flex items-center gap-2"
+      >
+        <span>🛒</span>
+        <span>{pedido?.items?.length || 0}</span>
+        <span>·</span>
+        <span>${Number(pedido?.subtotal || 0).toLocaleString()}</span>
+      </button>
 
       {/* Modal Cobrar */}
       {modalCobrar && (
