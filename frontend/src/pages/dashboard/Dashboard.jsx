@@ -1,7 +1,7 @@
-import { useNavigate } from 'react-router-dom';
-import { authService } from '../../services/authService';
-import toast from 'react-hot-toast';
-import logo from '../../assets/logo.jpeg';
+import { useNavigate } from "react-router-dom";
+import { authService } from "../../services/authService";
+import toast from "react-hot-toast";
+import logo from "../../assets/logo.jpeg";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -9,71 +9,80 @@ export default function Dashboard() {
 
   const handleLogout = () => {
     authService.logout();
-    toast.success('Sesión cerrada');
-    navigate('/login');
+    toast.success("Sesión cerrada");
+    navigate("/login");
   };
 
   const modulos = [
-    { 
-      nombre: 'Productos', 
-      icono: '📦', 
-      ruta: '/productos', 
-      desc: 'Gestión de inventario',
-      destacado: false
+    {
+      nombre: "Punto de Venta",
+      icono: "🍺",
+      ruta: "/pos",
+      desc: "¡Tomar pedidos aquí!",
+      destacado: true,
     },
-    { 
-      nombre: 'Gestión de Mesas', 
-      icono: '🪑', 
-      ruta: '/mesas', 
-      desc: 'Configurar mesas',
-      destacado: false
+    {
+      nombre: "Productos",
+      icono: "📦",
+      ruta: "/productos",
+      desc: "Gestión de inventario",
+      destacado: false,
     },
-    { 
-      nombre: 'Punto de Venta', 
-      icono: '🍺', 
-      ruta: '/pos', 
-      desc: '¡Tomar pedidos aquí!',
-      destacado: true
+    {
+      nombre: "Gestión de Mesas",
+      icono: "🪑",
+      ruta: "/mesas",
+      desc: "Configurar mesas",
+      destacado: false,
     },
-    { 
-      nombre: 'Caja', 
-      icono: '💰', 
-      ruta: '/caja', 
-      desc: 'Turnos y arqueo',
-      destacado: false
+    {
+      nombre: "Caja",
+      icono: "💰",
+      ruta: "/caja",
+      desc: "Turnos y arqueo",
+      destacado: false,
     },
-    { 
-      nombre: 'Clientes B2B', 
-      icono: '🏢', 
-      ruta: '/clientes-b2b', 
-      desc: 'Ventas mayoristas',
-      destacado: false
+    {
+      nombre: "Clientes B2B",
+      icono: "🏢",
+      ruta: "/clientes-b2b",
+      desc: "Ventas mayoristas",
+      destacado: false,
     },
-    { 
-      nombre: 'Reportes', 
-      icono: '📊', 
-      ruta: '/reportes', 
-      desc: 'Estadísticas',
-      destacado: false
+    {
+      nombre: "Reportes",
+      icono: "📊",
+      ruta: "/reportes",
+      desc: "Estadísticas",
+      destacado: false,
     },
   ];
-
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
       {/* Header */}
       <header className="bg-[#0a0a0a] border-b border-[#2a2a2a]">
         <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center space-x-4">
-            <img src={logo} alt="El Taller" className="w-14 h-14 rounded-full object-cover" />
+            <img
+              src={logo}
+              alt="El Taller"
+              className="w-14 h-14 rounded-full object-cover"
+            />
             <div>
-              <h1 className="text-xl font-bold text-[#D4B896] tracking-wide">EL TALLER</h1>
-              <p className="text-xs text-gray-500">Beers and Games • Montería</p>
+              <h1 className="text-xl font-bold text-[#D4B896] tracking-wide">
+                EL TALLER
+              </h1>
+              <p className="text-xs text-gray-500">
+                Beers and Games • Montería
+              </p>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             <div className="text-right">
-              <p className="text-sm font-medium text-white">{usuario?.nombre}</p>
+              <p className="text-sm font-medium text-white">
+                {usuario?.nombre}
+              </p>
               <p className="text-xs text-[#D4B896]">{usuario?.rol}</p>
             </div>
             <button
@@ -93,9 +102,7 @@ export default function Dashboard() {
           <h2 className="text-2xl font-bold text-white mb-1">
             Bienvenido, {usuario?.nombre}
           </h2>
-          <p className="text-[#D4B896]">
-            Sistema de gestión El Taller
-          </p>
+          <p className="text-[#D4B896]">Sistema de gestión El Taller</p>
         </div>
 
         {/* Módulos */}
@@ -105,28 +112,40 @@ export default function Dashboard() {
               key={modulo.nombre}
               onClick={() => navigate(modulo.ruta)}
               className={`${
-                modulo.destacado 
-                  ? 'bg-emerald-600 hover:bg-emerald-500 border-2 border-emerald-400 scale-105' 
-                  : 'bg-[#141414] hover:bg-[#1a1a1a] border border-[#2a2a2a] hover:border-[#D4B896]'
+                modulo.destacado
+                  ? "bg-emerald-600 hover:bg-emerald-500 border-2 border-emerald-400 scale-105"
+                  : "bg-[#141414] hover:bg-[#1a1a1a] border border-[#2a2a2a] hover:border-[#D4B896]"
               } rounded-xl p-5 text-center transition-all duration-200 group`}
             >
-              <div className={`${
-                modulo.destacado ? 'w-16 h-16' : 'w-12 h-12'
-              } ${
-                modulo.destacado ? 'bg-emerald-700' : 'bg-[#1a1a1a] group-hover:bg-[#D4B896]/10'
-              } rounded-xl flex items-center justify-center mx-auto mb-3 transition-colors`}>
-                <span className={`${modulo.destacado ? 'text-4xl' : 'text-2xl'}`}>
+              <div
+                className={`${modulo.destacado ? "w-16 h-16" : "w-12 h-12"} ${
+                  modulo.destacado
+                    ? "bg-emerald-700"
+                    : "bg-[#1a1a1a] group-hover:bg-[#D4B896]/10"
+                } rounded-xl flex items-center justify-center mx-auto mb-3 transition-colors`}
+              >
+                <span
+                  className={`${modulo.destacado ? "text-4xl" : "text-2xl"}`}
+                >
                   {modulo.icono}
                 </span>
               </div>
-              <p className={`${
-                modulo.destacado ? 'text-base font-bold' : 'text-sm font-medium'
-              } text-white`}>
+              <p
+                className={`${
+                  modulo.destacado
+                    ? "text-base font-bold"
+                    : "text-sm font-medium"
+                } text-white`}
+              >
                 {modulo.nombre}
               </p>
-              <p className={`${
-                modulo.destacado ? 'text-sm text-emerald-100 font-medium' : 'text-xs text-gray-600'
-              } mt-1`}>
+              <p
+                className={`${
+                  modulo.destacado
+                    ? "text-sm text-emerald-100 font-medium"
+                    : "text-xs text-gray-600"
+                } mt-1`}
+              >
                 {modulo.desc}
               </p>
             </button>
