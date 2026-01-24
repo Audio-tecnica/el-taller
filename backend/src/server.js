@@ -14,9 +14,7 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Permitir requests sin origin (Render, Postman, health checks)
       if (!origin) return callback(null, true);
-
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       } else {
@@ -26,8 +24,13 @@ app.use(
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  }),
+  })
 );
+
+// ✅ MIDDLEWARE NECESARIOS (ESTO ES LO QUE FALTA)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan("dev"));
 
 // Health check
 app.get("/api/health", (req, res) => {
