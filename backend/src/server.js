@@ -50,6 +50,7 @@ const mesasRoutes = require("./routes/mesasRoutes");
 const pedidosRoutes = require("./routes/pedidosRoutes");
 const cortesiasRoutes = require("./routes/cortesiasRoutes");
 const turnosRoutes = require("./routes/turnosRoutes");
+const barrilesRoutes = require('./routes/barrilesRoutes');
 
 app.use("/api/turnos", turnosRoutes);
 app.use("/api/cortesias", cortesiasRoutes);
@@ -59,6 +60,7 @@ app.use("/api/categorias", categoriasRoutes);
 app.use("/api/productos", productosRoutes);
 app.use("/api/mesas", mesasRoutes);
 app.use("/api/pedidos", pedidosRoutes);
+app.use('/api/barriles', barrilesRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {
