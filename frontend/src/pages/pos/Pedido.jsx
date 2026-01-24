@@ -211,12 +211,12 @@ export default function Pedido() {
         </div>
 
         {/* Grid de productos */}
-        <div className="flex-1 overflow-y-auto p-4 overscroll-contain">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
           {productosFiltrados.map((producto) => (
             <button
               key={producto.id}
               onClick={() => handleAgregarProducto(producto)}
-              className={`bg-[#141414] rounded-lg p-2 text-left hover:bg-[#1a1a1a] transition-all active:scale-95 border-2 ${
+              className={`bg-[#141414] rounded-lg p-3 text-left hover:bg-[#1a1a1a] transition-all active:scale-95 border-2 ${
                 producto.categoria?.nombre?.includes("Barril")
                   ? "border-amber-500"
                   : producto.categoria?.nombre?.includes("Botella")
