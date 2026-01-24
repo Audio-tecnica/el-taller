@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const { Usuario } = require('../models');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'el_taller_secret_2024';
-const JWT_EXPIRES_IN = '24h'; // Token expira en 24 horas
+const JWT_EXPIRES_IN = '24h';
 
 const authController = {
   // Login
@@ -11,39 +11,35 @@ const authController = {
     try {
       const { email, password } = req.body;
 
-      // Buscar usuario
       const usuario = await Usuario.findOne({ where: { email } });
       
       if (!usuario) {
         return res.status(401).json({ error: 'Credenciales inválidas' });
       }
 
-      // Verificar contraseña
-      const passwordValida = await bcrypt.compare(password, usuario.password);
+      // Usar el método del modelo o comparar directamente con password_hash
+      const passwordValida = await bcrypt.compare(password, usuario.password_hash);
       
       if (!passwordValida) {
         return res.status(401).json({ error: 'Credenciales inválidas' });
       }
 
-      // Verificar que el usuario esté activo
       if (!usuario.activo) {
         return res.status(401).json({ error: 'Usuario desactivado' });
       }
 
-      // Generar token
       const token = jwt.sign(
         { 
           id: usuario.id, 
           email: usuario.email, 
           rol: usuario.rol,
-          local: usuario.local
+          local: usuario.local_asignado_id
         },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRES_IN }
       );
 
-      // Responder sin la contraseña
-      const { password: _, ...usuarioSinPassword } = usuario.toJSON();
+      const { password_hash: _, ...usuarioSinPassword } = usuario.toJSON();
 
       res.json({
         message: 'Login exitoso',
@@ -59,8 +55,9 @@ const authController = {
   // Obtener usuario actual
   me: async (req, res) => {
     try {
-      const usuario = await Usuario.findByPk(req.user.id, {
-        attributes: { exclude: ['password'] }
+      // req.usuario viene del middleware (no req.user)
+      const usuario = await Usuario.findByPk(req.usuario.id, {
+        attributes: { exclude: ['password_hash'] }
       });
 
       if (!usuario) {
@@ -74,12 +71,11 @@ const authController = {
     }
   },
 
-  // Refresh token - genera un nuevo token si el actual es válido
+  // Refresh token
   refresh: async (req, res) => {
     try {
-      // req.user viene del middleware de autenticación
-      const usuario = await Usuario.findByPk(req.user.id, {
-        attributes: { exclude: ['password'] }
+      const usuario = await Usuario.findByPk(req.usuario.id, {
+        attributes: { exclude: ['password_hash'] }
       });
 
       if (!usuario) {
@@ -90,13 +86,12 @@ const authController = {
         return res.status(401).json({ error: 'Usuario desactivado' });
       }
 
-      // Generar nuevo token
       const token = jwt.sign(
         { 
           id: usuario.id, 
           email: usuario.email, 
           rol: usuario.rol,
-          local: usuario.local
+          local: usuario.local_asignado_id
         },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRES_IN }
@@ -118,24 +113,20 @@ const authController = {
     try {
       const { passwordActual, passwordNueva } = req.body;
 
-      const usuario = await Usuario.findByPk(req.user.id);
+      const usuario = await Usuario.findByPk(req.usuario.id);
 
       if (!usuario) {
         return res.status(404).json({ error: 'Usuario no encontrado' });
       }
 
-      // Verificar contraseña actual
-      const passwordValida = await bcrypt.compare(passwordActual, usuario.password);
+      const passwordValida = await bcrypt.compare(passwordActual, usuario.password_hash);
       
       if (!passwordValida) {
         return res.status(401).json({ error: 'Contraseña actual incorrecta' });
       }
 
-      // Hash de la nueva contraseña
       const hashedPassword = await bcrypt.hash(passwordNueva, 10);
-
-      // Actualizar
-      await usuario.update({ password: hashedPassword });
+      await usuario.update({ password_hash: hashedPassword });
 
       res.json({ message: 'Contraseña actualizada exitosamente' });
     } catch (error) {
@@ -147,29 +138,24 @@ const authController = {
   // Registrar nuevo usuario (solo admin)
   registro: async (req, res) => {
     try {
-      const { nombre, email, password, rol, local } = req.body;
+      const { nombre, email, password, rol, local_asignado_id } = req.body;
 
-      // Verificar que el email no exista
       const existente = await Usuario.findOne({ where: { email } });
       
       if (existente) {
         return res.status(400).json({ error: 'El email ya está registrado' });
       }
 
-      // Hash de la contraseña
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      // Crear usuario
       const usuario = await Usuario.create({
         nombre,
         email,
-        password: hashedPassword,
+        password_hash: password, // El hook beforeCreate lo hashea
         rol: rol || 'cajero',
-        local: local || 1,
+        local_asignado_id: local_asignado_id || null,
         activo: true
       });
 
-      const { password: _, ...usuarioSinPassword } = usuario.toJSON();
+      const { password_hash: _, ...usuarioSinPassword } = usuario.toJSON();
 
       res.status(201).json({
         message: 'Usuario creado exitosamente',
