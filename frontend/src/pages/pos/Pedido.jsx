@@ -138,9 +138,9 @@ export default function Pedido() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex relative">
+    <div className="h-screen bg-[#0a0a0a] flex relative overflow-hidden">
       {/* Panel izquierdo - Productos */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Header */}
         <header className="bg-[#0a0a0a] border-b border-[#2a2a2a] px-4 py-3">
           <div className="flex items-center justify-between">
@@ -211,7 +211,7 @@ export default function Pedido() {
         </div>
 
         {/* Grid de productos */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+        <div className="flex-1 overflow-y-auto p-4 overscroll-contain">
           {productosFiltrados.map((producto) => (
             <button
               key={producto.id}
