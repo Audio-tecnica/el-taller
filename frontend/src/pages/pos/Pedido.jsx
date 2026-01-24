@@ -211,44 +211,42 @@ export default function Pedido() {
         </div>
 
         {/* Grid de productos */}
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-2">
-            {productosFiltrados.map((producto) => (
-              <button
-                key={producto.id}
-                onClick={() => handleAgregarProducto(producto)}
-                className={`bg-[#141414] rounded-xl p-4 sm:p-2 text-left hover:bg-[#1a1a1a] transition-all active:scale-95 border-2 ${
-                  producto.categoria?.nombre?.includes("Barril")
-                    ? "border-amber-500"
-                    : producto.categoria?.nombre?.includes("Botella")
-                      ? "border-green-500"
-                      : producto.categoria?.nombre?.includes("Lata")
-                        ? "border-blue-500"
-                        : producto.categoria?.nombre?.includes("Comida") ||
-                            producto.categoria?.nombre?.includes("Piqueo")
-                          ? "border-orange-500"
-                          : producto.categoria?.nombre?.includes("Bebida")
-                            ? "border-purple-500"
-                            : "border-gray-700"
-                }`}
-              >
-                <p className="text-base sm:text-xs font-medium truncate">
-                  <span className="text-white">{producto.nombre}</span>
-                  {producto.presentacion && (
-                    <span className="text-[#D4B896] font-bold ml-1">
-                      ({producto.presentacion})
-                    </span>
-                  )}
-                </p>
-                <p className="text-[#D4B896] font-bold text-lg sm:text-xs mt-1 sm:mt-0.5">
-                  ${Number(producto.precio_venta).toLocaleString()}
-                </p>
-                <p className="text-sm sm:text-[10px] text-gray-600 mt-1 sm:mt-0.5">
-                  {producto.categoria?.icono} {producto.categoria?.nombre}
-                </p>
-              </button>
-            ))}
-          </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+          {productosFiltrados.map((producto) => (
+            <button
+              key={producto.id}
+              onClick={() => handleAgregarProducto(producto)}
+              className={`bg-[#141414] rounded-lg p-2 text-left hover:bg-[#1a1a1a] transition-all active:scale-95 border-2 ${
+                producto.categoria?.nombre?.includes("Barril")
+                  ? "border-amber-500"
+                  : producto.categoria?.nombre?.includes("Botella")
+                    ? "border-green-500"
+                    : producto.categoria?.nombre?.includes("Lata")
+                      ? "border-blue-500"
+                      : producto.categoria?.nombre?.includes("Comida") ||
+                          producto.categoria?.nombre?.includes("Piqueo")
+                        ? "border-orange-500"
+                        : producto.categoria?.nombre?.includes("Bebida")
+                          ? "border-purple-500"
+                          : "border-gray-700"
+              }`}
+            >
+              <p className="text-xs font-semibold truncate leading-tight">
+                <span className="text-white">{producto.nombre}</span>
+                {producto.presentacion && (
+                  <span className="text-[#D4B896] ml-1">
+                    ({producto.presentacion})
+                  </span>
+                )}
+              </p>
+              <p className="text-[#D4B896] font-bold text-sm mt-0.5">
+                ${Number(producto.precio_venta).toLocaleString()}
+              </p>
+              <p className="text-[9px] text-gray-500 mt-0.5 truncate">
+                {producto.categoria?.icono} {producto.categoria?.nombre}
+              </p>
+            </button>
+          ))}
         </div>
       </div>
 
