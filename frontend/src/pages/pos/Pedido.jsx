@@ -211,17 +211,22 @@ export default function Pedido() {
 
         {/* Grid de productos */}
         <div className="flex-1 overflow-y-auto p-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
             {productosFiltrados.map((producto) => (
               <button
                 key={producto.id}
                 onClick={() => handleAgregarProducto(producto)}
-                className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4 text-left hover:border-[#D4B896] hover:bg-[#1a1a1a] transition-all active:scale-95"
+                className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-3 text-left hover:border-[#D4B896] hover:bg-[#1a1a1a] transition-all active:scale-95"
               >
-                <p className="text-white font-medium truncate">
+                <p className="text-sm text-white font-medium truncate">
                   {producto.nombre}
+                  {producto.presentacion && (
+                    <span className="text-xs text-[#D4B896] ml-1">
+                      ({producto.presentacion})
+                    </span>
+                  )}
                 </p>
-                <p className="text-[#D4B896] font-bold mt-1">
+                <p className="text-[#D4B896] font-bold text-sm mt-1">
                   ${Number(producto.precio_venta).toLocaleString()}
                 </p>
                 <p className="text-xs text-gray-600 mt-1">
