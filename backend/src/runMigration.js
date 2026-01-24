@@ -1,5 +1,4 @@
 require('dotenv').config();
-const { addPresentacionColumn } = require('./migrations/add-presentacion');
 const { addBarrilFields } = require('./migrations/add-barril-fields');
 const { sequelize } = require('./models');
 
@@ -10,7 +9,6 @@ async function runMigrations() {
     await sequelize.authenticate();
     console.log('✅ Conexión a base de datos establecida');
     
-    await addPresentacionColumn();
     await addBarrilFields();
     
     console.log('🎉 Migraciones completadas exitosamente');
