@@ -89,6 +89,34 @@ export default function Productos() {
     }
   };
 
+  const handleActivarBarril = async (productoId, local) => {
+    if (window.confirm(`¿Activar barril en Local ${local}?`)) {
+      try {
+        const response = await fetch(
+          "https://el-taller.onrender.com/api/barriles/activar",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+            body: JSON.stringify({ producto_id: productoId, local }),
+          },
+        );
+
+        if (response.ok) {
+          toast.success("Barril activado en máquina");
+          cargarDatos();
+        } else {
+          const error = await response.json();
+          toast.error(error.error || "Error al activar barril");
+        }
+      } catch (error) {
+        toast.error("Error al activar barril");
+      }
+    }
+  };
+
   const resetForm = () => {
     setProductoEditar(null);
     setFormData({
@@ -182,82 +210,236 @@ export default function Productos() {
       {/* Lista de Productos */}
       <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          {productosFiltrados.map((producto) => (
-            <div
-              key={producto.id}
-              className={`bg-[#141414] rounded-lg p-3 transition border-2 ${
-                producto.categoria?.nombre?.includes("Barril")
-                  ? "border-amber-500"
-                  : producto.categoria?.nombre?.includes("Botella")
-                    ? "border-green-500"
-                    : producto.categoria?.nombre?.includes("Lata")
-                      ? "border-blue-500"
-                      : producto.categoria?.nombre?.includes("Comida") ||
-                          producto.categoria?.nombre?.includes("Piqueo")
-                        ? "border-orange-500"
-                        : producto.categoria?.nombre?.includes("Bebida")
-                          ? "border-purple-500"
-                          : "border-gray-700"
-              }`}
-            >
-              <div className="mb-2">
-                <h3 className="text-white font-semibold text-sm truncate">
-                  {producto.nombre}
-                </h3>
-                <span className="text-xs text-gray-500 truncate block">
-                  {producto.categoria?.icono} {producto.categoria?.nombre}
-                </span>
-              </div>
+          {productosFiltrados.map((producto) => {
+            const esBarril = producto.unidad_medida === "barriles";
 
-              <div className="mb-2">
-                <span className="text-[#D4B896] font-bold text-base">
-                  ${Number(producto.precio_venta).toLocaleString()}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <div className="bg-[#1a1a1a] rounded p-2 text-center">
-                  <p className="text-gray-500 text-[10px]">Local 1</p>
-                  <p
-                    className={`font-bold text-sm ${producto.stock_local1 <= producto.alerta_stock ? "text-red-500" : "text-emerald-500"}`}
-                  >
-                    {producto.stock_local1}
-                  </p>
-                </div>
-                <div className="bg-[#1a1a1a] rounded p-2 text-center">
-                  <p className="text-gray-500 text-[10px]">Local 2</p>
-                  <p
-                    className={`font-bold text-sm ${producto.stock_local2 <= producto.alerta_stock ? "text-red-500" : "text-emerald-500"}`}
-                  >
-                    {producto.stock_local2}
-                  </p>
-                </div>
-              </div>
-
-              {producto.disponible_b2b && (
+            return (
+              <div
+                key={producto.id}
+                className={`bg-[#141414] rounded-lg p-3 transition border-2 ${
+                  producto.categoria?.nombre?.includes("Barril")
+                    ? "border-amber-500"
+                    : producto.categoria?.nombre?.includes("Botella")
+                      ? "border-green-500"
+                      : producto.categoria?.nombre?.includes("Lata")
+                        ? "border-blue-500"
+                        : producto.categoria?.nombre?.includes("Comida") ||
+                            producto.categoria?.nombre?.includes("Piqueo")
+                          ? "border-orange-500"
+                          : producto.categoria?.nombre?.includes("Bebida")
+                            ? "border-purple-500"
+                            : "border-gray-700"
+                }`}
+              >
                 <div className="mb-2">
-                  <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">
-                    B2B: ${Number(producto.precio_mayorista).toLocaleString()}
+                  <h3 className="text-white font-semibold text-sm truncate">
+                    {producto.nombre}
+                  </h3>
+                  <span className="text-xs text-gray-500 truncate block">
+                    {producto.categoria?.icono} {producto.categoria?.nombre}
                   </span>
                 </div>
-              )}
 
-              <div className="flex gap-1.5">
-                <button
-                  onClick={() => handleEditar(producto)}
-                  className="flex-1 py-1.5 text-xs bg-[#1a1a1a] text-gray-300 rounded hover:bg-[#2a2a2a] transition border border-[#2a2a2a]"
-                >
-                  Editar
-                </button>
-                <button
-                  onClick={() => handleEliminar(producto.id)}
-                  className="py-1.5 px-3 text-xs bg-red-500/10 text-red-500 rounded hover:bg-red-500/20 transition"
-                >
-                  🗑
-                </button>
+                <div className="mb-2">
+                  <span className="text-[#D4B896] font-bold text-base">
+                    ${Number(producto.precio_venta).toLocaleString()}
+                  </span>
+                  {esBarril && (
+                    <span className="text-xs text-gray-500"> / vaso</span>
+                  )}
+                </div>
+
+                {/* STOCK PARA BARRILES */}
+                {esBarril ? (
+                  <>
+                    {/* Local 1 */}
+                    <div className="mb-2">
+                      <div className="bg-[#1a1a1a] rounded p-2">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-[10px] text-gray-500">
+                            Local 1
+                          </span>
+                          {producto.barril_activo_local1 ? (
+                            <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1 rounded">
+                              EN MÁQUINA
+                            </span>
+                          ) : (
+                            <span className="text-[9px] text-gray-600">
+                              Bodega: {producto.stock_local1}
+                            </span>
+                          )}
+                        </div>
+
+                        {producto.barril_activo_local1 ? (
+                          <>
+                            {/* Barra de progreso */}
+                            <div className="w-full bg-gray-700 rounded-full h-2 mb-1">
+                              <div
+                                className={`h-2 rounded-full transition-all ${
+                                  producto.vasos_disponibles_local1 <= 15
+                                    ? "bg-red-500"
+                                    : producto.vasos_disponibles_local1 <= 30
+                                      ? "bg-yellow-500"
+                                      : "bg-emerald-500"
+                                }`}
+                                style={{
+                                  width: `${(producto.vasos_disponibles_local1 / producto.capacidad_barril) * 100}%`,
+                                }}
+                              />
+                            </div>
+                            <p className="text-xs text-center">
+                              <span
+                                className={`font-bold ${
+                                  producto.vasos_disponibles_local1 <= 15
+                                    ? "text-red-500"
+                                    : producto.vasos_disponibles_local1 <= 30
+                                      ? "text-yellow-500"
+                                      : "text-emerald-500"
+                                }`}
+                              >
+                                {producto.vasos_disponibles_local1}
+                              </span>
+                              <span className="text-gray-500">
+                                /{producto.capacidad_barril} vasos
+                              </span>
+                            </p>
+                            {producto.vasos_disponibles_local1 <= 15 && (
+                              <p className="text-[9px] text-red-400 text-center mt-1">
+                                ⚠️ Casi vacío
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleActivarBarril(producto.id, 1)}
+                            disabled={producto.stock_local1 <= 0}
+                            className="w-full py-1 text-[10px] bg-emerald-600 text-white rounded hover:bg-emerald-500 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            {producto.stock_local1 > 0
+                              ? "▶ Activar"
+                              : "Sin stock"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Local 2 */}
+                    <div className="mb-2">
+                      <div className="bg-[#1a1a1a] rounded p-2">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-[10px] text-gray-500">
+                            Local 2
+                          </span>
+                          {producto.barril_activo_local2 ? (
+                            <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1 rounded">
+                              EN MÁQUINA
+                            </span>
+                          ) : (
+                            <span className="text-[9px] text-gray-600">
+                              Bodega: {producto.stock_local2}
+                            </span>
+                          )}
+                        </div>
+
+                        {producto.barril_activo_local2 ? (
+                          <>
+                            <div className="w-full bg-gray-700 rounded-full h-2 mb-1">
+                              <div
+                                className={`h-2 rounded-full transition-all ${
+                                  producto.vasos_disponibles_local2 <= 15
+                                    ? "bg-red-500"
+                                    : producto.vasos_disponibles_local2 <= 30
+                                      ? "bg-yellow-500"
+                                      : "bg-emerald-500"
+                                }`}
+                                style={{
+                                  width: `${(producto.vasos_disponibles_local2 / producto.capacidad_barril) * 100}%`,
+                                }}
+                              />
+                            </div>
+                            <p className="text-xs text-center">
+                              <span
+                                className={`font-bold ${
+                                  producto.vasos_disponibles_local2 <= 15
+                                    ? "text-red-500"
+                                    : producto.vasos_disponibles_local2 <= 30
+                                      ? "text-yellow-500"
+                                      : "text-emerald-500"
+                                }`}
+                              >
+                                {producto.vasos_disponibles_local2}
+                              </span>
+                              <span className="text-gray-500">
+                                /{producto.capacidad_barril} vasos
+                              </span>
+                            </p>
+                            {producto.vasos_disponibles_local2 <= 15 && (
+                              <p className="text-[9px] text-red-400 text-center mt-1">
+                                ⚠️ Casi vacío
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleActivarBarril(producto.id, 2)}
+                            disabled={producto.stock_local2 <= 0}
+                            className="w-full py-1 text-[10px] bg-emerald-600 text-white rounded hover:bg-emerald-500 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            {producto.stock_local2 > 0
+                              ? "▶ Activar"
+                              : "Sin stock"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  /* STOCK NORMAL PARA NO-BARRILES */
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div className="bg-[#1a1a1a] rounded p-2 text-center">
+                      <p className="text-gray-500 text-[10px]">Local 1</p>
+                      <p
+                        className={`font-bold text-sm ${producto.stock_local1 <= producto.alerta_stock ? "text-red-500" : "text-emerald-500"}`}
+                      >
+                        {producto.stock_local1}
+                      </p>
+                    </div>
+                    <div className="bg-[#1a1a1a] rounded p-2 text-center">
+                      <p className="text-gray-500 text-[10px]">Local 2</p>
+                      <p
+                        className={`font-bold text-sm ${producto.stock_local2 <= producto.alerta_stock ? "text-red-500" : "text-emerald-500"}`}
+                      >
+                        {producto.stock_local2}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {producto.disponible_b2b && (
+                  <div className="mb-2">
+                    <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">
+                      B2B: ${Number(producto.precio_mayorista).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => handleEditar(producto)}
+                    className="flex-1 py-1.5 text-xs bg-[#1a1a1a] text-gray-300 rounded hover:bg-[#2a2a2a] transition border border-[#2a2a2a]"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => handleEliminar(producto.id)}
+                    className="py-1.5 px-3 text-xs bg-red-500/10 text-red-500 rounded hover:bg-red-500/20 transition"
+                  >
+                    🗑
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {productosFiltrados.length === 0 && (
