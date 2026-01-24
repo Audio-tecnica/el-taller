@@ -18,7 +18,7 @@ export default function Productos() {
     categoria_id: "",
     precio_venta: "",
     precio_mayorista: "",
-    presentacion: '',
+    presentacion: "",
     stock_local1: 0,
     stock_local2: 0,
     alerta_stock: 10,
@@ -181,39 +181,53 @@ export default function Productos() {
 
       {/* Lista de Productos */}
       <div className="max-w-7xl mx-auto px-4 py-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {productosFiltrados.map((producto) => (
             <div
               key={producto.id}
-              className="bg-[#141414] rounded-xl p-5 border border-[#2a2a2a] hover:border-[#3a3a3a] transition"
+              className={`bg-[#141414] rounded-lg p-3 transition border-2 ${
+                producto.categoria?.nombre?.includes("Barril")
+                  ? "border-amber-500"
+                  : producto.categoria?.nombre?.includes("Botella")
+                    ? "border-green-500"
+                    : producto.categoria?.nombre?.includes("Lata")
+                      ? "border-blue-500"
+                      : producto.categoria?.nombre?.includes("Comida") ||
+                          producto.categoria?.nombre?.includes("Piqueo")
+                        ? "border-orange-500"
+                        : producto.categoria?.nombre?.includes("Bebida")
+                          ? "border-purple-500"
+                          : "border-gray-700"
+              }`}
             >
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-white font-semibold text-lg">
-                    {producto.nombre}
-                  </h3>
-                  <span className="text-sm text-gray-500">
-                    {producto.categoria?.icono} {producto.categoria?.nombre}
-                  </span>
-                </div>
-                <span className="text-[#D4B896] font-bold text-xl">
+              <div className="mb-2">
+                <h3 className="text-white font-semibold text-sm truncate">
+                  {producto.nombre}
+                </h3>
+                <span className="text-xs text-gray-500 truncate block">
+                  {producto.categoria?.icono} {producto.categoria?.nombre}
+                </span>
+              </div>
+
+              <div className="mb-2">
+                <span className="text-[#D4B896] font-bold text-base">
                   ${Number(producto.precio_venta).toLocaleString()}
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="bg-[#1a1a1a] rounded-lg p-3 text-center">
-                  <p className="text-gray-500 text-xs mb-1">Local 1</p>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <div className="bg-[#1a1a1a] rounded p-2 text-center">
+                  <p className="text-gray-500 text-[10px]">Local 1</p>
                   <p
-                    className={`font-bold text-lg ${producto.stock_local1 <= producto.alerta_stock ? "text-red-500" : "text-emerald-500"}`}
+                    className={`font-bold text-sm ${producto.stock_local1 <= producto.alerta_stock ? "text-red-500" : "text-emerald-500"}`}
                   >
                     {producto.stock_local1}
                   </p>
                 </div>
-                <div className="bg-[#1a1a1a] rounded-lg p-3 text-center">
-                  <p className="text-gray-500 text-xs mb-1">Local 2</p>
+                <div className="bg-[#1a1a1a] rounded p-2 text-center">
+                  <p className="text-gray-500 text-[10px]">Local 2</p>
                   <p
-                    className={`font-bold text-lg ${producto.stock_local2 <= producto.alerta_stock ? "text-red-500" : "text-emerald-500"}`}
+                    className={`font-bold text-sm ${producto.stock_local2 <= producto.alerta_stock ? "text-red-500" : "text-emerald-500"}`}
                   >
                     {producto.stock_local2}
                   </p>
@@ -221,23 +235,23 @@ export default function Productos() {
               </div>
 
               {producto.disponible_b2b && (
-                <div className="mb-4">
-                  <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
+                <div className="mb-2">
+                  <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">
                     B2B: ${Number(producto.precio_mayorista).toLocaleString()}
                   </span>
                 </div>
               )}
 
-              <div className="flex gap-2">
+              <div className="flex gap-1.5">
                 <button
                   onClick={() => handleEditar(producto)}
-                  className="flex-1 py-2.5 bg-[#1a1a1a] text-gray-300 rounded-lg hover:bg-[#2a2a2a] transition border border-[#2a2a2a]"
+                  className="flex-1 py-1.5 text-xs bg-[#1a1a1a] text-gray-300 rounded hover:bg-[#2a2a2a] transition border border-[#2a2a2a]"
                 >
                   Editar
                 </button>
                 <button
                   onClick={() => handleEliminar(producto.id)}
-                  className="py-2.5 px-4 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition"
+                  className="py-1.5 px-3 text-xs bg-red-500/10 text-red-500 rounded hover:bg-red-500/20 transition"
                 >
                   🗑
                 </button>
