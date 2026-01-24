@@ -113,7 +113,7 @@ export default function Dashboard() {
               onClick={() => navigate(modulo.ruta)}
               className={`${
                 modulo.destacado
-                  ? "bg-emerald-600 hover:bg-emerald-500 border-2 border-emerald-400 scale-105"
+                  ? "bg-emerald-600 hover:bg-emerald-500 border-2 border-emerald-400"
                   : "bg-[#141414] hover:bg-[#1a1a1a] border border-[#2a2a2a] hover:border-[#D4B896]"
               } rounded-xl p-5 text-center transition-all duration-200 group`}
             >
