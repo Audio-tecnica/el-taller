@@ -119,37 +119,44 @@ export default function Productos() {
   };
 
   const handleCambiarBarril = async (productoId, local) => {
-    if (window.confirm(`¿Cambiar barril vacío y activar uno nuevo en Local ${local}?`)) {
+    if (
+      window.confirm(
+        `¿Cambiar barril vacío y activar uno nuevo en Local ${local}?`,
+      )
+    ) {
       try {
         // 1. Desactivar barril actual
-        await fetch('https://el-taller.onrender.com/api/barriles/desactivar', {
-          method: 'POST',
+        await fetch("https://el-taller.onrender.com/api/barriles/desactivar", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
-          body: JSON.stringify({ producto_id: productoId, local })
+          body: JSON.stringify({ producto_id: productoId, local }),
         });
-        
+
         // 2. Activar nuevo barril
-        const response = await fetch('https://el-taller.onrender.com/api/barriles/activar', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+        const response = await fetch(
+          "https://el-taller.onrender.com/api/barriles/activar",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+            body: JSON.stringify({ producto_id: productoId, local }),
           },
-          body: JSON.stringify({ producto_id: productoId, local })
-        });
-        
+        );
+
         if (response.ok) {
-          toast.success('✅ Barril cambiado exitosamente');
+          toast.success("✅ Barril cambiado exitosamente");
           cargarDatos();
         } else {
           const error = await response.json();
-          toast.error(error.error || 'Error al cambiar barril');
+          toast.error(error.error || "Error al cambiar barril");
         }
       } catch (error) {
-        toast.error('Error al cambiar barril');
+        toast.error("Error al cambiar barril");
       }
     }
   };
@@ -293,10 +300,14 @@ export default function Productos() {
                     {/* Local 1 */}
                     <div className="bg-[#1a1a1a] rounded-lg p-3 border border-gray-700">
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-semibold text-white">Local 1</span>
-                        <span className="text-xs text-gray-400">📦 {producto.stock_local1} en bodega</span>
+                        <span className="text-xs font-semibold text-white">
+                          Local 1
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          📦 {producto.stock_local1} en bodega
+                        </span>
                       </div>
-                      
+
                       {producto.barril_activo_local1 ? (
                         <>
                           <div className="mb-2">
@@ -304,36 +315,53 @@ export default function Productos() {
                               🟢 EN MÁQUINA
                             </span>
                           </div>
-                          
+
                           <div className="w-full bg-gray-700 rounded-full h-3 mb-2">
-                            <div 
+                            <div
                               className={`h-3 rounded-full transition-all ${
-                                producto.vasos_disponibles_local1 <= 15 ? 'bg-red-500 animate-pulse' :
-                                producto.vasos_disponibles_local1 <= 30 ? 'bg-yellow-500' :
-                                'bg-emerald-500'
+                                producto.vasos_disponibles_local1 <= 15
+                                  ? "bg-red-500 animate-pulse"
+                                  : producto.vasos_disponibles_local1 <= 30
+                                    ? "bg-yellow-500"
+                                    : "bg-emerald-500"
                               }`}
-                              style={{ width: `${(producto.vasos_disponibles_local1 / producto.capacidad_barril) * 100}%` }}
+                              style={{
+                                width: `${(producto.vasos_disponibles_local1 / producto.capacidad_barril) * 100}%`,
+                              }}
                             />
                           </div>
-                          
+
                           <div className="flex justify-between items-center mb-2">
-                            <span className={`text-base font-bold ${
-                              producto.vasos_disponibles_local1 <= 15 ? 'text-red-500' :
-                              producto.vasos_disponibles_local1 <= 30 ? 'text-yellow-500' :
-                              'text-emerald-500'
-                            }`}>
+                            <span
+                              className={`text-base font-bold ${
+                                producto.vasos_disponibles_local1 <= 15
+                                  ? "text-red-500"
+                                  : producto.vasos_disponibles_local1 <= 30
+                                    ? "text-yellow-500"
+                                    : "text-emerald-500"
+                              }`}
+                            >
                               {producto.vasos_disponibles_local1} vasos
                             </span>
                             <span className="text-xs text-gray-500">
-                              {Math.round((producto.vasos_disponibles_local1 / producto.capacidad_barril) * 100)}%
+                              {Math.round(
+                                (producto.vasos_disponibles_local1 /
+                                  producto.capacidad_barril) *
+                                  100,
+                              )}
+                              %
                             </span>
                           </div>
-                          
+
                           {producto.vasos_disponibles_local1 <= 15 && (
                             <div className="mt-2 p-2 bg-red-500/10 border border-red-500/30 rounded">
-                              <p className="text-xs text-red-400 text-center mb-2">⚠️ Barril casi vacío</p>
+                              <p className="text-xs text-red-400 text-center mb-2">
+                                ⚠️ Barril casi vacío
+                              </p>
                               <button
-                                onClick={() => handleCambiarBarril(producto.id, 1)}
+                                onClick={() =>
+                                  handleCambiarBarril(producto.id, 1)
+                                }
                                 disabled={producto.stock_local1 <= 0}
                                 className="w-full py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-500 transition font-semibold disabled:opacity-50"
                               >
@@ -344,13 +372,17 @@ export default function Productos() {
                         </>
                       ) : (
                         <div className="text-center py-2">
-                          <p className="text-xs text-gray-500 mb-2">Sin barril activo</p>
+                          <p className="text-xs text-gray-500 mb-2">
+                            Sin barril activo
+                          </p>
                           <button
                             onClick={() => handleActivarBarril(producto.id, 1)}
                             disabled={producto.stock_local1 <= 0}
                             className="w-full py-2 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition disabled:opacity-30 disabled:cursor-not-allowed"
                           >
-                            {producto.stock_local1 > 0 ? '▶ Activar barril' : '❌ Sin barriles'}
+                            {producto.stock_local1 > 0
+                              ? "▶ Activar barril"
+                              : "❌ Sin barriles"}
                           </button>
                         </div>
                       )}
@@ -359,10 +391,14 @@ export default function Productos() {
                     {/* Local 2 */}
                     <div className="bg-[#1a1a1a] rounded-lg p-3 border border-gray-700">
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-semibold text-white">Local 2</span>
-                        <span className="text-xs text-gray-400">📦 {producto.stock_local2} en bodega</span>
+                        <span className="text-xs font-semibold text-white">
+                          Local 2
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          📦 {producto.stock_local2} en bodega
+                        </span>
                       </div>
-                      
+
                       {producto.barril_activo_local2 ? (
                         <>
                           <div className="mb-2">
@@ -370,36 +406,53 @@ export default function Productos() {
                               🟢 EN MÁQUINA
                             </span>
                           </div>
-                          
+
                           <div className="w-full bg-gray-700 rounded-full h-3 mb-2">
-                            <div 
+                            <div
                               className={`h-3 rounded-full transition-all ${
-                                producto.vasos_disponibles_local2 <= 15 ? 'bg-red-500 animate-pulse' :
-                                producto.vasos_disponibles_local2 <= 30 ? 'bg-yellow-500' :
-                                'bg-emerald-500'
+                                producto.vasos_disponibles_local2 <= 15
+                                  ? "bg-red-500 animate-pulse"
+                                  : producto.vasos_disponibles_local2 <= 30
+                                    ? "bg-yellow-500"
+                                    : "bg-emerald-500"
                               }`}
-                              style={{ width: `${(producto.vasos_disponibles_local2 / producto.capacidad_barril) * 100}%` }}
+                              style={{
+                                width: `${(producto.vasos_disponibles_local2 / producto.capacidad_barril) * 100}%`,
+                              }}
                             />
                           </div>
-                          
+
                           <div className="flex justify-between items-center mb-2">
-                            <span className={`text-base font-bold ${
-                              producto.vasos_disponibles_local2 <= 15 ? 'text-red-500' :
-                              producto.vasos_disponibles_local2 <= 30 ? 'text-yellow-500' :
-                              'text-emerald-500'
-                            }`}>
+                            <span
+                              className={`text-base font-bold ${
+                                producto.vasos_disponibles_local2 <= 15
+                                  ? "text-red-500"
+                                  : producto.vasos_disponibles_local2 <= 30
+                                    ? "text-yellow-500"
+                                    : "text-emerald-500"
+                              }`}
+                            >
                               {producto.vasos_disponibles_local2} vasos
                             </span>
                             <span className="text-xs text-gray-500">
-                              {Math.round((producto.vasos_disponibles_local2 / producto.capacidad_barril) * 100)}%
+                              {Math.round(
+                                (producto.vasos_disponibles_local2 /
+                                  producto.capacidad_barril) *
+                                  100,
+                              )}
+                              %
                             </span>
                           </div>
-                          
+
                           {producto.vasos_disponibles_local2 <= 15 && (
                             <div className="mt-2 p-2 bg-red-500/10 border border-red-500/30 rounded">
-                              <p className="text-xs text-red-400 text-center mb-2">⚠️ Barril casi vacío</p>
+                              <p className="text-xs text-red-400 text-center mb-2">
+                                ⚠️ Barril casi vacío
+                              </p>
                               <button
-                                onClick={() => handleCambiarBarril(producto.id, 2)}
+                                onClick={() =>
+                                  handleCambiarBarril(producto.id, 2)
+                                }
                                 disabled={producto.stock_local2 <= 0}
                                 className="w-full py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-500 transition font-semibold disabled:opacity-50"
                               >
@@ -410,13 +463,17 @@ export default function Productos() {
                         </>
                       ) : (
                         <div className="text-center py-2">
-                          <p className="text-xs text-gray-500 mb-2">Sin barril activo</p>
+                          <p className="text-xs text-gray-500 mb-2">
+                            Sin barril activo
+                          </p>
                           <button
                             onClick={() => handleActivarBarril(producto.id, 2)}
                             disabled={producto.stock_local2 <= 0}
                             className="w-full py-2 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition disabled:opacity-30 disabled:cursor-not-allowed"
                           >
-                            {producto.stock_local2 > 0 ? '▶ Activar barril' : '❌ Sin barriles'}
+                            {producto.stock_local2 > 0
+                              ? "▶ Activar barril"
+                              : "❌ Sin barriles"}
                           </button>
                         </div>
                       )}
@@ -424,22 +481,43 @@ export default function Productos() {
                   </div>
                 ) : (
                   /* STOCK NORMAL PARA NO-BARRILES */
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div className="bg-[#1a1a1a] rounded-lg p-3 text-center">
-                      <p className="text-gray-500 text-xs mb-1">Local 1</p>
-                      <p
-                        className={`font-bold text-lg ${producto.stock_local1 <= producto.alerta_stock ? "text-red-500" : "text-emerald-500"}`}
-                      >
-                        {producto.stock_local1}
-                      </p>
+                  <div className="space-y-3">
+                    {/* Local 1 */}
+                    <div className="bg-[#1a1a1a] rounded-lg p-3 border border-gray-700">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-semibold text-white">
+                          Local 1
+                        </span>
+                        <span
+                          className={`text-2xl font-bold ${producto.stock_local1 <= producto.alerta_stock ? "text-red-500" : "text-emerald-500"}`}
+                        >
+                          {producto.stock_local1}
+                        </span>
+                      </div>
+                      {producto.stock_local1 <= producto.alerta_stock && (
+                        <p className="text-[10px] text-red-400 mt-1">
+                          ⚠️ Stock bajo
+                        </p>
+                      )}
                     </div>
-                    <div className="bg-[#1a1a1a] rounded-lg p-3 text-center">
-                      <p className="text-gray-500 text-xs mb-1">Local 2</p>
-                      <p
-                        className={`font-bold text-lg ${producto.stock_local2 <= producto.alerta_stock ? "text-red-500" : "text-emerald-500"}`}
-                      >
-                        {producto.stock_local2}
-                      </p>
+
+                    {/* Local 2 */}
+                    <div className="bg-[#1a1a1a] rounded-lg p-3 border border-gray-700">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-semibold text-white">
+                          Local 2
+                        </span>
+                        <span
+                          className={`text-2xl font-bold ${producto.stock_local2 <= producto.alerta_stock ? "text-red-500" : "text-emerald-500"}`}
+                        >
+                          {producto.stock_local2}
+                        </span>
+                      </div>
+                      {producto.stock_local2 <= producto.alerta_stock && (
+                        <p className="text-[10px] text-red-400 mt-1">
+                          ⚠️ Stock bajo
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
@@ -569,7 +647,7 @@ export default function Productos() {
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-2">
                   Presentación
