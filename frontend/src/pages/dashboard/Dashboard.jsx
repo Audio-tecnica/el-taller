@@ -14,12 +14,48 @@ export default function Dashboard() {
   };
 
   const modulos = [
-    { nombre: 'Productos', icono: '📦', ruta: '/productos', desc: 'Gestión de inventario' },
-    { nombre: 'Mesas', icono: '🪑', ruta: '/mesas', desc: 'Control de mesas' },
-    { nombre: 'Punto de Venta', icono: '🍺', ruta: '/pos', desc: 'Tomar pedidos' },
-    { nombre: 'Caja', icono: '💰', ruta: '/caja', desc: 'Turnos y arqueo' },
-    { nombre: 'Clientes B2B', icono: '🏢', ruta: '/clientes-b2b', desc: 'Ventas mayoristas' },
-    { nombre: 'Reportes', icono: '📊', ruta: '/reportes', desc: 'Estadísticas' },
+    { 
+      nombre: 'Productos', 
+      icono: '📦', 
+      ruta: '/productos', 
+      desc: 'Gestión de inventario',
+      destacado: false
+    },
+    { 
+      nombre: 'Gestión de Mesas', 
+      icono: '🪑', 
+      ruta: '/mesas', 
+      desc: 'Configurar mesas',
+      destacado: false
+    },
+    { 
+      nombre: 'Punto de Venta', 
+      icono: '🍺', 
+      ruta: '/pos', 
+      desc: '¡Tomar pedidos aquí!',
+      destacado: true
+    },
+    { 
+      nombre: 'Caja', 
+      icono: '💰', 
+      ruta: '/caja', 
+      desc: 'Turnos y arqueo',
+      destacado: false
+    },
+    { 
+      nombre: 'Clientes B2B', 
+      icono: '🏢', 
+      ruta: '/clientes-b2b', 
+      desc: 'Ventas mayoristas',
+      destacado: false
+    },
+    { 
+      nombre: 'Reportes', 
+      icono: '📊', 
+      ruta: '/reportes', 
+      desc: 'Estadísticas',
+      destacado: false
+    },
   ];
 
   return (
@@ -68,13 +104,31 @@ export default function Dashboard() {
             <button
               key={modulo.nombre}
               onClick={() => navigate(modulo.ruta)}
-              className="bg-[#141414] hover:bg-[#1a1a1a] border border-[#2a2a2a] hover:border-[#D4B896] rounded-xl p-5 text-center transition-all duration-200 group"
+              className={`${
+                modulo.destacado 
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border-2 border-emerald-400 scale-105' 
+                  : 'bg-[#141414] hover:bg-[#1a1a1a] border border-[#2a2a2a] hover:border-[#D4B896]'
+              } rounded-xl p-5 text-center transition-all duration-200 group`}
             >
-              <div className="w-12 h-12 bg-[#1a1a1a] group-hover:bg-[#D4B896]/10 rounded-xl flex items-center justify-center mx-auto mb-3 transition-colors">
-                <span className="text-2xl">{modulo.icono}</span>
+              <div className={`${
+                modulo.destacado ? 'w-16 h-16' : 'w-12 h-12'
+              } ${
+                modulo.destacado ? 'bg-emerald-700' : 'bg-[#1a1a1a] group-hover:bg-[#D4B896]/10'
+              } rounded-xl flex items-center justify-center mx-auto mb-3 transition-colors`}>
+                <span className={`${modulo.destacado ? 'text-4xl' : 'text-2xl'}`}>
+                  {modulo.icono}
+                </span>
               </div>
-              <p className="text-white font-medium text-sm">{modulo.nombre}</p>
-              <p className="text-gray-600 text-xs mt-1">{modulo.desc}</p>
+              <p className={`${
+                modulo.destacado ? 'text-base font-bold' : 'text-sm font-medium'
+              } text-white`}>
+                {modulo.nombre}
+              </p>
+              <p className={`${
+                modulo.destacado ? 'text-sm text-emerald-100 font-medium' : 'text-xs text-gray-600'
+              } mt-1`}>
+                {modulo.desc}
+              </p>
             </button>
           ))}
         </div>
