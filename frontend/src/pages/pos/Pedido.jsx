@@ -216,7 +216,20 @@ export default function Pedido() {
               <button
                 key={producto.id}
                 onClick={() => handleAgregarProducto(producto)}
-                className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4 text-left hover:border-[#D4B896] hover:bg-[#1a1a1a] transition-all active:scale-95"
+                className={`bg-[#141414] rounded-xl p-3 text-left hover:bg-[#1a1a1a] transition-all active:scale-95 border-2 ${
+                  producto.categoria?.nombre?.includes("Barril")
+                    ? "border-amber-500"
+                    : producto.categoria?.nombre?.includes("Botella")
+                      ? "border-green-500"
+                      : producto.categoria?.nombre?.includes("Lata")
+                        ? "border-blue-500"
+                        : producto.categoria?.nombre?.includes("Comida") ||
+                            producto.categoria?.nombre?.includes("Piqueo")
+                          ? "border-orange-500"
+                          : producto.categoria?.nombre?.includes("Bebida")
+                            ? "border-purple-500"
+                            : "border-gray-700"
+                }`}
               >
                 <p className="text-white font-medium truncate">
                   {producto.nombre}
