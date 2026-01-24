@@ -31,11 +31,23 @@ export default function POS() {
     cargarDatos();
   }, [cargarDatos]);
 
+  // Auto-refresh cada 10 segundos
   useEffect(() => {
     const interval = setInterval(() => {
       cargarDatos();
     }, 10000);
     return () => clearInterval(interval);
+  }, [cargarDatos]);
+
+  // Refresh cuando vuelves a la pestaña/app
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        cargarDatos();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [cargarDatos]);
 
   const handleMesaClick = async (mesa) => {
