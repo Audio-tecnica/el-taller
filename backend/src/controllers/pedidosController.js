@@ -43,12 +43,15 @@ const pedidosController = {
           estado: "abierto",
           subtotal: 0,
         },
-        { transaction: t }
+        { transaction: t },
       );
 
       await mesa.update({ estado: "ocupada" }, { transaction: t });
+
+      // ✅ COMMIT ANTES de buscar el pedido completo
       await t.commit();
 
+      // Buscar pedido completo DESPUÉS del commit (sin transacción)
       const pedidoCompleto = await Pedido.findByPk(pedido.id, {
         include: [
           { model: Mesa, as: "mesa" },
@@ -63,7 +66,11 @@ const pedidosController = {
 
       res.status(201).json(pedidoCompleto);
     } catch (error) {
-      await t.rollback();
+      // Solo hace rollback si la transacción NO se ha completado
+      if (!t.finished) {
+        await t.rollback();
+      }
+      console.error("Error en abrirPedido:", error);
       res.status(500).json({ error: error.message });
     }
   },
@@ -92,7 +99,9 @@ const pedidosController = {
       });
 
       if (!pedido) {
-        return res.status(404).json({ error: "No hay pedido abierto en esta mesa" });
+        return res
+          .status(404)
+          .json({ error: "No hay pedido abierto en esta mesa" });
       }
 
       res.json(pedido);
@@ -129,7 +138,7 @@ const pedidosController = {
         const nuevoSubtotal = nuevaCantidad * parseFloat(producto.precio_venta);
         await item.update(
           { cantidad: nuevaCantidad, subtotal: nuevoSubtotal },
-          { transaction: t }
+          { transaction: t },
         );
       } else {
         const subtotalItem = cantidad * parseFloat(producto.precio_venta);
@@ -142,7 +151,7 @@ const pedidosController = {
             subtotal: subtotalItem,
             notas,
           },
-          { transaction: t }
+          { transaction: t },
         );
       }
 
@@ -150,7 +159,10 @@ const pedidosController = {
         where: { pedido_id },
         transaction: t,
       });
-      const nuevoSubtotal = items.reduce((sum, i) => sum + parseFloat(i.subtotal), 0);
+      const nuevoSubtotal = items.reduce(
+        (sum, i) => sum + parseFloat(i.subtotal),
+        0,
+      );
       await pedido.update({ subtotal: nuevoSubtotal }, { transaction: t });
 
       await t.commit();
@@ -207,7 +219,7 @@ const pedidosController = {
         const nuevoSubtotal = nuevaCantidad * parseFloat(item.precio_unitario);
         await item.update(
           { cantidad: nuevaCantidad, subtotal: nuevoSubtotal },
-          { transaction: t }
+          { transaction: t },
         );
       }
 
@@ -215,7 +227,10 @@ const pedidosController = {
         where: { pedido_id },
         transaction: t,
       });
-      const nuevoSubtotal = items.reduce((sum, i) => sum + parseFloat(i.subtotal), 0);
+      const nuevoSubtotal = items.reduce(
+        (sum, i) => sum + parseFloat(i.subtotal),
+        0,
+      );
       await pedido.update({ subtotal: nuevoSubtotal }, { transaction: t });
 
       await t.commit();
@@ -249,7 +264,12 @@ const pedidosController = {
     const t = await sequelize.transaction();
     try {
       const { pedido_id } = req.params;
-      const { metodo_pago, monto_cortesia, razon_cortesia, descripcion_cortesia } = req.body;
+      const {
+        metodo_pago,
+        monto_cortesia,
+        razon_cortesia,
+        descripcion_cortesia,
+      } = req.body;
       const usuario_id = req.usuario.id;
 
       const pedido = await Pedido.findByPk(pedido_id, {
@@ -275,7 +295,7 @@ const pedidosController = {
           total_final: totalFinal,
           closed_at: new Date(),
         },
-        { transaction: t }
+        { transaction: t },
       );
 
       if (cortesia > 0) {
@@ -290,14 +310,14 @@ const pedidosController = {
             autorizado_por_usuario_id: usuario_id,
             local_id: pedido.local_id,
           },
-          { transaction: t }
+          { transaction: t },
         );
       }
 
       if (pedido.mesa_id) {
         await Mesa.update(
           { estado: "disponible" },
-          { where: { id: pedido.mesa_id }, transaction: t }
+          { where: { id: pedido.mesa_id }, transaction: t },
         );
       }
 
@@ -336,13 +356,13 @@ const pedidosController = {
           estado: "cancelado",
           closed_at: new Date(),
         },
-        { transaction: t }
+        { transaction: t },
       );
 
       if (pedido.mesa_id) {
         await Mesa.update(
           { estado: "disponible" },
-          { where: { id: pedido.mesa_id }, transaction: t }
+          { where: { id: pedido.mesa_id }, transaction: t },
         );
       }
 
