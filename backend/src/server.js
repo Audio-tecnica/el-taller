@@ -1,9 +1,26 @@
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
+const http = require("http");
+const { Server } = require("socket.io");
 require("dotenv").config();
 
 const app = express();
+const server = http.createServer(app);
+
+// Configurar Socket.IO
+const io = new Server(server, {
+  cors: {
+    origin: [
+      "http://localhost:5173",
+      "https://el-taller-phi.vercel.app",
+    ],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    credentials: true
+  },
+  pingTimeout: 60000,
+  pingInterval: 25000
+});
 
 // Middleware - CORS primero
 const allowedOrigins = [
@@ -27,10 +44,13 @@ app.use(
   })
 );
 
-// ✅ MIDDLEWARE NECESARIOS (ESTO ES LO QUE FALTA)
+// Middleware necesarios
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
+
+// Hacer io accesible en los controladores
+app.set('io', io);
 
 // Health check
 app.get("/api/health", (req, res) => {
@@ -38,6 +58,7 @@ app.get("/api/health", (req, res) => {
     status: "OK",
     message: "🍺 El Taller API is running",
     timestamp: new Date(),
+    websocket: "enabled"
   });
 });
 
@@ -62,6 +83,45 @@ app.use("/api/mesas", mesasRoutes);
 app.use("/api/pedidos", pedidosRoutes);
 app.use('/api/barriles', barrilesRoutes);
 
+// Socket.IO - Manejo de conexiones
+io.on('connection', (socket) => {
+  console.log(`🔌 Cliente conectado: ${socket.id}`);
+  
+  // El cliente puede unirse a rooms por local
+  socket.on('join_local', (local) => {
+    socket.join(`local_${local}`);
+    console.log(`📍 Socket ${socket.id} se unió a local_${local}`);
+  });
+  
+  // El cliente puede unirse a una mesa específica
+  socket.on('join_mesa', (mesaId) => {
+    socket.join(`mesa_${mesaId}`);
+    console.log(`🍽️ Socket ${socket.id} se unió a mesa_${mesaId}`);
+  });
+  
+  // Salir de una mesa
+  socket.on('leave_mesa', (mesaId) => {
+    socket.leave(`mesa_${mesaId}`);
+    console.log(`🚪 Socket ${socket.id} salió de mesa_${mesaId}`);
+  });
+  
+  socket.on('disconnect', () => {
+    console.log(`❌ Cliente desconectado: ${socket.id}`);
+  });
+});
+
+// Exportar io para usarlo en otros módulos
+module.exports.io = io;
+
+// Función helper para emitir eventos (usar en controladores)
+app.emitEvent = (event, data, room = null) => {
+  if (room) {
+    io.to(room).emit(event, data);
+  } else {
+    io.emit(event, data);
+  }
+};
+
 // Error handling
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -73,7 +133,9 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+// Usar server.listen en lugar de app.listen para Socket.IO
+server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🍺 El Taller Backend - Ready!`);
+  console.log(`🔌 WebSocket enabled`);
 });

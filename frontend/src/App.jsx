@@ -7,21 +7,24 @@ import Mesas from './pages/mesas/Mesas';
 import POS from './pages/pos/Pos';
 import Pedido from './pages/pos/Pedido';
 import Caja from './pages/caja/Caja';
+import { AuthProvider } from './context/AuthContext';
 
 function App() {
   return (
     <Router>
-      <Toaster position="top-right" />
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/productos" element={<Productos />} />
-        <Route path="/mesas" element={<Mesas />} />
-        <Route path="/pos" element={<POS />} />
-        <Route path="/pos/pedido/:pedido_id" element={<Pedido />} />
-        <Route path="/caja" element={<Caja />} />
-        <Route path="/" element={<Login />} />
-      </Routes>
+      <AuthProvider>
+        <Toaster position="top-right" />
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/productos" element={<Productos />} />
+          <Route path="/mesas" element={<Mesas />} />
+          <Route path="/pos" element={<POS />} />
+          <Route path="/pos/pedido/:pedido_id" element={<Pedido />} />
+          <Route path="/caja" element={<Caja />} />
+          <Route path="/" element={<Login />} />
+        </Routes>
+      </AuthProvider>
     </Router>
   );
 }
