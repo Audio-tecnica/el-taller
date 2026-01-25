@@ -11,6 +11,7 @@ export default function Productos() {
   
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
+  const [resumen, setResumen] = useState(null);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [productoEditar, setProductoEditar] = useState(null);
@@ -35,12 +36,14 @@ export default function Productos() {
 
   const cargarDatos = useCallback(async () => {
     try {
-      const [prods, cats] = await Promise.all([
+      const [prods, cats, inventarioData] = await Promise.all([
         productosService.getProductos(),
         productosService.getCategorias(),
+        inventarioService.getInventarioConsolidado().catch(() => ({ productos: [], resumen: null }))
       ]);
       setProductos(prods);
       setCategorias(cats);
+      setResumen(inventarioData.resumen);
     } catch {
       toast.error("Error al cargar datos");
     } finally {
@@ -285,51 +288,71 @@ export default function Productos() {
         </div>
       </header>
 
-      {/* Tabs de navegación - SOLO CATÁLOGO POR AHORA */}
+      {/* Tabs de navegación */}
       <div className="bg-[#0a0a0a] border-b border-[#1a1a1a] flex-shrink-0">
         <div className="max-w-7xl mx-auto px-3 py-2">
           <div className="flex gap-2">
             <button
               onClick={() => setTabActiva("catalogo")}
-              className="px-4 py-2 rounded-lg font-medium transition text-sm bg-[#D4B896] text-[#0a0a0a]"
+              className={
+                "px-4 py-2 rounded-lg font-medium transition text-sm " +
+                (tabActiva === "catalogo"
+                  ? "bg-[#D4B896] text-[#0a0a0a]"
+                  : "bg-[#141414] text-gray-400 border border-[#2a2a2a] hover:border-[#D4B896]")
+              }
             >
-              📦 Catálogo de Productos
+              📦 Catálogo
             </button>
-            {/* PRÓXIMAMENTE - Requiere backend */}
-            {/* <button className="px-4 py-2 rounded-lg font-medium transition text-sm bg-[#141414] text-gray-600 border border-[#2a2a2a] cursor-not-allowed">
-              📊 Control de Stock (Próximamente)
+            <button
+              onClick={() => setTabActiva("stock")}
+              className={
+                "px-4 py-2 rounded-lg font-medium transition text-sm " +
+                (tabActiva === "stock"
+                  ? "bg-[#D4B896] text-[#0a0a0a]"
+                  : "bg-[#141414] text-gray-400 border border-[#2a2a2a] hover:border-[#D4B896]")
+              }
+            >
+              📊 Control de Stock
             </button>
-            <button className="px-4 py-2 rounded-lg font-medium transition text-sm bg-[#141414] text-gray-600 border border-[#2a2a2a] cursor-not-allowed">
-              📋 Movimientos (Próximamente)
-            </button> */}
+            <button
+              onClick={() => setTabActiva("movimientos")}
+              className={
+                "px-4 py-2 rounded-lg font-medium transition text-sm " +
+                (tabActiva === "movimientos"
+                  ? "bg-[#D4B896] text-[#0a0a0a]"
+                  : "bg-[#141414] text-gray-400 border border-[#2a2a2a] hover:border-[#D4B896]")
+              }
+            >
+              📋 Movimientos
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Contenido - SOLO CATÁLOGO POR AHORA */}
-      <TabCatalogo
-        productos={productos}
-        categorias={categorias}
-        filtroCategoria={filtroCategoria}
-        setFiltroCategoria={setFiltroCategoria}
-        handleEditar={handleEditar}
-        handleEliminar={handleEliminar}
-        handleActivarBarril={handleActivarBarril}
-        handleCambiarBarril={handleCambiarBarril}
-        setModalTransferencia={setModalTransferencia}
-      />
+      {/* Contenido según tab activa */}
+      {tabActiva === "catalogo" && (
+        <TabCatalogo
+          productos={productos}
+          categorias={categorias}
+          filtroCategoria={filtroCategoria}
+          setFiltroCategoria={setFiltroCategoria}
+          handleEditar={handleEditar}
+          handleEliminar={handleEliminar}
+          handleActivarBarril={handleActivarBarril}
+          handleCambiarBarril={handleCambiarBarril}
+          setModalTransferencia={setModalTransferencia}
+        />
+      )}
       
-      {/* PRÓXIMAMENTE - Requiere backend
       {tabActiva === "stock" && (
         <TabStock 
-          productos={productos} 
-          resumen={resumen} 
+          productos={productos}
+          resumen={resumen}
           onRecargar={cargarDatos}
         />
       )}
       
       {tabActiva === "movimientos" && <TabMovimientos />}
-      */}
 
       {/* Modales del catálogo */}
       {modalBarril.open && (
