@@ -9,14 +9,22 @@ const MovimientoInventario = sequelize.define('MovimientoInventario', {
   },
   producto_id: {
     type: DataTypes.UUID,
-    allowNull: false
+    allowNull: false,
+    references: {
+      model: 'productos',
+      key: 'id'
+    }
   },
   local_id: {
     type: DataTypes.UUID,
-    allowNull: false
+    allowNull: false,
+    references: {
+      model: 'locales',
+      key: 'id'
+    }
   },
   tipo: {
-    type: DataTypes.ENUM('entrada', 'salida', 'transferencia_entrada', 'transferencia_salida', 'ajuste', 'venta'),
+    type: DataTypes.ENUM('entrada', 'salida', 'ajuste', 'venta', 'transferencia_entrada', 'transferencia_salida'),
     allowNull: false
   },
   cantidad: {
@@ -32,23 +40,22 @@ const MovimientoInventario = sequelize.define('MovimientoInventario', {
     allowNull: false
   },
   motivo: {
-    type: DataTypes.TEXT,
+    type: DataTypes.STRING(500),
     allowNull: true
-  },
-  referencia_id: {
-    type: DataTypes.UUID,
-    allowNull: true,
-    comment: 'ID de pedido, transferencia u otro documento relacionado'
   },
   usuario_id: {
     type: DataTypes.UUID,
-    allowNull: false
+    allowNull: false,
+    references: {
+      model: 'usuarios',
+      key: 'id'
+    }
   }
 }, {
   tableName: 'movimientos_inventario',
   timestamps: true,
   createdAt: 'created_at',
-  updatedAt: false
+  updatedAt: 'updated_at'
 });
 
 module.exports = MovimientoInventario;
