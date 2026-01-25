@@ -11,13 +11,13 @@ export default function Productos() {
   
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
-  const [resumen, setResumen] = useState(null);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [productoEditar, setProductoEditar] = useState(null);
   const [filtroCategoria, setFiltroCategoria] = useState("");
 
   const [modalBarril, setModalBarril] = useState({ open: false, local: null });
+  const [modalTransferencia, setModalTransferencia] = useState({ open: false, producto: null });
 
   const [formData, setFormData] = useState({
     nombre: "",
@@ -35,14 +35,12 @@ export default function Productos() {
 
   const cargarDatos = useCallback(async () => {
     try {
-      const [prods, cats, inventarioData] = await Promise.all([
+      const [prods, cats] = await Promise.all([
         productosService.getProductos(),
         productosService.getCategorias(),
-        inventarioService.getInventarioConsolidado().catch(() => ({ productos: [], resumen: null }))
       ]);
       setProductos(prods);
       setCategorias(cats);
-      setResumen(inventarioData.resumen);
     } catch {
       toast.error("Error al cargar datos");
     } finally {
@@ -197,6 +195,36 @@ export default function Productos() {
     }
   };
 
+  const handleTransferir = async (productoId, localOrigen, localDestino, cantidad, motivo) => {
+    try {
+      const response = await fetch("https://el-taller.onrender.com/api/inventario/transferir", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + localStorage.getItem("token"),
+        },
+        body: JSON.stringify({
+          producto_id: productoId,
+          local_origen: localOrigen,
+          local_destino: localDestino,
+          cantidad,
+          motivo
+        }),
+      });
+
+      if (response.ok) {
+        toast.success("Transferencia completada");
+        setModalTransferencia({ open: false, producto: null });
+        cargarDatos();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Error al transferir");
+      }
+    } catch {
+      toast.error("Error al transferir");
+    }
+  };
+
   const resetForm = () => {
     setProductoEditar(null);
     setFormData({
@@ -257,61 +285,41 @@ export default function Productos() {
         </div>
       </header>
 
-      {/* Tabs de navegación */}
+      {/* Tabs de navegación - SOLO CATÁLOGO POR AHORA */}
       <div className="bg-[#0a0a0a] border-b border-[#1a1a1a] flex-shrink-0">
         <div className="max-w-7xl mx-auto px-3 py-2">
           <div className="flex gap-2">
             <button
               onClick={() => setTabActiva("catalogo")}
-              className={
-                "px-4 py-2 rounded-lg font-medium transition text-sm " +
-                (tabActiva === "catalogo"
-                  ? "bg-[#D4B896] text-[#0a0a0a]"
-                  : "bg-[#141414] text-gray-400 border border-[#2a2a2a] hover:border-[#D4B896]")
-              }
+              className="px-4 py-2 rounded-lg font-medium transition text-sm bg-[#D4B896] text-[#0a0a0a]"
             >
-              📦 Catálogo
+              📦 Catálogo de Productos
             </button>
-            <button
-              onClick={() => setTabActiva("stock")}
-              className={
-                "px-4 py-2 rounded-lg font-medium transition text-sm " +
-                (tabActiva === "stock"
-                  ? "bg-[#D4B896] text-[#0a0a0a]"
-                  : "bg-[#141414] text-gray-400 border border-[#2a2a2a] hover:border-[#D4B896]")
-              }
-            >
-              📊 Control de Stock
+            {/* PRÓXIMAMENTE - Requiere backend */}
+            {/* <button className="px-4 py-2 rounded-lg font-medium transition text-sm bg-[#141414] text-gray-600 border border-[#2a2a2a] cursor-not-allowed">
+              📊 Control de Stock (Próximamente)
             </button>
-            <button
-              onClick={() => setTabActiva("movimientos")}
-              className={
-                "px-4 py-2 rounded-lg font-medium transition text-sm " +
-                (tabActiva === "movimientos"
-                  ? "bg-[#D4B896] text-[#0a0a0a]"
-                  : "bg-[#141414] text-gray-400 border border-[#2a2a2a] hover:border-[#D4B896]")
-              }
-            >
-              📋 Movimientos
-            </button>
+            <button className="px-4 py-2 rounded-lg font-medium transition text-sm bg-[#141414] text-gray-600 border border-[#2a2a2a] cursor-not-allowed">
+              📋 Movimientos (Próximamente)
+            </button> */}
           </div>
         </div>
       </div>
 
-      {/* Contenido según tab activa */}
-      {tabActiva === "catalogo" && (
-        <TabCatalogo
-          productos={productos}
-          categorias={categorias}
-          filtroCategoria={filtroCategoria}
-          setFiltroCategoria={setFiltroCategoria}
-          handleEditar={handleEditar}
-          handleEliminar={handleEliminar}
-          handleActivarBarril={handleActivarBarril}
-          handleCambiarBarril={handleCambiarBarril}
-        />
-      )}
+      {/* Contenido - SOLO CATÁLOGO POR AHORA */}
+      <TabCatalogo
+        productos={productos}
+        categorias={categorias}
+        filtroCategoria={filtroCategoria}
+        setFiltroCategoria={setFiltroCategoria}
+        handleEditar={handleEditar}
+        handleEliminar={handleEliminar}
+        handleActivarBarril={handleActivarBarril}
+        handleCambiarBarril={handleCambiarBarril}
+        setModalTransferencia={setModalTransferencia}
+      />
       
+      {/* PRÓXIMAMENTE - Requiere backend
       {tabActiva === "stock" && (
         <TabStock 
           productos={productos} 
@@ -321,6 +329,7 @@ export default function Productos() {
       )}
       
       {tabActiva === "movimientos" && <TabMovimientos />}
+      */}
 
       {/* Modales del catálogo */}
       {modalBarril.open && (
@@ -342,6 +351,14 @@ export default function Productos() {
           handleSubmit={handleSubmit}
         />
       )}
+
+      {modalTransferencia.open && (
+        <ModalTransferencia
+          producto={modalTransferencia.producto}
+          onClose={() => setModalTransferencia({ open: false, producto: null })}
+          onSubmit={handleTransferir}
+        />
+      )}
     </div>
   );
 }
@@ -356,6 +373,7 @@ function TabCatalogo({
   handleEliminar,
   handleActivarBarril,
   handleCambiarBarril,
+  setModalTransferencia,
 }) {
   const productosBarril = productos.filter((p) => p.unidad_medida === "barriles");
   const productosNormales = productos.filter((p) => p.unidad_medida !== "barriles");
@@ -446,19 +464,29 @@ function TabCatalogo({
         </div>
       )}
 
-      <div className="flex gap-1">
-        <button
-          onClick={() => handleEditar(producto)}
-          className="flex-1 py-1.5 bg-gray-700 text-white rounded text-[10px] font-semibold hover:bg-gray-600"
-        >
-          Editar
-        </button>
-        <button
-          onClick={() => handleEliminar(producto.id)}
-          className="py-1.5 px-2 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
-        >
-          X
-        </button>
+      <div className="flex flex-col gap-1">
+        <div className="flex gap-1">
+          <button
+            onClick={() => handleEditar(producto)}
+            className="flex-1 py-1.5 bg-gray-700 text-white rounded text-[10px] font-semibold hover:bg-gray-600"
+          >
+            Editar
+          </button>
+          <button
+            onClick={() => handleEliminar(producto.id)}
+            className="py-1.5 px-2 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
+          >
+            X
+          </button>
+        </div>
+        {((producto.stock_local1 > 0) || (producto.stock_local2 > 0)) && (
+          <button
+            onClick={() => setModalTransferencia({ open: true, producto })}
+            className="w-full py-1.5 bg-purple-500/20 text-purple-400 rounded text-[10px] font-semibold hover:bg-purple-500/30 transition"
+          >
+            🔄 Transferir
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1601,6 +1629,143 @@ function ModalMovimientos({ producto, movimientos, onClose }) {
             Cerrar
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Modal para transferir entre locales
+function ModalTransferencia({ producto, onClose, onSubmit }) {
+  const [localOrigen, setLocalOrigen] = useState(producto.stock_local1 > 0 ? 1 : 2);
+  const [cantidad, setCantidad] = useState("");
+  const [motivo, setMotivo] = useState("Transferencia entre locales");
+
+  const localDestino = localOrigen === 1 ? 2 : 1;
+  const stockDisponible = localOrigen === 1 ? producto.stock_local1 : producto.stock_local2;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const cantidadNum = parseInt(cantidad);
+    
+    if (!cantidad || cantidadNum <= 0) {
+      toast.error("Ingresa una cantidad válida");
+      return;
+    }
+    
+    if (cantidadNum > stockDisponible) {
+      toast.error(`Solo hay ${stockDisponible} unidades disponibles en Local ${localOrigen}`);
+      return;
+    }
+    
+    onSubmit(producto.id, localOrigen, localDestino, cantidadNum, motivo);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+      <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl w-full max-w-md">
+        <div className="p-4 border-b border-[#2a2a2a]">
+          <h2 className="text-lg font-bold text-white">🔄 Transferir Producto</h2>
+          <p className="text-sm text-gray-500">{producto.nombre}</p>
+        </div>
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          {/* Selección de origen */}
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Local Origen</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setLocalOrigen(1)}
+                disabled={producto.stock_local1 <= 0}
+                className={
+                  "py-3 rounded-lg font-medium transition " + 
+                  (localOrigen === 1 
+                    ? "bg-[#D4B896] text-[#0a0a0a]" 
+                    : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]") +
+                  (producto.stock_local1 <= 0 ? " opacity-30 cursor-not-allowed" : "")
+                }
+              >
+                Local 1
+                <div className="text-xs mt-1">Stock: {producto.stock_local1}</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setLocalOrigen(2)}
+                disabled={producto.stock_local2 <= 0}
+                className={
+                  "py-3 rounded-lg font-medium transition " + 
+                  (localOrigen === 2 
+                    ? "bg-[#D4B896] text-[#0a0a0a]" 
+                    : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]") +
+                  (producto.stock_local2 <= 0 ? " opacity-30 cursor-not-allowed" : "")
+                }
+              >
+                Local 2
+                <div className="text-xs mt-1">Stock: {producto.stock_local2}</div>
+              </button>
+            </div>
+          </div>
+
+          {/* Info de destino */}
+          <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-400">Destino:</span>
+              <span className="text-purple-400 font-bold">Local {localDestino}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm mt-1">
+              <span className="text-gray-400">Stock actual destino:</span>
+              <span className="text-white font-bold">
+                {localDestino === 1 ? producto.stock_local1 : producto.stock_local2}
+              </span>
+            </div>
+          </div>
+
+          {/* Cantidad */}
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">
+              Cantidad a transferir
+              <span className="text-xs ml-2">(Disponible: {stockDisponible})</span>
+            </label>
+            <input
+              type="number"
+              value={cantidad}
+              onChange={(e) => setCantidad(e.target.value)}
+              className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white text-lg"
+              placeholder="0"
+              min="1"
+              max={stockDisponible}
+              autoFocus
+            />
+          </div>
+
+          {/* Motivo */}
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Motivo (opcional)</label>
+            <input
+              type="text"
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              className="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white"
+              placeholder="Ej: Reabastecimiento, reorganización..."
+            />
+          </div>
+
+          {/* Botones */}
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-3 bg-[#1a1a1a] text-gray-300 rounded-lg border border-[#2a2a2a]"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="flex-1 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-500 transition"
+            >
+              Transferir →
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
