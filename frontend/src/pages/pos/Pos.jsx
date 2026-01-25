@@ -34,7 +34,7 @@ export default function POS() {
   useEffect(() => {
     const interval = setInterval(() => {
       cargarDatos();
-    }, 10000);
+    }, 7000);
     return () => clearInterval(interval);
   }, [cargarDatos]);
 
