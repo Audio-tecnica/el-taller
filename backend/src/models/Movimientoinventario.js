@@ -13,7 +13,7 @@ const MovimientoInventario = sequelize.define('MovimientoInventario', {
     references: {
       model: 'productos',
       key: 'id'
-    }
+    } 
   },
   local_id: {
     type: DataTypes.UUID,
