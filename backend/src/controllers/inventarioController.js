@@ -178,6 +178,92 @@ const inventarioController = {
     }
   },
 
+  // ⭐ NUEVO: Transferir entre locales
+  transferirEntreLocales: async (req, res) => {
+    const t = await sequelize.transaction();
+    try {
+      const { producto_id, local_origen, local_destino, cantidad, motivo } = req.body;
+      const usuario_id = req.usuario.id;
+
+      // Validaciones
+      if (local_origen === local_destino) {
+        await t.rollback();
+        return res.status(400).json({ error: 'El local de origen y destino deben ser diferentes' });
+      }
+
+      if (cantidad <= 0) {
+        await t.rollback();
+        return res.status(400).json({ error: 'La cantidad debe ser mayor a 0' });
+      }
+
+      const producto = await Producto.findByPk(producto_id);
+      if (!producto) {
+        await t.rollback();
+        return res.status(404).json({ error: 'Producto no encontrado' });
+      }
+
+      const stockFieldOrigen = local_origen === 1 ? 'stock_local1' : 'stock_local2';
+      const stockFieldDestino = local_destino === 1 ? 'stock_local1' : 'stock_local2';
+      
+      const stockOrigen = producto[stockFieldOrigen];
+      const stockDestino = producto[stockFieldDestino];
+
+      // Verificar que hay stock suficiente en origen
+      if (stockOrigen < cantidad) {
+        await t.rollback();
+        return res.status(400).json({ 
+          error: `Stock insuficiente en Local ${local_origen}. Disponible: ${stockOrigen}, Solicitado: ${cantidad}` 
+        });
+      }
+
+      // Actualizar stocks
+      await producto.update({
+        [stockFieldOrigen]: stockOrigen - cantidad,
+        [stockFieldDestino]: stockDestino + cantidad
+      }, { transaction: t });
+
+      const localIdOrigen = local_origen === 1 ? '00000000-0000-0000-0000-000000000001' : '00000000-0000-0000-0000-000000000002';
+      const localIdDestino = local_destino === 1 ? '00000000-0000-0000-0000-000000000001' : '00000000-0000-0000-0000-000000000002';
+
+      // Registrar salida del local origen
+      await MovimientoInventario.create({
+        producto_id,
+        local_id: localIdOrigen,
+        tipo: 'transferencia_salida',
+        cantidad: -cantidad,
+        stock_anterior: stockOrigen,
+        stock_nuevo: stockOrigen - cantidad,
+        motivo: motivo || `Transferencia a Local ${local_destino}`,
+        usuario_id
+      }, { transaction: t });
+
+      // Registrar entrada al local destino
+      await MovimientoInventario.create({
+        producto_id,
+        local_id: localIdDestino,
+        tipo: 'transferencia_entrada',
+        cantidad: cantidad,
+        stock_anterior: stockDestino,
+        stock_nuevo: stockDestino + cantidad,
+        motivo: motivo || `Transferencia desde Local ${local_origen}`,
+        usuario_id
+      }, { transaction: t });
+
+      await t.commit();
+
+      res.json({
+        mensaje: `Transferencia completada: ${cantidad} unidades de Local ${local_origen} a Local ${local_destino}`,
+        producto: await Producto.findByPk(producto_id, {
+          include: [{ model: Categoria, as: 'categoria' }]
+        })
+      });
+    } catch (error) {
+      await t.rollback();
+      console.error('Error en transferirEntreLocales:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
   // Obtener historial de movimientos
   getMovimientos: async (req, res) => {
     try {

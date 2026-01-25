@@ -21,6 +21,9 @@ router.post('/ajustar', inventarioController.ajustarInventario);
 // Registrar entrada
 router.post('/entrada', inventarioController.registrarEntrada);
 
+// ⭐ NUEVO: Transferir entre locales
+router.post('/transferir', inventarioController.transferirEntreLocales);
+
 // Historial de movimientos
 router.get('/movimientos', inventarioController.getMovimientos);
 

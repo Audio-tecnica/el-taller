@@ -72,6 +72,7 @@ const pedidosRoutes = require("./routes/pedidosRoutes");
 const cortesiasRoutes = require("./routes/cortesiasRoutes");
 const turnosRoutes = require("./routes/turnosRoutes");
 const barrilesRoutes = require('./routes/barrilesRoutes');
+const inventarioRoutes = require('./routes/inventarioRoutes'); // ⭐ AGREGADO
 
 app.use("/api/turnos", turnosRoutes);
 app.use("/api/cortesias", cortesiasRoutes);
@@ -82,6 +83,7 @@ app.use("/api/productos", productosRoutes);
 app.use("/api/mesas", mesasRoutes);
 app.use("/api/pedidos", pedidosRoutes);
 app.use('/api/barriles', barrilesRoutes);
+app.use('/api/inventario', inventarioRoutes); // ⭐ AGREGADO
 
 // Socket.IO - Manejo de conexiones
 io.on('connection', (socket) => {
