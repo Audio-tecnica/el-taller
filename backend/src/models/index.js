@@ -7,6 +7,7 @@ const Pedido = require('./Pedido');
 const ItemPedido = require('./ItemPedido');
 const Cortesia = require('./Cortesia');
 const Turno = require('./Turno');
+const MovimientoInventario = require('./MovimientoInventario'); // ⭐ AGREGAR
 
 // Relaciones Producto - Categoria
 Producto.belongsTo(Categoria, { foreignKey: 'categoria_id', as: 'categoria' });
@@ -38,6 +39,14 @@ Cortesia.belongsTo(Local, { foreignKey: 'local_id', as: 'local' });
 Turno.belongsTo(Local, { foreignKey: 'local_id', as: 'local' });
 Turno.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
 
+// ⭐ AGREGAR: Relaciones MovimientoInventario
+MovimientoInventario.belongsTo(Producto, { foreignKey: 'producto_id', as: 'producto' });
+MovimientoInventario.belongsTo(Local, { foreignKey: 'local_id', as: 'local' });
+MovimientoInventario.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+
+Producto.hasMany(MovimientoInventario, { foreignKey: 'producto_id', as: 'movimientos' });
+Local.hasMany(MovimientoInventario, { foreignKey: 'local_id', as: 'movimientos' });
+
 module.exports = {
   Usuario,
   Categoria,
@@ -47,5 +56,6 @@ module.exports = {
   Pedido,
   ItemPedido,
   Cortesia,
-  Turno
+  Turno,
+  MovimientoInventario  // ⭐ AGREGAR
 };
