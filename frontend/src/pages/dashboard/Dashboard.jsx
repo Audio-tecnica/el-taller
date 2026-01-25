@@ -25,14 +25,7 @@ export default function Dashboard() {
       nombre: "Productos",
       icono: "📦",
       ruta: "/productos",
-      desc: "Gestión de inventario",
-      destacado: false,
-    },
-    {
-      nombre: "Inventario",
-      icono: "📊",
-      ruta: "/inventario",
-      desc: "Control de stock",
+      desc: "Catálogo e inventario",
       destacado: false,
     },
     {
