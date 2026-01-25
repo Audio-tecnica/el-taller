@@ -29,6 +29,13 @@ export default function Dashboard() {
       destacado: false,
     },
     {
+      nombre: "Inventario",
+      icono: "📊",
+      ruta: "/inventario",
+      desc: "Control de stock",
+      destacado: false,
+    },
+    {
       nombre: "Gestión de Mesas",
       icono: "🪑",
       ruta: "/mesas",
@@ -51,7 +58,7 @@ export default function Dashboard() {
     },
     {
       nombre: "Reportes",
-      icono: "📊",
+      icono: "📈",
       ruta: "/reportes",
       desc: "Estadísticas",
       destacado: false,
