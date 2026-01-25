@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { pedidosService } from "../../services/pedidosService";
 import { productosService } from "../../services/productosService";
@@ -20,11 +20,7 @@ export default function Pedido() {
   const [mostrarCortesia, setMostrarCortesia] = useState(false);
   const [mostrarCuentaMovil, setMostrarCuentaMovil] = useState(false);
 
-  useEffect(() => {
-    cargarDatos();
-  }, [pedido_id]);
-
-  const cargarDatos = async () => {
+  const cargarDatos = useCallback(async () => {
     try {
       const [productosData, categoriasData] = await Promise.all([
         productosService.getProductos(),
@@ -38,27 +34,50 @@ export default function Pedido() {
       if (pedidoActual) {
         setPedido(pedidoActual);
       }
-    } catch (error) {
+    } catch {
       toast.error("Error al cargar datos");
     } finally {
       setLoading(false);
     }
-  };
+  }, [pedido_id]);
+
+  useEffect(() => {
+    cargarDatos();
+  }, [cargarDatos]);
+
+  // Auto-refresh cada 10 segundos
+  useEffect(() => {
+    const interval = setInterval(() => {
+      cargarDatos();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [cargarDatos]);
+
+  // Refresh cuando vuelves a la pestaña/app
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        cargarDatos();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [cargarDatos]);
 
   const handleAgregarProducto = async (producto) => {
     try {
       const pedidoActualizado = await pedidosService.agregarItem(
         pedido_id,
         producto.id,
-        1,
+        1
       );
       setPedido((prev) => ({
         ...prev,
         items: pedidoActualizado.items,
         subtotal: pedidoActualizado.subtotal,
       }));
-      toast.success(`+1 ${producto.nombre}`, { duration: 1000 });
-    } catch (error) {
+      toast.success("+1 " + producto.nombre, { duration: 1000 });
+    } catch {
       toast.error("Error al agregar producto");
     }
   };
@@ -68,15 +87,15 @@ export default function Pedido() {
       const pedidoActualizado = await pedidosService.quitarItem(
         pedido_id,
         item.id,
-        1,
+        1
       );
       setPedido((prev) => ({
         ...prev,
         items: pedidoActualizado.items,
         subtotal: pedidoActualizado.subtotal,
       }));
-      toast.success(`-1 ${item.producto.nombre}`, { duration: 1000 });
-    } catch (error) {
+      toast.success("-1 " + item.producto.nombre, { duration: 1000 });
+    } catch {
       toast.error("Error al quitar producto");
     }
   };
@@ -85,15 +104,15 @@ export default function Pedido() {
     try {
       const pedidoActualizado = await pedidosService.quitarItem(
         pedido_id,
-        item.id,
+        item.id
       );
       setPedido((prev) => ({
         ...prev,
         items: pedidoActualizado.items,
         subtotal: pedidoActualizado.subtotal,
       }));
-      toast.success(`Eliminado: ${item.producto.nombre}`);
-    } catch (error) {
+      toast.success("Eliminado: " + item.producto.nombre);
+    } catch {
       toast.error("Error al eliminar");
     }
   };
@@ -104,22 +123,22 @@ export default function Pedido() {
         pedido_id,
         metodoPago,
         montoCortesia,
-        razonCortesia,
+        razonCortesia
       );
-      toast.success("¡Pedido cobrado!");
+      toast.success("Pedido cobrado!");
       navigate("/pos");
-    } catch (error) {
+    } catch {
       toast.error("Error al cobrar");
     }
   };
 
   const handleCancelar = async () => {
-    if (window.confirm("¿Cancelar este pedido? La mesa quedará libre.")) {
+    if (window.confirm("Cancelar este pedido? La mesa quedara libre.")) {
       try {
         await pedidosService.cancelarPedido(pedido_id);
         toast.success("Pedido cancelado");
         navigate("/pos");
-      } catch (error) {
+      } catch {
         toast.error("Error al cancelar");
       }
     }
@@ -128,6 +147,17 @@ export default function Pedido() {
   const productosFiltrados = filtroCategoria
     ? productos.filter((p) => p.categoria_id === filtroCategoria)
     : productos;
+
+  const getCategoriaColor = (categoria) => {
+    if (!categoria || !categoria.nombre) return "border-gray-700";
+    const nombre = categoria.nombre.toLowerCase();
+    if (nombre.includes("barril")) return "border-amber-500";
+    if (nombre.includes("botella")) return "border-green-500";
+    if (nombre.includes("lata")) return "border-blue-500";
+    if (nombre.includes("comida") || nombre.includes("piqueo")) return "border-orange-500";
+    if (nombre.includes("bebida")) return "border-purple-500";
+    return "border-gray-700";
+  };
 
   if (loading) {
     return (
@@ -142,7 +172,7 @@ export default function Pedido() {
       {/* Panel izquierdo - Productos */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <header className="bg-[#0a0a0a] border-b border-[#2a2a2a] px-4 py-3">
+        <header className="bg-[#0a0a0a] border-b border-[#2a2a2a] px-4 py-3 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
@@ -169,28 +199,29 @@ export default function Pedido() {
                 onClick={handleCancelar}
                 className="px-4 py-2 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition border border-red-500/30"
               >
-                ✕ Cancelar
+                X Cancelar
               </button>
               <button
                 onClick={() => navigate("/pos")}
                 className="px-4 py-2 bg-[#1a1a1a] text-gray-400 rounded-lg hover:bg-[#2a2a2a] transition border border-[#2a2a2a]"
               >
-                ← Volver
+                Volver
               </button>
             </div>
           </div>
         </header>
 
         {/* Categorías */}
-        <div className="px-4 py-3 border-b border-[#2a2a2a] overflow-x-auto">
+        <div className="px-4 py-3 border-b border-[#2a2a2a] overflow-x-auto flex-shrink-0">
           <div className="flex gap-2">
             <button
               onClick={() => setFiltroCategoria("")}
-              className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition ${
-                filtroCategoria === ""
+              className={
+                "px-4 py-2 rounded-lg font-medium whitespace-nowrap transition " +
+                (filtroCategoria === ""
                   ? "bg-[#D4B896] text-[#0a0a0a]"
-                  : "bg-[#141414] text-gray-400 border border-[#2a2a2a]"
-              }`}
+                  : "bg-[#141414] text-gray-400 border border-[#2a2a2a]")
+              }
             >
               Todos
             </button>
@@ -198,11 +229,12 @@ export default function Pedido() {
               <button
                 key={cat.id}
                 onClick={() => setFiltroCategoria(cat.id)}
-                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition ${
-                  filtroCategoria === cat.id
+                className={
+                  "px-4 py-2 rounded-lg font-medium whitespace-nowrap transition " +
+                  (filtroCategoria === cat.id
                     ? "bg-[#D4B896] text-[#0a0a0a]"
-                    : "bg-[#141414] text-gray-400 border border-[#2a2a2a]"
-                }`}
+                    : "bg-[#141414] text-gray-400 border border-[#2a2a2a]")
+                }
               >
                 {cat.icono} {cat.nombre}
               </button>
@@ -210,102 +242,84 @@ export default function Pedido() {
           </div>
         </div>
 
-        {/* Grid de productos */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-          {productosFiltrados.map((producto) => (
-            <button
-              key={producto.id}
-              onClick={() => handleAgregarProducto(producto)}
-              className={`bg-[#141414] rounded-lg p-3 text-left hover:bg-[#1a1a1a] transition-all active:scale-95 border-2 ${
-                producto.categoria?.nombre?.includes("Barril")
-                  ? "border-amber-500"
-                  : producto.categoria?.nombre?.includes("Botella")
-                    ? "border-green-500"
-                    : producto.categoria?.nombre?.includes("Lata")
-                      ? "border-blue-500"
-                      : producto.categoria?.nombre?.includes("Comida") ||
-                          producto.categoria?.nombre?.includes("Piqueo")
-                        ? "border-orange-500"
-                        : producto.categoria?.nombre?.includes("Bebida")
-                          ? "border-purple-500"
-                          : "border-gray-700"
-              }`}
-            >
-              <p className="text-xs font-semibold truncate leading-tight">
-                <span className="text-white">{producto.nombre}</span>
-                {producto.presentacion && (
-                  <span className="text-[#D4B896] ml-1">
-                    ({producto.presentacion})
-                  </span>
-                )}
-              </p>
-              <p className="text-[#D4B896] font-bold text-sm mt-0.5">
-                ${Number(producto.precio_venta).toLocaleString()}
-                {producto.unidad_medida === "barriles" && (
-                  <span className="text-[9px] text-gray-500"> /vaso</span>
-                )}
-              </p>
+        {/* Grid de productos - con scroll */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {productosFiltrados.map((producto) => (
+              <button
+                key={producto.id}
+                onClick={() => handleAgregarProducto(producto)}
+                className={
+                  "bg-[#141414] rounded-lg p-3 text-left hover:bg-[#1a1a1a] transition-all active:scale-95 border-2 " +
+                  getCategoriaColor(producto.categoria)
+                }
+              >
+                <p className="text-xs font-semibold truncate leading-tight">
+                  <span className="text-white">{producto.nombre}</span>
+                  {producto.presentacion && (
+                    <span className="text-[#D4B896] ml-1">
+                      ({producto.presentacion})
+                    </span>
+                  )}
+                </p>
+                <p className="text-[#D4B896] font-bold text-sm mt-0.5">
+                  ${Number(producto.precio_venta).toLocaleString()}
+                  {producto.unidad_medida === "barriles" && (
+                    <span className="text-[9px] text-gray-500"> /vaso</span>
+                  )}
+                </p>
 
-              {/* Barra de progreso para barriles */}
-              {producto.unidad_medida === "barriles" &&
-                producto.barril_activo_local1 && (
-                  <div className="mt-1">
-                    <div className="w-full bg-gray-700 rounded-full h-1.5">
-                      <div
-                        className={`h-1.5 rounded-full transition-all ${
-                          producto.vasos_disponibles_local1 <= 15
-                            ? "bg-red-500"
-                            : producto.vasos_disponibles_local1 <= 30
-                              ? "bg-yellow-500"
-                              : "bg-emerald-500"
-                        }`}
-                        style={{
-                          width: `${(producto.vasos_disponibles_local1 / producto.capacidad_barril) * 100}%`,
-                        }}
-                      />
+                {/* Barra de progreso para barriles */}
+                {producto.unidad_medida === "barriles" &&
+                  producto.barril_activo_local1 && (
+                    <div className="mt-1">
+                      <div className="w-full bg-gray-700 rounded-full h-1.5">
+                        <div
+                          className={
+                            "h-1.5 rounded-full transition-all " +
+                            (producto.vasos_disponibles_local1 <= 15
+                              ? "bg-red-500"
+                              : producto.vasos_disponibles_local1 <= 30
+                                ? "bg-yellow-500"
+                                : "bg-emerald-500")
+                          }
+                          style={{
+                            width: ((producto.vasos_disponibles_local1 / producto.capacidad_barril) * 100) + "%",
+                          }}
+                        />
+                      </div>
+                      <p className="text-[9px] text-gray-500 text-center mt-0.5">
+                        {producto.vasos_disponibles_local1}/{producto.capacidad_barril} vasos
+                      </p>
                     </div>
-                    <p className="text-[9px] text-gray-500 text-center mt-0.5">
-                      {producto.vasos_disponibles_local1}/
-                      {producto.capacidad_barril} vasos
-                    </p>
-                  </div>
-                )}
+                  )}
 
-              <p className="text-[9px] text-gray-500 mt-0.5 truncate">
-                {producto.categoria?.icono} {producto.categoria?.nombre}
-              </p>
-            </button>
-          ))}
+                <p className="text-[9px] text-gray-500 mt-0.5 truncate">
+                  {producto.categoria?.icono} {producto.categoria?.nombre}
+                </p>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Panel derecho - Cuenta */}
       <div
-        className={`
-        fixed lg:relative
-        lg:w-80 xl:w-96
-        w-full
-        bottom-0 lg:bottom-auto
-        left-0 lg:left-auto
-        bg-[#141414]
-        border-l border-[#2a2a2a]
-        flex flex-col
-        transition-transform duration-300
-        ${mostrarCuentaMovil ? "translate-y-0" : "translate-y-full lg:translate-y-0"}
-        z-40
-        max-h-[80vh] lg:max-h-full
-      `}
+        className={
+          "fixed lg:relative lg:w-80 xl:w-96 w-full bottom-0 lg:bottom-auto left-0 lg:left-auto bg-[#141414] border-l border-[#2a2a2a] flex flex-col transition-transform duration-300 z-40 max-h-[80vh] lg:max-h-full lg:h-full " +
+          (mostrarCuentaMovil ? "translate-y-0" : "translate-y-full lg:translate-y-0")
+        }
       >
         {/* Botón para cerrar en móvil */}
         <button
           onClick={() => setMostrarCuentaMovil(false)}
           className="lg:hidden absolute top-2 right-2 w-8 h-8 bg-gray-700 rounded-full text-white flex items-center justify-center"
         >
-          ✕
+          X
         </button>
 
         {/* Header cuenta */}
-        <div className="p-4 border-b border-[#2a2a2a]">
+        <div className="p-4 border-b border-[#2a2a2a] flex-shrink-0">
           <h2 className="text-lg font-bold text-white">Cuenta</h2>
           <p className="text-sm text-gray-500">Mesa {pedido?.mesa?.numero}</p>
         </div>
@@ -367,7 +381,7 @@ export default function Pedido() {
         </div>
 
         {/* Total y cobrar */}
-        <div className="p-4 border-t border-[#2a2a2a] space-y-4">
+        <div className="p-4 border-t border-[#2a2a2a] space-y-4 flex-shrink-0">
           <div className="flex justify-between items-center">
             <span className="text-gray-400">Subtotal</span>
             <span className="text-white font-bold text-xl">
@@ -392,7 +406,7 @@ export default function Pedido() {
       >
         <span>🛒</span>
         <span>{pedido?.items?.length || 0}</span>
-        <span>·</span>
+        <span>-</span>
         <span>${Number(pedido?.subtotal || 0).toLocaleString()}</span>
       </button>
 
@@ -416,7 +430,7 @@ export default function Pedido() {
                 </div>
                 {montoCortesia > 0 && (
                   <div className="flex justify-between text-emerald-500">
-                    <span>Cortesía</span>
+                    <span>Cortesia</span>
                     <span>-${Number(montoCortesia).toLocaleString()}</span>
                   </div>
                 )}
@@ -425,11 +439,7 @@ export default function Pedido() {
                     Total a cobrar
                   </span>
                   <span className="text-[#D4B896] font-bold text-xl">
-                    $
-                    {Math.max(
-                      0,
-                      Number(pedido?.subtotal || 0) - montoCortesia,
-                    ).toLocaleString()}
+                    ${Math.max(0, Number(pedido?.subtotal || 0) - montoCortesia).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -440,9 +450,7 @@ export default function Pedido() {
                 onClick={() => setMostrarCortesia(!mostrarCortesia)}
                 className="w-full py-2 text-sm text-[#D4B896] hover:underline"
               >
-                {mostrarCortesia
-                  ? "✕ Cancelar cortesía"
-                  : "🎁 Aplicar cortesía"}
+                {mostrarCortesia ? "X Cancelar cortesia" : "Aplicar cortesia"}
               </button>
 
               {/* Campos de cortesía */}
@@ -450,7 +458,7 @@ export default function Pedido() {
                 <div className="bg-[#1a1a1a] rounded-xl p-4 space-y-3 border border-[#D4B896]/30">
                   <div>
                     <label className="block text-sm text-gray-400 mb-2">
-                      Monto de cortesía
+                      Monto de cortesia
                     </label>
                     <input
                       type="number"
@@ -459,8 +467,8 @@ export default function Pedido() {
                         setMontoCortesia(
                           Math.min(
                             parseFloat(e.target.value) || 0,
-                            pedido?.subtotal || 0,
-                          ),
+                            pedido?.subtotal || 0
+                          )
                         )
                       }
                       className="w-full px-4 py-2 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white focus:ring-2 focus:ring-[#D4B896]"
@@ -470,25 +478,21 @@ export default function Pedido() {
                   </div>
                   <div>
                     <label className="block text-sm text-gray-400 mb-2">
-                      Razón
+                      Razon
                     </label>
                     <select
                       value={razonCortesia}
                       onChange={(e) => setRazonCortesia(e.target.value)}
                       className="w-full px-4 py-2 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white focus:ring-2 focus:ring-[#D4B896]"
                     >
-                      <option value="">Seleccionar razón</option>
-                      <option value="cumpleaños">🎂 Cumpleaños</option>
-                      <option value="cliente_vip">⭐ Cliente VIP</option>
-                      <option value="promocion">🏷️ Promoción</option>
-                      <option value="disculpa">
-                        🙏 Disculpa por inconveniente
-                      </option>
-                      <option value="fidelizacion">❤️ Fidelización</option>
-                      <option value="cortesia_casa">
-                        🏠 Cortesía de la casa
-                      </option>
-                      <option value="otro">📝 Otro</option>
+                      <option value="">Seleccionar razon</option>
+                      <option value="cumpleanos">Cumpleanos</option>
+                      <option value="cliente_vip">Cliente VIP</option>
+                      <option value="promocion">Promocion</option>
+                      <option value="disculpa">Disculpa por inconveniente</option>
+                      <option value="fidelizacion">Fidelizacion</option>
+                      <option value="cortesia_casa">Cortesia de la casa</option>
+                      <option value="otro">Otro</option>
                     </select>
                   </div>
                   {/* Botones rápidos de cortesía */}
@@ -496,9 +500,7 @@ export default function Pedido() {
                     <button
                       type="button"
                       onClick={() =>
-                        setMontoCortesia(
-                          Math.round((pedido?.subtotal || 0) * 0.1),
-                        )
+                        setMontoCortesia(Math.round((pedido?.subtotal || 0) * 0.1))
                       }
                       className="flex-1 py-2 bg-[#2a2a2a] text-gray-300 rounded-lg text-sm hover:bg-[#3a3a3a]"
                     >
@@ -507,9 +509,7 @@ export default function Pedido() {
                     <button
                       type="button"
                       onClick={() =>
-                        setMontoCortesia(
-                          Math.round((pedido?.subtotal || 0) * 0.2),
-                        )
+                        setMontoCortesia(Math.round((pedido?.subtotal || 0) * 0.2))
                       }
                       className="flex-1 py-2 bg-[#2a2a2a] text-gray-300 rounded-lg text-sm hover:bg-[#3a3a3a]"
                     >
@@ -529,27 +529,45 @@ export default function Pedido() {
               {/* Método de pago */}
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-3">
-                  Método de pago
+                  Metodo de pago
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: "efectivo", label: "💵 Efectivo" },
-                    { id: "transferencia", label: "🏦 Transfer" },
-                    { id: "nequi", label: "📱 Nequi" },
-                  ].map((metodo) => (
-                    <button
-                      key={metodo.id}
-                      type="button"
-                      onClick={() => setMetodoPago(metodo.id)}
-                      className={`py-3 px-2 rounded-lg text-sm font-medium transition ${
-                        metodoPago === metodo.id
-                          ? "bg-[#D4B896] text-[#0a0a0a]"
-                          : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]"
-                      }`}
-                    >
-                      {metodo.label}
-                    </button>
-                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setMetodoPago("efectivo")}
+                    className={
+                      "py-3 px-2 rounded-lg text-sm font-medium transition " +
+                      (metodoPago === "efectivo"
+                        ? "bg-[#D4B896] text-[#0a0a0a]"
+                        : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]")
+                    }
+                  >
+                    Efectivo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMetodoPago("transferencia")}
+                    className={
+                      "py-3 px-2 rounded-lg text-sm font-medium transition " +
+                      (metodoPago === "transferencia"
+                        ? "bg-[#D4B896] text-[#0a0a0a]"
+                        : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]")
+                    }
+                  >
+                    Transfer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMetodoPago("nequi")}
+                    className={
+                      "py-3 px-2 rounded-lg text-sm font-medium transition " +
+                      (metodoPago === "nequi"
+                        ? "bg-[#D4B896] text-[#0a0a0a]"
+                        : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]")
+                    }
+                  >
+                    Nequi
+                  </button>
                 </div>
               </div>
 
@@ -570,11 +588,7 @@ export default function Pedido() {
                   onClick={handleCobrar}
                   className="flex-1 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-500 transition"
                 >
-                  ✓ Cobrar $
-                  {Math.max(
-                    0,
-                    Number(pedido?.subtotal || 0) - montoCortesia,
-                  ).toLocaleString()}
+                  Cobrar ${Math.max(0, Number(pedido?.subtotal || 0) - montoCortesia).toLocaleString()}
                 </button>
               </div>
             </div>
