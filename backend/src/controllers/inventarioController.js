@@ -325,42 +325,68 @@ const inventarioController = {
   },
 
   // Obtener historial de movimientos
-  getMovimientos: async (req, res) => {
-    try {
-      const {
-        producto_id,
-        local_id,
-        tipo,
-        fecha_inicio,
-        fecha_fin,
-        limit = 50,
-      } = req.query;
+ // Obtener historial de movimientos
+getMovimientos: async (req, res) => {
+  try {
+    const {
+      producto_id,
+      local_id,
+      tipo,
+      fecha_inicio,
+      fecha_fin,
+      limit = 50,
+    } = req.query;
 
-      const where = {};
-      if (producto_id) where.producto_id = producto_id;
-      if (local_id) where.local_id = local_id;
-      if (tipo) where.tipo = tipo;
-      if (fecha_inicio && fecha_fin) {
-        where.created_at = {
-          [Op.between]: [new Date(fecha_inicio), new Date(fecha_fin)],
-        };
-      }
-
-      const movimientos = await MovimientoInventario.findAll({
-        where,
-        include: [
-          { model: Producto, as: "producto", attributes: ["id", "nombre"] },
-          { model: Local, as: "local", attributes: ["id", "nombre"] },
-        ],
-        order: [["created_at", "DESC"]],
-        limit: parseInt(limit),
-      });
-
-      res.json(movimientos);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+    const where = {};
+    if (producto_id) where.producto_id = producto_id;
+    if (local_id) where.local_id = local_id;
+    if (tipo) where.tipo = tipo;
+    if (fecha_inicio && fecha_fin) {
+      where.created_at = {
+        [Op.between]: [new Date(fecha_inicio), new Date(fecha_fin)],
+      };
     }
-  },
+
+    const movimientos = await MovimientoInventario.findAll({
+      where,
+      include: [
+        { 
+          model: Producto, 
+          as: 'producto', 
+          attributes: ['id', 'nombre'],
+          required: false  // ⭐ AGREGA ESTO
+        },
+        { 
+          model: Local, 
+          as: 'local', 
+          attributes: ['id', 'nombre'],
+          required: false  // ⭐ AGREGA ESTO
+        }
+      ],
+      order: [['created_at', 'DESC']],
+      limit: parseInt(limit),
+    });
+
+    // ⭐ AGREGA ESTO: Formatear la respuesta
+    const movimientosFormateados = movimientos.map(mov => ({
+      id: mov.id,
+      producto_id: mov.producto_id,
+      producto_nombre: mov.producto?.nombre || 'Producto eliminado',
+      local_id: mov.local_id,
+      tipo: mov.tipo,
+      cantidad: mov.cantidad,
+      stock_anterior: mov.stock_anterior,
+      stock_nuevo: mov.stock_nuevo,
+      motivo: mov.motivo,
+      created_at: mov.created_at
+    }));
+
+    res.json(movimientosFormateados);
+  } catch (error) {
+    console.error('Error en getMovimientos:', error);  // ⭐ AGREGA ESTO para ver el error
+    res.status(500).json({ error: error.message });
+  }
+},
 
   // Obtener movimientos de un producto específico
   getMovimientosProducto: async (req, res) => {
