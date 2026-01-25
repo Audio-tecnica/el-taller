@@ -29,31 +29,38 @@ export default function Pedido() {
       setProductos(productosData);
       setCategorias(categoriasData);
 
+      // Buscar el pedido actual
       const pedidosAbiertos = await pedidosService.getPedidosAbiertos();
       const pedidoActual = pedidosAbiertos.find((p) => p.id === pedido_id);
+      
       if (pedidoActual) {
         setPedido(pedidoActual);
+      } else {
+        // El pedido ya no existe o fue cerrado desde otro dispositivo
+        toast.success("Este pedido ya fue cobrado");
+        navigate("/pos");
+        return;
       }
     } catch {
       toast.error("Error al cargar datos");
     } finally {
       setLoading(false);
     }
-  }, [pedido_id]);
+  }, [pedido_id, navigate]);
 
   useEffect(() => {
     cargarDatos();
   }, [cargarDatos]);
 
-  // Auto-refresh cada 10 segundos
+  // Auto-refresh cada 5 segundos (mas rapido para detectar cierres)
   useEffect(() => {
     const interval = setInterval(() => {
       cargarDatos();
-    }, 10000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [cargarDatos]);
 
-  // Refresh cuando vuelves a la pestaña/app
+  // Refresh cuando vuelves a la pestana/app
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
@@ -77,7 +84,13 @@ export default function Pedido() {
         subtotal: pedidoActualizado.subtotal,
       }));
       toast.success("+1 " + producto.nombre, { duration: 1000 });
-    } catch {
+    } catch (err) {
+      // Verificar si el pedido ya fue cerrado
+      if (err.response && err.response.status === 404) {
+        toast.success("Este pedido ya fue cobrado");
+        navigate("/pos");
+        return;
+      }
       toast.error("Error al agregar producto");
     }
   };
@@ -95,7 +108,12 @@ export default function Pedido() {
         subtotal: pedidoActualizado.subtotal,
       }));
       toast.success("-1 " + item.producto.nombre, { duration: 1000 });
-    } catch {
+    } catch (err) {
+      if (err.response && err.response.status === 404) {
+        toast.success("Este pedido ya fue cobrado");
+        navigate("/pos");
+        return;
+      }
       toast.error("Error al quitar producto");
     }
   };
@@ -112,7 +130,12 @@ export default function Pedido() {
         subtotal: pedidoActualizado.subtotal,
       }));
       toast.success("Eliminado: " + item.producto.nombre);
-    } catch {
+    } catch (err) {
+      if (err.response && err.response.status === 404) {
+        toast.success("Este pedido ya fue cobrado");
+        navigate("/pos");
+        return;
+      }
       toast.error("Error al eliminar");
     }
   };
@@ -127,7 +150,12 @@ export default function Pedido() {
       );
       toast.success("Pedido cobrado!");
       navigate("/pos");
-    } catch {
+    } catch (err) {
+      if (err.response && err.response.status === 404) {
+        toast.success("Este pedido ya fue cobrado desde otro dispositivo");
+        navigate("/pos");
+        return;
+      }
       toast.error("Error al cobrar");
     }
   };
@@ -138,7 +166,12 @@ export default function Pedido() {
         await pedidosService.cancelarPedido(pedido_id);
         toast.success("Pedido cancelado");
         navigate("/pos");
-      } catch {
+      } catch (err) {
+        if (err.response && err.response.status === 404) {
+          toast.success("Este pedido ya fue procesado");
+          navigate("/pos");
+          return;
+        }
         toast.error("Error al cancelar");
       }
     }
@@ -163,6 +196,23 @@ export default function Pedido() {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-[#D4B896] text-xl">Cargando...</div>
+      </div>
+    );
+  }
+
+  // Si no hay pedido, mostrar mensaje y redirigir
+  if (!pedido) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-[#D4B896] text-xl mb-4">Pedido no encontrado</p>
+          <button
+            onClick={() => navigate("/pos")}
+            className="px-6 py-3 bg-[#D4B896] text-[#0a0a0a] font-semibold rounded-lg"
+          >
+            Volver al POS
+          </button>
+        </div>
       </div>
     );
   }
@@ -404,7 +454,6 @@ export default function Pedido() {
         onClick={() => setMostrarCuentaMovil(true)}
         className="lg:hidden fixed bottom-4 right-4 bg-[#D4B896] text-[#0a0a0a] px-6 py-4 rounded-full shadow-lg font-bold z-30 flex items-center gap-2"
       >
-        <span>🛒</span>
         <span>{pedido?.items?.length || 0}</span>
         <span>-</span>
         <span>${Number(pedido?.subtotal || 0).toLocaleString()}</span>
