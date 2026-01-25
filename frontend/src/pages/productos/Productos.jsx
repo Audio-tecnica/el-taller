@@ -452,7 +452,7 @@ function TabCatalogo({
 
       <div className="grid grid-cols-2 gap-1.5 mb-2">
         <div className="bg-black/40 rounded p-1.5 text-center">
-          <span className="text-[9px] text-gray-500 block">L1</span>
+          <span className="text-[9px] text-gray-500 block">Cast.</span>
           <span
             className={
               "text-lg font-black " +
@@ -465,7 +465,7 @@ function TabCatalogo({
           </span>
         </div>
         <div className="bg-black/40 rounded p-1.5 text-center">
-          <span className="text-[9px] text-gray-500 block">L2</span>
+          <span className="text-[9px] text-gray-500 block">Av.1ra</span>
           <span
             className={
               "text-lg font-black " +
@@ -530,7 +530,7 @@ function TabCatalogo({
 
         <div className="flex-1 bg-black/40 rounded-lg p-2 min-w-[200px]">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[10px] font-bold text-white">Local 1</span>
+            <span className="text-[10px] font-bold text-white">Castellana</span>
             <span className="text-[10px] text-gray-400">
               {producto.stock_local1} bodega
             </span>
@@ -575,7 +575,7 @@ function TabCatalogo({
 
         <div className="flex-1 bg-black/40 rounded-lg p-2 min-w-[200px]">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[10px] font-bold text-white">Local 2</span>
+            <span className="text-[10px] font-bold text-white">Avenida 1ra</span>
             <span className="text-[10px] text-gray-400">
               {producto.stock_local2} bodega
             </span>
@@ -815,11 +815,11 @@ function TabStock({ productos, resumen, onRecargar }) {
               <p className="text-2xl font-black text-white">{resumen.total_productos}</p>
             </div>
             <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1">Stock Local 1</p>
+              <p className="text-xs text-gray-500 mb-1">Stock Castellana</p>
               <p className="text-2xl font-black text-blue-400">{resumen.total_stock_local1}</p>
             </div>
             <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1">Stock Local 2</p>
+              <p className="text-xs text-gray-500 mb-1">Stock Avenida 1ra</p>
               <p className="text-2xl font-black text-purple-400">{resumen.total_stock_local2}</p>
             </div>
             <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4">
@@ -829,11 +829,11 @@ function TabStock({ productos, resumen, onRecargar }) {
               </p>
             </div>
             <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1">Valor L1</p>
+              <p className="text-xs text-gray-500 mb-1">Valor Cast.</p>
               <p className="text-lg font-black text-[#D4B896]">${Number(resumen.valor_inventario_local1).toLocaleString()}</p>
             </div>
             <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1">Valor L2</p>
+              <p className="text-xs text-gray-500 mb-1">Valor Av.1ra</p>
               <p className="text-lg font-black text-[#D4B896]">${Number(resumen.valor_inventario_local2).toLocaleString()}</p>
             </div>
           </div>
@@ -867,8 +867,8 @@ function TabStock({ productos, resumen, onRecargar }) {
           {/* Header de tabla */}
           <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-[#1a1a1a] text-xs text-gray-500 font-semibold uppercase">
             <div className="col-span-4">Producto</div>
-            <div className="col-span-2 text-center">Local 1</div>
-            <div className="col-span-2 text-center">Local 2</div>
+            <div className="col-span-2 text-center">Castellana</div>
+            <div className="col-span-2 text-center">Avenida 1ra</div>
             <div className="col-span-1 text-center">Total</div>
             <div className="col-span-1 text-center">Alerta</div>
             <div className="col-span-2 text-center">Acciones</div>
@@ -894,14 +894,14 @@ function TabStock({ productos, resumen, onRecargar }) {
                     </div>
                   </div>
 
-                  {/* Stock Local 1 */}
+                  {/* Stock Castellana */}
                   <div className="col-span-2 text-center">
                     <span className={"px-3 py-1 rounded-lg font-bold text-sm " + getStockColor(producto.stock_local1, producto.alerta_stock / 2)}>
                       {producto.stock_local1}
                     </span>
                   </div>
 
-                  {/* Stock Local 2 */}
+                  {/* Stock Avenida 1ra */}
                   <div className="col-span-2 text-center">
                     <span className={"px-3 py-1 rounded-lg font-bold text-sm " + getStockColor(producto.stock_local2, producto.alerta_stock / 2)}>
                       {producto.stock_local2}
@@ -1304,7 +1304,7 @@ function ModalProducto({ setModalOpen, productoEditar, formData, setFormData, ca
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1">
-                Stock Local 1
+                Stock Castellana
               </label>
               <input
                 type="number"
@@ -1320,7 +1320,7 @@ function ModalProducto({ setModalOpen, productoEditar, formData, setFormData, ca
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1">
-                Stock Local 2
+                Stock Avenida 1ra
               </label>
               <input
                 type="number"
@@ -1420,14 +1420,14 @@ function ModalEntrada({ producto, onClose, onSubmit }) {
                 onClick={() => setLocal(1)}
                 className={"py-3 rounded-lg font-medium transition " + (local === 1 ? "bg-[#D4B896] text-[#0a0a0a]" : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]")}
               >
-                Local 1 ({producto.stock_local1})
+                Castellana ({producto.stock_local1})
               </button>
               <button
                 type="button"
                 onClick={() => setLocal(2)}
                 className={"py-3 rounded-lg font-medium transition " + (local === 2 ? "bg-[#D4B896] text-[#0a0a0a]" : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]")}
               >
-                Local 2 ({producto.stock_local2})
+                Avenida 1ra ({producto.stock_local2})
               </button>
             </div>
           </div>
@@ -1521,14 +1521,14 @@ function ModalAjuste({ producto, onClose, onSubmit }) {
                 onClick={() => handleLocalChange(1)}
                 className={"py-3 rounded-lg font-medium transition " + (local === 1 ? "bg-[#D4B896] text-[#0a0a0a]" : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]")}
               >
-                Local 1 ({producto.stock_local1})
+                Castellana ({producto.stock_local1})
               </button>
               <button
                 type="button"
                 onClick={() => handleLocalChange(2)}
                 className={"py-3 rounded-lg font-medium transition " + (local === 2 ? "bg-[#D4B896] text-[#0a0a0a]" : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]")}
               >
-                Local 2 ({producto.stock_local2})
+                Avenida 1ra ({producto.stock_local2})
               </button>
             </div>
           </div>
@@ -1707,7 +1707,7 @@ function ModalTransferencia({ producto, onClose, onSubmit }) {
                   (producto.stock_local1 <= 0 ? " opacity-30 cursor-not-allowed" : "")
                 }
               >
-                Local 1
+                Castellana
                 <div className="text-xs mt-1">Stock: {producto.stock_local1}</div>
               </button>
               <button
@@ -1722,7 +1722,7 @@ function ModalTransferencia({ producto, onClose, onSubmit }) {
                   (producto.stock_local2 <= 0 ? " opacity-30 cursor-not-allowed" : "")
                 }
               >
-                Local 2
+                Avenida 1ra
                 <div className="text-xs mt-1">Stock: {producto.stock_local2}</div>
               </button>
             </div>
