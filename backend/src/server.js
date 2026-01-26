@@ -14,6 +14,7 @@ const io = new Server(server, {
     origin: [
       "http://localhost:5173",
       "https://el-taller-phi.vercel.app",
+      "https://el-taller-7i0j0i5yw-carloss-projects-0af99df2.vercel.app", // ⭐ Agregar este
     ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true
@@ -26,6 +27,7 @@ const io = new Server(server, {
 const allowedOrigins = [
   "http://localhost:5173",
   "https://el-taller-phi.vercel.app",
+  "https://el-taller-7i0j0i5yw-carloss-projects-0af99df2.vercel.app", // ⭐ Agregar este
 ];
 
 app.use(
@@ -74,8 +76,13 @@ const turnosRoutes = require("./routes/turnosRoutes");
 const barrilesRoutes = require('./routes/barrilesRoutes');
 const inventarioRoutes = require('./routes/inventarioRoutes'); 
 const reportesRoutes = require('./routes/reportesRoutes');
-app.use('/api/reportes', reportesRoutes);
 
+// ⭐ NUEVAS RUTAS KARDEX
+const inventarioKardexRoutes = require('./routes/inventarioKardexRoutes');
+const proveedorRoutes = require('./routes/proveedorRoutes');
+const reportesPremiumRoutes = require('./routes/reportesPremiumRoutes');
+
+app.use('/api/reportes', reportesRoutes);
 app.use("/api/turnos", turnosRoutes);
 app.use("/api/cortesias", cortesiasRoutes);
 app.use("/api/auth", authRoutes);
@@ -85,7 +92,9 @@ app.use("/api/productos", productosRoutes);
 app.use("/api/mesas", mesasRoutes);
 app.use("/api/pedidos", pedidosRoutes);
 app.use('/api/barriles', barrilesRoutes);
-app.use('/api/inventario', inventarioRoutes); // ⭐ AGREGADO
+app.use('/api/inventario', inventarioKardexRoutes); // ⭐ Actualizado para usar el nuevo
+app.use('/api/proveedores', proveedorRoutes); // ⭐ Nuevo
+app.use('/api/reportes-premium', reportesPremiumRoutes); // ⭐ Nuevo
 
 // Socket.IO - Manejo de conexiones
 io.on('connection', (socket) => {
