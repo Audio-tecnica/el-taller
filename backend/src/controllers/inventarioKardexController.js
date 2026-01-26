@@ -565,7 +565,7 @@ const inventarioKardexController = {
       const movimientos = await MovimientoInventario.findAll({
         where,
         include: [
-          { model: Producto, as: 'producto', attributes: ['id', 'nombre', 'codigo'], required: false },
+          { model: Producto, as: 'producto', attributes: ['id', 'nombre'], required: false },
           { model: Local, as: 'local', attributes: ['id', 'nombre'], required: false },
           { model: Proveedor, as: 'proveedor', attributes: ['id', 'nombre'], required: false },
           { model: Usuario, as: 'usuario', attributes: ['id', 'nombre'], required: false }
