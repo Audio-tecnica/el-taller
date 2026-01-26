@@ -5,13 +5,12 @@ const {
   Local,
   Categoria,
   Usuario,
-  Compra
+  Compra,
 } = require("../models");
 const { Op } = require("sequelize");
 const sequelize = require("../config/database");
 
 const inventarioKardexController = {
-
   // ==========================================
   // COMPRAS Y ENTRADAS
   // ==========================================
@@ -25,16 +24,20 @@ const inventarioKardexController = {
         numero_factura,
         fecha_factura,
         productos,
-        observaciones
+        observaciones,
       } = req.body;
       const usuario_id = req.usuario.id;
 
       if (!productos || productos.length === 0) {
         await t.rollback();
-        return res.status(400).json({ error: "Debe incluir al menos un producto" });
+        return res
+          .status(400)
+          .json({ error: "Debe incluir al menos un producto" });
       }
 
-      const proveedor = await Proveedor.findByPk(proveedor_id, { transaction: t }); // FIX
+      const proveedor = await Proveedor.findByPk(proveedor_id, {
+        transaction: t,
+      }); // FIX
       if (!proveedor) {
         await t.rollback();
         return res.status(404).json({ error: "Proveedor no encontrado" });
@@ -43,36 +46,41 @@ const inventarioKardexController = {
       const anio = new Date().getFullYear();
       const ultimaCompra = await Compra.findOne({
         where: { numero_compra: { [Op.like]: `COM-${anio}-%` } },
-        order: [['numero_compra', 'DESC']],
-        transaction: t
+        order: [["numero_compra", "DESC"]],
+        transaction: t,
       });
 
       let contador = 1;
       if (ultimaCompra) {
-        contador = parseInt(ultimaCompra.numero_compra.split('-')[2]) + 1;
+        contador = parseInt(ultimaCompra.numero_compra.split("-")[2]) + 1;
       }
 
-      const numero_compra = `COM-${anio}-${String(contador).padStart(5, '0')}`;
+      const numero_compra = `COM-${anio}-${String(contador).padStart(5, "0")}`;
 
       let subtotal = 0;
       const movimientos = [];
 
       for (const item of productos) {
-
-        if (item.cantidad <= 0) { // FIX
+        if (item.cantidad <= 0) {
+          // FIX
           await t.rollback();
           return res.status(400).json({ error: "Cantidad inválida" });
         }
 
-        const producto = await Producto.findByPk(item.producto_id, { transaction: t });
+        const producto = await Producto.findByPk(item.producto_id, {
+          transaction: t,
+        });
         if (!producto) {
           await t.rollback();
-          return res.status(404).json({ error: `Producto ${item.producto_id} no encontrado` });
+          return res
+            .status(404)
+            .json({ error: `Producto ${item.producto_id} no encontrado` });
         }
 
-        const stockField = local_id === '00000000-0000-0000-0000-000000000001'
-          ? 'stock_local1'
-          : 'stock_local2';
+        const stockField =
+          local_id === "00000000-0000-0000-0000-000000000001"
+            ? "stock_local1"
+            : "stock_local2";
 
         const stockAnterior = producto[stockField];
         const stockNuevo = stockAnterior + item.cantidad;
@@ -81,68 +89,77 @@ const inventarioKardexController = {
         subtotal += costoTotal;
 
         // FIX: recalcular costo promedio
-        const stockTotalAnterior = (producto.stock_local1 || 0) + (producto.stock_local2 || 0);
+        const stockTotalAnterior =
+          (producto.stock_local1 || 0) + (producto.stock_local2 || 0);
         const nuevoCostoPromedio =
           stockTotalAnterior + item.cantidad > 0
-            ? ((producto.costo_promedio * stockTotalAnterior) + costoTotal)
-              / (stockTotalAnterior + item.cantidad)
+            ? (producto.costo_promedio * stockTotalAnterior + costoTotal) /
+              (stockTotalAnterior + item.cantidad)
             : item.costo_unitario;
 
-        await producto.update({
-          [stockField]: stockNuevo,
-          ultimo_costo: item.costo_unitario,
-          costo_promedio: nuevoCostoPromedio // FIX
-        }, { transaction: t });
+        await producto.update(
+          {
+            [stockField]: stockNuevo,
+            ultimo_costo: item.costo_unitario,
+            costo_promedio: nuevoCostoPromedio, // FIX
+          },
+          { transaction: t },
+        );
 
         if (item.precio_venta) {
           await producto.update(
             { precio_venta: item.precio_venta },
-            { transaction: t }
+            { transaction: t },
           );
         }
 
-        const movimiento = await MovimientoInventario.create({
-          producto_id: item.producto_id,
-          local_id,
-          tipo: 'compra',
-          cantidad: item.cantidad,
-          stock_anterior: stockAnterior,
-          stock_nuevo: stockNuevo,
-          costo_unitario: item.costo_unitario,
-          costo_total: costoTotal,
-          proveedor_id,
-          numero_factura,
-          fecha_factura,
-          fecha_movimiento: new Date(), // FIX
-          motivo: `Compra a ${proveedor.nombre}`,
-          observaciones,
-          usuario_id
-        }, { transaction: t });
+        const movimiento = await MovimientoInventario.create(
+          {
+            producto_id: item.producto_id,
+            local_id,
+            tipo: "compra",
+            cantidad: item.cantidad,
+            stock_anterior: stockAnterior,
+            stock_nuevo: stockNuevo,
+            costo_unitario: item.costo_unitario,
+            costo_total: costoTotal,
+            proveedor_id,
+            numero_factura,
+            fecha_factura,
+            fecha_movimiento: new Date(), // FIX
+            motivo: `Compra a ${proveedor.nombre}`,
+            observaciones,
+            usuario_id,
+          },
+          { transaction: t },
+        );
 
         movimientos.push(movimiento);
       }
 
-      const compra = await Compra.create({
-        numero_compra,
-        proveedor_id,
-        local_id,
-        numero_factura,
-        fecha_factura,
-        subtotal,
-        total: subtotal,
-        estado: 'recibida',
-        observaciones,
-        usuario_id
-      }, { transaction: t });
+      const compra = await Compra.create(
+        {
+          numero_compra,
+          proveedor_id,
+          local_id,
+          numero_factura,
+          fecha_factura,
+          subtotal,
+          total: subtotal,
+          estado: "recibida",
+          observaciones,
+          usuario_id,
+        },
+        { transaction: t },
+      );
 
       await t.commit();
 
       res.json({
         mensaje: "Compra registrada exitosamente",
         compra,
-        movimientos: movimientos.length
+        movimientos: movimientos.length,
       });
-
     } catch (error) {
       await t.rollback();
       console.error("Error en registrarCompra:", error);
@@ -162,7 +179,7 @@ const inventarioKardexController = {
         costo_unitario,
         numero_factura,
         motivo,
-        observaciones
+        observaciones,
       } = req.body;
       const usuario_id = req.usuario.id;
 
@@ -172,28 +189,28 @@ const inventarioKardexController = {
         return res.status(404).json({ error: "Producto no encontrado" });
       }
 
-      const stockField = local_id === '00000000-0000-0000-0000-000000000001' ? 'stock_local1' : 'stock_local2';
+      const stockField =
+        local_id === "00000000-0000-0000-0000-000000000001"
+          ? "stock_local1"
+          : "stock_local2";
       const stockAnterior = producto[stockField];
 
       if (stockAnterior < cantidad) {
         await t.rollback();
         return res.status(400).json({
-          error: `Stock insuficiente. Disponible: ${stockAnterior}, Solicitado: ${cantidad}`
+          error: `Stock insuficiente. Disponible: ${stockAnterior}, Solicitado: ${cantidad}`,
         });
       }
 
       const stockNuevo = stockAnterior - cantidad;
 
-      await producto.update(
-        { [stockField]: stockNuevo },
-        { transaction: t }
-      );
+      await producto.update({ [stockField]: stockNuevo }, { transaction: t });
 
       const movimiento = await MovimientoInventario.create(
         {
           producto_id,
           local_id,
-          tipo: 'devolucion_proveedor',
+          tipo: "devolucion_proveedor",
           cantidad: -cantidad,
           stock_anterior: stockAnterior,
           stock_nuevo: stockNuevo,
@@ -203,20 +220,57 @@ const inventarioKardexController = {
           numero_factura,
           motivo: motivo || "Devolución a proveedor",
           observaciones,
-          usuario_id
+          usuario_id,
         },
-        { transaction: t }
+        { transaction: t },
       );
 
       await t.commit();
 
       res.json({
         mensaje: "Devolución registrada exitosamente",
-        movimiento
+        movimiento,
       });
     } catch (error) {
       await t.rollback();
       console.error("Error en registrarDevolucionProveedor:", error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // =====================================================
+  // INVENTARIO CONSOLIDADO (KARDEX BASED)
+  // =====================================================
+  obtenerInventarioConsolidado: async (req, res) => {
+    try {
+      const resultados = await MovimientoInventario.findAll({
+        attributes: [
+          "producto_id",
+          "local_id",
+          [sequelize.fn("SUM", sequelize.col("cantidad")), "stock_calculado"],
+        ],
+        include: [
+          {
+            model: Producto,
+            as: "producto",
+            attributes: ["id", "nombre"],
+          },
+          {
+            model: Local,
+            as: "local",
+            attributes: ["id", "nombre"],
+          },
+        ],
+        group: ["producto_id", "local_id", "producto.id", "local.id"],
+        order: [
+          ["producto_id", "ASC"],
+          ["local_id", "ASC"],
+        ],
+      });
+
+      res.json(resultados);
+    } catch (error) {
+      console.error("Error inventario consolidado:", error);
       res.status(500).json({ error: error.message });
     }
   },
@@ -235,7 +289,7 @@ const inventarioKardexController = {
         cantidad_contada,
         motivo,
         observaciones,
-        autorizado_por
+        autorizado_por,
       } = req.body;
       const usuario_id = req.usuario.id;
 
@@ -245,22 +299,26 @@ const inventarioKardexController = {
         return res.status(404).json({ error: "Producto no encontrado" });
       }
 
-      const stockField = local_id === '00000000-0000-0000-0000-000000000001' ? 'stock_local1' : 'stock_local2';
+      const stockField =
+        local_id === "00000000-0000-0000-0000-000000000001"
+          ? "stock_local1"
+          : "stock_local2";
       const stockAnterior = producto[stockField];
       const diferencia = cantidad_contada - stockAnterior;
 
       if (diferencia === 0) {
         await t.rollback();
         return res.status(400).json({
-          error: "El stock contado es igual al stock actual. No se requiere ajuste."
+          error:
+            "El stock contado es igual al stock actual. No se requiere ajuste.",
         });
       }
 
-      const tipo = diferencia > 0 ? 'ajuste_positivo' : 'ajuste_negativo';
+      const tipo = diferencia > 0 ? "ajuste_positivo" : "ajuste_negativo";
 
       await producto.update(
         { [stockField]: cantidad_contada },
-        { transaction: t }
+        { transaction: t },
       );
 
       const movimiento = await MovimientoInventario.create(
@@ -274,16 +332,16 @@ const inventarioKardexController = {
           motivo: motivo || "Ajuste por conteo físico",
           observaciones,
           usuario_id,
-          autorizado_por
+          autorizado_por,
         },
-        { transaction: t }
+        { transaction: t },
       );
 
       await t.commit();
 
       res.json({
-        mensaje: `Ajuste de inventario registrado (${diferencia > 0 ? '+' : ''}${diferencia} unidades)`,
-        movimiento
+        mensaje: `Ajuste de inventario registrado (${diferencia > 0 ? "+" : ""}${diferencia} unidades)`,
+        movimiento,
       });
     } catch (error) {
       await t.rollback();
@@ -302,7 +360,7 @@ const inventarioKardexController = {
         cantidad,
         motivo,
         observaciones,
-        autorizado_por
+        autorizado_por,
       } = req.body;
       const usuario_id = req.usuario.id;
 
@@ -312,28 +370,28 @@ const inventarioKardexController = {
         return res.status(404).json({ error: "Producto no encontrado" });
       }
 
-      const stockField = local_id === '00000000-0000-0000-0000-000000000001' ? 'stock_local1' : 'stock_local2';
+      const stockField =
+        local_id === "00000000-0000-0000-0000-000000000001"
+          ? "stock_local1"
+          : "stock_local2";
       const stockAnterior = producto[stockField];
 
       if (stockAnterior < cantidad) {
         await t.rollback();
         return res.status(400).json({
-          error: `Stock insuficiente. Disponible: ${stockAnterior}, Solicitado: ${cantidad}`
+          error: `Stock insuficiente. Disponible: ${stockAnterior}, Solicitado: ${cantidad}`,
         });
       }
 
       const stockNuevo = stockAnterior - cantidad;
 
-      await producto.update(
-        { [stockField]: stockNuevo },
-        { transaction: t }
-      );
+      await producto.update({ [stockField]: stockNuevo }, { transaction: t });
 
       const movimiento = await MovimientoInventario.create(
         {
           producto_id,
           local_id,
-          tipo: 'merma',
+          tipo: "merma",
           cantidad: -cantidad,
           stock_anterior: stockAnterior,
           stock_nuevo: stockNuevo,
@@ -342,9 +400,9 @@ const inventarioKardexController = {
           motivo: motivo || "Merma de inventario",
           observaciones,
           usuario_id,
-          autorizado_por
+          autorizado_por,
         },
-        { transaction: t }
+        { transaction: t },
       );
 
       await t.commit();
@@ -352,7 +410,7 @@ const inventarioKardexController = {
       res.json({
         mensaje: "Merma registrada exitosamente",
         movimiento,
-        costo_merma: cantidad * producto.costo_promedio
+        costo_merma: cantidad * producto.costo_promedio,
       });
     } catch (error) {
       await t.rollback();
@@ -375,14 +433,14 @@ const inventarioKardexController = {
         local_destino_id,
         cantidad,
         motivo,
-        observaciones
+        observaciones,
       } = req.body;
       const usuario_id = req.usuario.id;
 
       if (local_origen_id === local_destino_id) {
         await t.rollback();
         return res.status(400).json({
-          error: "El local de origen y destino deben ser diferentes"
+          error: "El local de origen y destino deben ser diferentes",
         });
       }
 
@@ -392,8 +450,14 @@ const inventarioKardexController = {
         return res.status(404).json({ error: "Producto no encontrado" });
       }
 
-      const stockFieldOrigen = local_origen_id === '00000000-0000-0000-0000-000000000001' ? 'stock_local1' : 'stock_local2';
-      const stockFieldDestino = local_destino_id === '00000000-0000-0000-0000-000000000001' ? 'stock_local1' : 'stock_local2';
+      const stockFieldOrigen =
+        local_origen_id === "00000000-0000-0000-0000-000000000001"
+          ? "stock_local1"
+          : "stock_local2";
+      const stockFieldDestino =
+        local_destino_id === "00000000-0000-0000-0000-000000000001"
+          ? "stock_local1"
+          : "stock_local2";
 
       const stockOrigen = producto[stockFieldOrigen];
       const stockDestino = producto[stockFieldDestino];
@@ -401,16 +465,16 @@ const inventarioKardexController = {
       if (stockOrigen < cantidad) {
         await t.rollback();
         return res.status(400).json({
-          error: `Stock insuficiente en local origen. Disponible: ${stockOrigen}, Solicitado: ${cantidad}`
+          error: `Stock insuficiente en local origen. Disponible: ${stockOrigen}, Solicitado: ${cantidad}`,
         });
       }
 
       await producto.update(
         {
           [stockFieldOrigen]: stockOrigen - cantidad,
-          [stockFieldDestino]: stockDestino + cantidad
+          [stockFieldDestino]: stockDestino + cantidad,
         },
-        { transaction: t }
+        { transaction: t },
       );
 
       // Movimiento de salida
@@ -418,7 +482,7 @@ const inventarioKardexController = {
         {
           producto_id,
           local_id: local_origen_id,
-          tipo: 'salida_transferencia',
+          tipo: "salida_transferencia",
           cantidad: -cantidad,
           stock_anterior: stockOrigen,
           stock_nuevo: stockOrigen - cantidad,
@@ -428,9 +492,9 @@ const inventarioKardexController = {
           costo_total: cantidad * producto.costo_promedio,
           motivo: motivo || "Transferencia entre locales",
           observaciones,
-          usuario_id
+          usuario_id,
         },
-        { transaction: t }
+        { transaction: t },
       );
 
       // Movimiento de entrada
@@ -438,7 +502,7 @@ const inventarioKardexController = {
         {
           producto_id,
           local_id: local_destino_id,
-          tipo: 'entrada_transferencia',
+          tipo: "entrada_transferencia",
           cantidad: cantidad,
           stock_anterior: stockDestino,
           stock_nuevo: stockDestino + cantidad,
@@ -449,15 +513,15 @@ const inventarioKardexController = {
           motivo: motivo || "Transferencia entre locales",
           observaciones,
           usuario_id,
-          movimiento_relacionado_id: movSalida.id
+          movimiento_relacionado_id: movSalida.id,
         },
-        { transaction: t }
+        { transaction: t },
       );
 
       // Relacionar movimientos
       await movSalida.update(
         { movimiento_relacionado_id: movEntrada.id },
-        { transaction: t }
+        { transaction: t },
       );
 
       await t.commit();
@@ -465,7 +529,7 @@ const inventarioKardexController = {
       res.json({
         mensaje: `Transferencia completada: ${cantidad} unidades`,
         movimiento_salida: movSalida,
-        movimiento_entrada: movEntrada
+        movimiento_entrada: movEntrada,
       });
     } catch (error) {
       await t.rollback();
@@ -490,20 +554,24 @@ const inventarioKardexController = {
 
       if (fecha_inicio && fecha_fin) {
         where.fecha_movimiento = {
-          [Op.between]: [new Date(fecha_inicio), new Date(fecha_fin)]
+          [Op.between]: [new Date(fecha_inicio), new Date(fecha_fin)],
         };
       }
 
       const movimientos = await MovimientoInventario.findAll({
         where,
         include: [
-          { model: Producto, as: 'producto', attributes: ['id', 'nombre', 'codigo'] },
-          { model: Local, as: 'local', attributes: ['id', 'nombre'] },
-          { model: Proveedor, as: 'proveedor', attributes: ['id', 'nombre'] },
-          { model: Usuario, as: 'usuario', attributes: ['id', 'nombre'] }
+          {
+            model: Producto,
+            as: "producto",
+            attributes: ["id", "nombre", "codigo"],
+          },
+          { model: Local, as: "local", attributes: ["id", "nombre"] },
+          { model: Proveedor, as: "proveedor", attributes: ["id", "nombre"] },
+          { model: Usuario, as: "usuario", attributes: ["id", "nombre"] },
         ],
-        order: [['fecha_movimiento', 'DESC']],
-        limit: parseInt(limit)
+        order: [["fecha_movimiento", "DESC"]],
+        limit: parseInt(limit),
       });
 
       // Calcular totales
@@ -512,24 +580,29 @@ const inventarioKardexController = {
         total_salidas: 0,
         valor_entradas: 0,
         valor_salidas: 0,
-        stock_inicial: movimientos.length > 0 ? movimientos[movimientos.length - 1].stock_anterior : 0,
-        stock_final: movimientos.length > 0 ? movimientos[0].stock_nuevo : 0
+        stock_inicial:
+          movimientos.length > 0
+            ? movimientos[movimientos.length - 1].stock_anterior
+            : 0,
+        stock_final: movimientos.length > 0 ? movimientos[0].stock_nuevo : 0,
       };
 
-      movimientos.forEach(mov => {
+      movimientos.forEach((mov) => {
         if (mov.cantidad > 0) {
           resumen.total_entradas += mov.cantidad;
           resumen.valor_entradas += parseFloat(mov.costo_total || 0);
         } else {
           resumen.total_salidas += Math.abs(mov.cantidad);
-          resumen.valor_salidas += parseFloat(mov.valor_venta || mov.costo_total || 0);
+          resumen.valor_salidas += parseFloat(
+            mov.valor_venta || mov.costo_total || 0,
+          );
         }
       });
 
       res.json({
         producto_id,
         movimientos,
-        resumen
+        resumen,
       });
     } catch (error) {
       console.error("Error en getKardexProducto:", error);
@@ -547,7 +620,7 @@ const inventarioKardexController = {
         proveedor_id,
         fecha_inicio,
         fecha_fin,
-        limit = 50
+        limit = 50,
       } = req.query;
 
       const where = {};
@@ -558,20 +631,40 @@ const inventarioKardexController = {
 
       if (fecha_inicio && fecha_fin) {
         where.fecha_movimiento = {
-          [Op.between]: [new Date(fecha_inicio), new Date(fecha_fin)]
+          [Op.between]: [new Date(fecha_inicio), new Date(fecha_fin)],
         };
       }
 
       const movimientos = await MovimientoInventario.findAll({
         where,
         include: [
-          { model: Producto, as: 'producto', attributes: ['id', 'nombre'], required: false },
-          { model: Local, as: 'local', attributes: ['id', 'nombre'], required: false },
-          { model: Proveedor, as: 'proveedor', attributes: ['id', 'nombre'], required: false },
-          { model: Usuario, as: 'usuario', attributes: ['id', 'nombre'], required: false }
+          {
+            model: Producto,
+            as: "producto",
+            attributes: ["id", "nombre"],
+            required: false,
+          },
+          {
+            model: Local,
+            as: "local",
+            attributes: ["id", "nombre"],
+            required: false,
+          },
+          {
+            model: Proveedor,
+            as: "proveedor",
+            attributes: ["id", "nombre"],
+            required: false,
+          },
+          {
+            model: Usuario,
+            as: "usuario",
+            attributes: ["id", "nombre"],
+            required: false,
+          },
         ],
-        order: [['fecha_movimiento', 'DESC']],
-        limit: parseInt(limit)
+        order: [["fecha_movimiento", "DESC"]],
+        limit: parseInt(limit),
       });
 
       res.json(movimientos);
@@ -588,25 +681,31 @@ const inventarioKardexController = {
 
       const productos = await Producto.findAll({
         where: { activo: true },
-        include: [{ model: Categoria, as: 'categoria' }],
-        order: [['nombre', 'ASC']]
+        include: [{ model: Categoria, as: "categoria" }],
+        order: [["nombre", "ASC"]],
       });
 
-      const inventarioValorizado = productos.map(p => {
+      const inventarioValorizado = productos.map((p) => {
         const stockLocal1 = p.stock_local1 || 0;
         const stockLocal2 = p.stock_local2 || 0;
         const stockTotal = stockLocal1 + stockLocal2;
 
         let stock = stockTotal;
-        if (local_id === '00000000-0000-0000-0000-000000000001') stock = stockLocal1;
-        if (local_id === '00000000-0000-0000-0000-000000000002') stock = stockLocal2;
+        if (local_id === "00000000-0000-0000-0000-000000000001")
+          stock = stockLocal1;
+        if (local_id === "00000000-0000-0000-0000-000000000002")
+          stock = stockLocal2;
 
         const valorCosto = stock * parseFloat(p.costo_promedio || 0);
         const valorVenta = stock * parseFloat(p.precio_venta || 0);
         const utilidadPotencial = valorVenta - valorCosto;
-        const margen = p.costo_promedio > 0 
-          ? ((parseFloat(p.precio_venta || 0) - parseFloat(p.costo_promedio || 0)) / parseFloat(p.costo_promedio || 0)) * 100
-          : 0;
+        const margen =
+          p.costo_promedio > 0
+            ? ((parseFloat(p.precio_venta || 0) -
+                parseFloat(p.costo_promedio || 0)) /
+                parseFloat(p.costo_promedio || 0)) *
+              100
+            : 0;
 
         return {
           producto_id: p.id,
@@ -621,27 +720,37 @@ const inventarioKardexController = {
           valor_inventario_venta: valorVenta,
           utilidad_potencial: utilidadPotencial,
           margen_porcentaje: margen.toFixed(2),
-          stock_bajo: stockTotal <= p.alerta_stock
+          stock_bajo: stockTotal <= p.alerta_stock,
         };
       });
 
       const totales = {
         total_productos: inventarioValorizado.length,
-        valor_total_costo: inventarioValorizado.reduce((sum, p) => sum + p.valor_inventario_costo, 0),
-        valor_total_venta: inventarioValorizado.reduce((sum, p) => sum + p.valor_inventario_venta, 0),
-        utilidad_potencial_total: inventarioValorizado.reduce((sum, p) => sum + p.utilidad_potencial, 0),
-        productos_stock_bajo: inventarioValorizado.filter(p => p.stock_bajo).length
+        valor_total_costo: inventarioValorizado.reduce(
+          (sum, p) => sum + p.valor_inventario_costo,
+          0,
+        ),
+        valor_total_venta: inventarioValorizado.reduce(
+          (sum, p) => sum + p.valor_inventario_venta,
+          0,
+        ),
+        utilidad_potencial_total: inventarioValorizado.reduce(
+          (sum, p) => sum + p.utilidad_potencial,
+          0,
+        ),
+        productos_stock_bajo: inventarioValorizado.filter((p) => p.stock_bajo)
+          .length,
       };
 
       res.json({
         productos: inventarioValorizado,
-        totales
+        totales,
       });
     } catch (error) {
       console.error("Error en getInventarioValorizado:", error);
       res.status(500).json({ error: error.message });
     }
-  }
+  },
 };
 
 module.exports = inventarioKardexController;
