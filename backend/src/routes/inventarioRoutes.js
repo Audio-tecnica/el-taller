@@ -1,42 +1,20 @@
 const express = require("express");
 const router = express.Router();
 
-const inventarioKardexController = require("../controllers/inventarioKardexController");
+const inventarioController = require("../controllers/inventarioController");
 const authMiddleware = require("../middleware/authMiddleware");
 
-// Todas las rutas protegidas
 router.use(authMiddleware);
 
-/**
- * MOVIMIENTOS (KARDEX)
- */
-router.get(
-  "/movimientos",
-  inventarioKardexController.getMovimientos
-);
-
+// Inventario
+router.get("/consolidado", inventarioController.getInventarioConsolidado);
+router.get("/movimientos", inventarioController.getMovimientos);
 router.get(
   "/movimientos/:producto_id",
-  inventarioKardexController.getMovimientosPorProducto
+  inventarioController.getMovimientosProducto
 );
-
-/**
- * OPERACIONES DE STOCK
- */
-router.post(
-  "/entrada",
-  inventarioKardexController.registrarEntrada
-);
-
-router.post(
-  "/ajuste",
-  inventarioKardexController.ajustarInventario
-);
-
-router.post(
-  "/transferencia",
-  inventarioKardexController.transferirEntreLocales
-);
+router.post("/entrada", inventarioController.registrarEntrada);
+router.post("/ajustar", inventarioController.ajustarInventario);
+router.post("/transferir", inventarioController.transferirEntreLocales);
 
 module.exports = router;
-
