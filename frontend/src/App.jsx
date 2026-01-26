@@ -7,11 +7,13 @@ import Mesas from "./pages/mesas/Mesas";
 import POS from "./pages/pos/Pos";
 import Pedido from "./pages/pos/Pedido";
 import Caja from "./pages/caja/Caja";
-import { AuthProvider } from "./context/AuthContext";
 import Reportes from "./pages/reportes/Reportes";
-import Proveedores from "./pages/Proveedores";
-import RegistrarCompra from "./pages/RegistrarCompra";
-import InventarioValorizado from "./pages/InventarioValorizado";
+import { AuthProvider } from "./context/AuthContext";
+
+// ⭐ NUEVAS RUTAS KARDEX - Ajustar paths
+import Proveedores from "./pages/proveedores/Proveedores";
+import RegistrarCompra from "./pages/compras/RegistrarCompra";
+import InventarioValorizado from "./pages/productos/InventarioValorizado";
 
 function App() {
   return (
@@ -26,14 +28,14 @@ function App() {
           <Route path="/pos" element={<POS />} />
           <Route path="/pos/pedido/:pedido_id" element={<Pedido />} />
           <Route path="/caja" element={<Caja />} />
-          <Route path="/" element={<Login />} />
           <Route path="/reportes" element={<Reportes />} />
+          
+          {/* ⭐ Rutas Kardex Premium */}
           <Route path="/proveedores" element={<Proveedores />} />
           <Route path="/compras/nueva" element={<RegistrarCompra />} />
-          <Route
-            path="/inventario/valorizado"
-            element={<InventarioValorizado />}
-          />
+          <Route path="/inventario/valorizado" element={<InventarioValorizado />} />
+          
+          <Route path="/" element={<Login />} />
         </Routes>
       </AuthProvider>
     </Router>
