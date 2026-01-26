@@ -92,7 +92,8 @@ app.use("/api/productos", productosRoutes);
 app.use("/api/mesas", mesasRoutes);
 app.use("/api/pedidos", pedidosRoutes);
 app.use('/api/barriles', barrilesRoutes);
-app.use('/api/inventario', inventarioKardexRoutes); // ⭐ Actualizado para usar el nuevo
+app.use('/api/inventario', inventarioRoutes); // Rutas originales
+app.use('/api/inventario-kardex', inventarioKardexRoutes); // Rutas nuevas en otra ruta
 app.use('/api/proveedores', proveedorRoutes); // ⭐ Nuevo
 app.use('/api/reportes-premium', reportesPremiumRoutes); // ⭐ Nuevo
 
