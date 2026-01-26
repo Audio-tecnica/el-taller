@@ -34,8 +34,9 @@ export default function Proveedores() {
       setLoading(true);
       const data = await proveedoresService.getAll();
       setProveedores(data);
-    } catch {
-      toast.error("Error al cargar proveedores");
+    } catch (error) {
+      console.error("Error al cargar proveedores:", error);
+      toast.error("Error al cargar proveedores: " + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }

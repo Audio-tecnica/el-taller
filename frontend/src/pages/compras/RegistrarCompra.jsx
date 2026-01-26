@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { proveedoresService } from "../../services/proveedoresService";
-import { productosService } from "../../services/productosService";
 import { inventarioKardexService } from "../../services/inventarioKardexService";
 import toast from "react-hot-toast";
 import logo from "../../assets/logo.jpeg";
+import api from "../../services/api";
 
 export default function RegistrarCompra() {
   const navigate = useNavigate();
@@ -35,14 +35,18 @@ export default function RegistrarCompra() {
   const cargarDatos = async () => {
     try {
       setLoading(true);
-      const [prov, prod] = await Promise.all([
-        proveedoresService.getAll(),
-        productosService.getAll()
-      ]);
+      
+      // Cargar proveedores
+      const prov = await proveedoresService.getAll();
       setProveedores(prov);
-      setProductos(prod);
-    } catch {
-      toast.error("Error al cargar datos");
+      
+      // Cargar productos usando el endpoint correcto
+      const prodResponse = await api.get('/productos');
+      setProductos(prodResponse.data);
+      
+    } catch (error) {
+      console.error("Error al cargar datos:", error);
+      toast.error("Error al cargar datos: " + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }

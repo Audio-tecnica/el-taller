@@ -21,8 +21,9 @@ export default function InventarioValorizado() {
       setLoading(true);
       const data = await inventarioKardexService.getInventarioValorizado(localFiltro);
       setDatos(data);
-    } catch {
-      toast.error("Error al cargar inventario");
+    } catch (error) {
+      console.error("Error al cargar inventario:", error);
+      toast.error("Error al cargar inventario: " + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
