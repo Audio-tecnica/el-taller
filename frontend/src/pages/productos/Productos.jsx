@@ -8,7 +8,7 @@ import logo from "../../assets/logo.jpeg";
 export default function Productos() {
   const navigate = useNavigate();
   const [tabActiva, setTabActiva] = useState("catalogo"); // catalogo, stock, movimientos
-  
+
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [resumen, setResumen] = useState(null);
@@ -18,7 +18,10 @@ export default function Productos() {
   const [filtroCategoria, setFiltroCategoria] = useState("");
 
   const [modalBarril, setModalBarril] = useState({ open: false, local: null });
-  const [modalTransferencia, setModalTransferencia] = useState({ open: false, producto: null });
+  const [modalTransferencia, setModalTransferencia] = useState({
+    open: false,
+    producto: null,
+  });
 
   const [formData, setFormData] = useState({
     nombre: "",
@@ -39,7 +42,9 @@ export default function Productos() {
       const [prods, cats, inventarioData] = await Promise.all([
         productosService.getProductos(),
         productosService.getCategorias(),
-        inventarioService.getInventarioConsolidado().catch(() => ({ productos: [], resumen: null }))
+        inventarioService
+          .getInventarioConsolidado()
+          .catch(() => ({ productos: [], resumen: null })),
       ]);
       setProductos(prods);
       setCategorias(cats);
@@ -71,14 +76,15 @@ export default function Productos() {
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [cargarDatos]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const categoriaSeleccionada = categorias.find(
-        (c) => c.id === formData.categoria_id
+        (c) => c.id === formData.categoria_id,
       );
       const esBarril =
         categoriaSeleccionada?.nombre?.toLowerCase().includes("barril") ||
@@ -90,7 +96,10 @@ export default function Productos() {
       };
 
       if (productoEditar) {
-        await productosService.actualizarProducto(productoEditar.id, dataToSend);
+        await productosService.actualizarProducto(
+          productoEditar.id,
+          dataToSend,
+        );
         toast.success("Producto actualizado");
       } else {
         await productosService.crearProducto(dataToSend);
@@ -145,7 +154,7 @@ export default function Productos() {
             Authorization: "Bearer " + localStorage.getItem("token"),
           },
           body: JSON.stringify({ producto_id: productoId, local }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -162,7 +171,11 @@ export default function Productos() {
   };
 
   const handleCambiarBarril = async (productoId, local) => {
-    if (window.confirm("¿Cambiar barril vacío y activar uno nuevo en Local " + local + "?")) {
+    if (
+      window.confirm(
+        "¿Cambiar barril vacío y activar uno nuevo en Local " + local + "?",
+      )
+    ) {
       try {
         await fetch("https://el-taller.onrender.com/api/barriles/desactivar", {
           method: "POST",
@@ -182,7 +195,7 @@ export default function Productos() {
               Authorization: "Bearer " + localStorage.getItem("token"),
             },
             body: JSON.stringify({ producto_id: productoId, local }),
-          }
+          },
         );
 
         if (response.ok) {
@@ -198,22 +211,31 @@ export default function Productos() {
     }
   };
 
-  const handleTransferir = async (productoId, localOrigen, localDestino, cantidad, motivo) => {
+  const handleTransferir = async (
+    productoId,
+    localOrigen,
+    localDestino,
+    cantidad,
+    motivo,
+  ) => {
     try {
-      const response = await fetch("https://el-taller.onrender.com/api/inventario/transferir", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + localStorage.getItem("token"),
+      const response = await fetch(
+        "https://el-taller.onrender.com/api/inventario/transferir",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + localStorage.getItem("token"),
+          },
+          body: JSON.stringify({
+            producto_id: productoId,
+            local_origen: localOrigen,
+            local_destino: localDestino,
+            cantidad,
+            motivo,
+          }),
         },
-        body: JSON.stringify({
-          producto_id: productoId,
-          local_origen: localOrigen,
-          local_destino: localDestino,
-          cantidad,
-          motivo
-        }),
-      });
+      );
 
       if (response.ok) {
         toast.success("Transferencia completada");
@@ -271,7 +293,9 @@ export default function Productos() {
               <h1 className="text-base font-bold text-[#D4B896] tracking-wide">
                 EL TALLER
               </h1>
-              <p className="text-[10px] text-gray-500">Productos e Inventario</p>
+              <p className="text-[10px] text-gray-500">
+                Productos e Inventario
+              </p>
             </div>
           </button>
           {tabActiva === "catalogo" && (
@@ -343,15 +367,15 @@ export default function Productos() {
           setModalTransferencia={setModalTransferencia}
         />
       )}
-      
+
       {tabActiva === "stock" && (
-        <TabStock 
+        <TabStock
           productos={productos}
           resumen={resumen}
           onRecargar={cargarDatos}
         />
       )}
-      
+
       {tabActiva === "movimientos" && <TabMovimientos />}
 
       {/* Modales del catálogo */}
@@ -398,8 +422,12 @@ function TabCatalogo({
   handleCambiarBarril,
   setModalTransferencia,
 }) {
-  const productosBarril = productos.filter((p) => p.unidad_medida === "barriles");
-  const productosNormales = productos.filter((p) => p.unidad_medida !== "barriles");
+  const productosBarril = productos.filter(
+    (p) => p.unidad_medida === "barriles",
+  );
+  const productosNormales = productos.filter(
+    (p) => p.unidad_medida !== "barriles",
+  );
 
   const productosFiltrados = filtroCategoria
     ? productos.filter((p) => p.categoria_id === filtroCategoria)
@@ -410,7 +438,8 @@ function TabCatalogo({
     const nombre = categoria.nombre.toLowerCase();
     if (nombre.includes("botella")) return "border-l-green-500";
     if (nombre.includes("lata")) return "border-l-blue-500";
-    if (nombre.includes("comida") || nombre.includes("piqueo")) return "border-l-orange-500";
+    if (nombre.includes("comida") || nombre.includes("piqueo"))
+      return "border-l-orange-500";
     if (nombre.includes("bebida")) return "border-l-purple-500";
     return "border-l-gray-700";
   };
@@ -502,7 +531,7 @@ function TabCatalogo({
             X
           </button>
         </div>
-        {((producto.stock_local1 > 0) || (producto.stock_local2 > 0)) && (
+        {(producto.stock_local1 > 0 || producto.stock_local2 > 0) && (
           <button
             onClick={() => setModalTransferencia({ open: true, producto })}
             className="w-full py-1.5 bg-purple-500/20 text-purple-400 rounded text-[10px] font-semibold hover:bg-purple-500/30 transition"
@@ -541,26 +570,39 @@ function TabCatalogo({
                 <span className="text-[8px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full">
                   ACTIVO
                 </span>
-                <span className={"text-xs font-bold " + getVasosColor(producto.vasos_disponibles_local1)}>
+                <span
+                  className={
+                    "text-xs font-bold " +
+                    getVasosColor(producto.vasos_disponibles_local1)
+                  }
+                >
                   {producto.vasos_disponibles_local1} vasos
                 </span>
               </div>
               <div className="w-full bg-gray-700 rounded-full h-2">
                 <div
-                  className={"h-2 rounded-full " + getBarraColor(producto.vasos_disponibles_local1)}
+                  className={
+                    "h-2 rounded-full " +
+                    getBarraColor(producto.vasos_disponibles_local1)
+                  }
                   style={{
-                    width: ((producto.vasos_disponibles_local1 / producto.capacidad_barril) * 100) + "%",
+                    width:
+                      (producto.vasos_disponibles_local1 /
+                        producto.capacidad_barril) *
+                        100 +
+                      "%",
                   }}
                 />
               </div>
-              {producto.vasos_disponibles_local1 <= 15 && producto.stock_local1 > 0 && (
-                <button
-                  onClick={() => handleCambiarBarril(producto.id, 1)}
-                  className="mt-1 w-full py-1 text-[9px] bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
-                >
-                  Cambiar
-                </button>
-              )}
+              {producto.vasos_disponibles_local1 <= 15 &&
+                producto.stock_local1 > 0 && (
+                  <button
+                    onClick={() => handleCambiarBarril(producto.id, 1)}
+                    className="mt-1 w-full py-1 text-[9px] bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
+                  >
+                    Cambiar
+                  </button>
+                )}
             </div>
           ) : (
             <button
@@ -575,7 +617,9 @@ function TabCatalogo({
 
         <div className="flex-1 bg-black/40 rounded-lg p-2 min-w-[200px]">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[10px] font-bold text-white">Avenida 1ra</span>
+            <span className="text-[10px] font-bold text-white">
+              Avenida 1ra
+            </span>
             <span className="text-[10px] text-gray-400">
               {producto.stock_local2} bodega
             </span>
@@ -586,26 +630,39 @@ function TabCatalogo({
                 <span className="text-[8px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full">
                   ACTIVO
                 </span>
-                <span className={"text-xs font-bold " + getVasosColor(producto.vasos_disponibles_local2)}>
+                <span
+                  className={
+                    "text-xs font-bold " +
+                    getVasosColor(producto.vasos_disponibles_local2)
+                  }
+                >
                   {producto.vasos_disponibles_local2} vasos
                 </span>
               </div>
               <div className="w-full bg-gray-700 rounded-full h-2">
                 <div
-                  className={"h-2 rounded-full " + getBarraColor(producto.vasos_disponibles_local2)}
+                  className={
+                    "h-2 rounded-full " +
+                    getBarraColor(producto.vasos_disponibles_local2)
+                  }
                   style={{
-                    width: ((producto.vasos_disponibles_local2 / producto.capacidad_barril) * 100) + "%",
+                    width:
+                      (producto.vasos_disponibles_local2 /
+                        producto.capacidad_barril) *
+                        100 +
+                      "%",
                   }}
                 />
               </div>
-              {producto.vasos_disponibles_local2 <= 15 && producto.stock_local2 > 0 && (
-                <button
-                  onClick={() => handleCambiarBarril(producto.id, 2)}
-                  className="mt-1 w-full py-1 text-[9px] bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
-                >
-                  Cambiar
-                </button>
-              )}
+              {producto.vasos_disponibles_local2 <= 15 &&
+                producto.stock_local2 > 0 && (
+                  <button
+                    onClick={() => handleCambiarBarril(producto.id, 2)}
+                    className="mt-1 w-full py-1 text-[9px] bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
+                  >
+                    Cambiar
+                  </button>
+                )}
             </div>
           ) : (
             <button
@@ -682,8 +739,11 @@ function TabCatalogo({
                     <TarjetaBarril producto={producto} />
                   </div>
                 ) : (
-                  <TarjetaProductoNormal key={producto.id} producto={producto} />
-                )
+                  <TarjetaProductoNormal
+                    key={producto.id}
+                    producto={producto}
+                  />
+                ),
               )}
             </div>
           ) : (
@@ -744,13 +804,28 @@ function TabCatalogo({
 function TabStock({ productos, resumen, onRecargar }) {
   const [filtroStock, setFiltroStock] = useState("");
   const [busqueda, setBusqueda] = useState("");
-  const [modalAjuste, setModalAjuste] = useState({ open: false, producto: null });
-  const [modalEntrada, setModalEntrada] = useState({ open: false, producto: null });
-  const [modalMovimientos, setModalMovimientos] = useState({ open: false, producto: null, movimientos: [] });
+  const [modalAjuste, setModalAjuste] = useState({
+    open: false,
+    producto: null,
+  });
+  const [modalEntrada, setModalEntrada] = useState({
+    open: false,
+    producto: null,
+  });
+  const [modalMovimientos, setModalMovimientos] = useState({
+    open: false,
+    producto: null,
+    movimientos: [],
+  });
 
   const handleAjustar = async (productoId, local, cantidadNueva, motivo) => {
     try {
-      await inventarioService.ajustarInventario(productoId, local, cantidadNueva, motivo);
+      await inventarioService.ajustarInventario(
+        productoId,
+        local,
+        cantidadNueva,
+        motivo,
+      );
       toast.success("Inventario ajustado");
       setModalAjuste({ open: false, producto: null });
       onRecargar();
@@ -761,7 +836,12 @@ function TabStock({ productos, resumen, onRecargar }) {
 
   const handleEntrada = async (productoId, local, cantidad, motivo) => {
     try {
-      await inventarioService.registrarEntrada(productoId, local, cantidad, motivo);
+      await inventarioService.registrarEntrada(
+        productoId,
+        local,
+        cantidad,
+        motivo,
+      );
       toast.success("Entrada registrada");
       setModalEntrada({ open: false, producto: null });
       onRecargar();
@@ -772,7 +852,9 @@ function TabStock({ productos, resumen, onRecargar }) {
 
   const verMovimientos = async (producto) => {
     try {
-      const movimientos = await inventarioService.getMovimientosProducto(producto.id);
+      const movimientos = await inventarioService.getMovimientosProducto(
+        producto.id,
+      );
       setModalMovimientos({ open: true, producto, movimientos });
     } catch {
       toast.error("Error al cargar movimientos");
@@ -781,20 +863,20 @@ function TabStock({ productos, resumen, onRecargar }) {
 
   // Filtrar productos
   let productosFiltrados = productos;
-  
+
   if (busqueda) {
-    productosFiltrados = productosFiltrados.filter(p => 
-      p.nombre.toLowerCase().includes(busqueda.toLowerCase())
+    productosFiltrados = productosFiltrados.filter((p) =>
+      p.nombre.toLowerCase().includes(busqueda.toLowerCase()),
     );
   }
 
   if (filtroStock === "bajo") {
-    productosFiltrados = productosFiltrados.filter(p => 
-      (p.stock_local1 + p.stock_local2) <= p.alerta_stock
+    productosFiltrados = productosFiltrados.filter(
+      (p) => p.stock_local1 + p.stock_local2 <= p.alerta_stock,
     );
   } else if (filtroStock === "ok") {
-    productosFiltrados = productosFiltrados.filter(p => 
-      (p.stock_local1 + p.stock_local2) > p.alerta_stock
+    productosFiltrados = productosFiltrados.filter(
+      (p) => p.stock_local1 + p.stock_local2 > p.alerta_stock,
     );
   }
 
@@ -812,29 +894,46 @@ function TabStock({ productos, resumen, onRecargar }) {
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-4">
             <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4">
               <p className="text-xs text-gray-500 mb-1">Total Productos</p>
-              <p className="text-2xl font-black text-white">{resumen.total_productos}</p>
+              <p className="text-2xl font-black text-white">
+                {resumen.total_productos}
+              </p>
             </div>
             <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4">
               <p className="text-xs text-gray-500 mb-1">Stock Castellana</p>
-              <p className="text-2xl font-black text-blue-400">{resumen.total_stock_local1}</p>
+              <p className="text-2xl font-black text-blue-400">
+                {resumen.total_stock_local1}
+              </p>
             </div>
             <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4">
               <p className="text-xs text-gray-500 mb-1">Stock Avenida 1ra</p>
-              <p className="text-2xl font-black text-purple-400">{resumen.total_stock_local2}</p>
+              <p className="text-2xl font-black text-purple-400">
+                {resumen.total_stock_local2}
+              </p>
             </div>
             <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4">
               <p className="text-xs text-gray-500 mb-1">Stock Bajo</p>
-              <p className={"text-2xl font-black " + (resumen.productos_stock_bajo > 0 ? "text-red-500" : "text-emerald-500")}>
+              <p
+                className={
+                  "text-2xl font-black " +
+                  (resumen.productos_stock_bajo > 0
+                    ? "text-red-500"
+                    : "text-emerald-500")
+                }
+              >
                 {resumen.productos_stock_bajo}
               </p>
             </div>
             <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4">
               <p className="text-xs text-gray-500 mb-1">Valor Cast.</p>
-              <p className="text-lg font-black text-[#D4B896]">${Number(resumen.valor_inventario_local1).toLocaleString()}</p>
+              <p className="text-lg font-black text-[#D4B896]">
+                ${Number(resumen.valor_inventario_local1).toLocaleString()}
+              </p>
             </div>
             <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4">
               <p className="text-xs text-gray-500 mb-1">Valor Av.1ra</p>
-              <p className="text-lg font-black text-[#D4B896]">${Number(resumen.valor_inventario_local2).toLocaleString()}</p>
+              <p className="text-lg font-black text-[#D4B896]">
+                ${Number(resumen.valor_inventario_local2).toLocaleString()}
+              </p>
             </div>
           </div>
         )}
@@ -877,47 +976,80 @@ function TabStock({ productos, resumen, onRecargar }) {
           {/* Filas */}
           <div className="divide-y divide-[#2a2a2a]">
             {productosFiltrados.map((producto) => {
-              const stockTotal = (producto.stock_local1 || 0) + (producto.stock_local2 || 0);
+              const stockTotal =
+                (producto.stock_local1 || 0) + (producto.stock_local2 || 0);
               const stockBajo = stockTotal <= producto.alerta_stock;
 
               return (
-                <div 
-                  key={producto.id} 
-                  className={"grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-[#1a1a1a] transition " + (stockBajo ? "bg-red-500/5" : "")}
+                <div
+                  key={producto.id}
+                  className={
+                    "grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-[#1a1a1a] transition " +
+                    (stockBajo ? "bg-red-500/5" : "")
+                  }
                 >
                   {/* Producto */}
                   <div className="col-span-4 flex items-center gap-3">
-                    <span className="text-xl">{producto.categoria?.icono || "📦"}</span>
+                    <span className="text-xl">
+                      {producto.categoria?.icono || "📦"}
+                    </span>
                     <div>
-                      <p className="text-white font-medium text-sm">{producto.nombre}</p>
-                      <p className="text-xs text-gray-500">{producto.categoria?.nombre}</p>
+                      <p className="text-white font-medium text-sm">
+                        {producto.nombre}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {producto.categoria?.nombre}
+                      </p>
                     </div>
                   </div>
 
                   {/* Stock Castellana */}
                   <div className="col-span-2 text-center">
-                    <span className={"px-3 py-1 rounded-lg font-bold text-sm " + getStockColor(producto.stock_local1, producto.alerta_stock / 2)}>
+                    <span
+                      className={
+                        "px-3 py-1 rounded-lg font-bold text-sm " +
+                        getStockColor(
+                          producto.stock_local1,
+                          producto.alerta_stock / 2,
+                        )
+                      }
+                    >
                       {producto.stock_local1}
                     </span>
                   </div>
 
                   {/* Stock Avenida 1ra */}
                   <div className="col-span-2 text-center">
-                    <span className={"px-3 py-1 rounded-lg font-bold text-sm " + getStockColor(producto.stock_local2, producto.alerta_stock / 2)}>
+                    <span
+                      className={
+                        "px-3 py-1 rounded-lg font-bold text-sm " +
+                        getStockColor(
+                          producto.stock_local2,
+                          producto.alerta_stock / 2,
+                        )
+                      }
+                    >
                       {producto.stock_local2}
                     </span>
                   </div>
 
                   {/* Total */}
                   <div className="col-span-1 text-center">
-                    <span className={"font-bold " + (stockBajo ? "text-red-500" : "text-white")}>
+                    <span
+                      className={
+                        "font-bold " +
+                        (stockBajo ? "text-red-500" : "text-white")
+                      }
+                    >
                       {stockTotal}
                     </span>
                   </div>
 
                   {/* Alerta */}
                   <div className="col-span-1 text-center">
-                    <span className="text-gray-500 text-sm">{producto.alerta_stock}</span>
+                    <span className="text-gray-500 text-sm">
+                      {producto.alerta_stock}
+                    </span>
                   </div>
 
                   {/* Acciones */}
@@ -977,7 +1109,13 @@ function TabStock({ productos, resumen, onRecargar }) {
           <ModalMovimientos
             producto={modalMovimientos.producto}
             movimientos={modalMovimientos.movimientos}
-            onClose={() => setModalMovimientos({ open: false, producto: null, movimientos: [] })}
+            onClose={() =>
+              setModalMovimientos({
+                open: false,
+                producto: null,
+                movimientos: [],
+              })
+            }
           />
         )}
       </div>
@@ -992,18 +1130,21 @@ function TabMovimientos() {
   const [filtros, setFiltros] = useState({
     tipo: "",
     fecha_inicio: "",
-    fecha_fin: ""
+    fecha_fin: "",
   });
 
   useEffect(() => {
     cargarMovimientos();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtros]);
 
   const cargarMovimientos = async () => {
     try {
       setLoading(true);
-      const data = await inventarioService.getMovimientos({ ...filtros, limit: 100 });
+      const data = await inventarioService.getMovimientos({
+        ...filtros,
+        limit: 100,
+      });
       setMovimientos(data);
     } catch {
       toast.error("Error al cargar movimientos");
@@ -1014,24 +1155,38 @@ function TabMovimientos() {
 
   const getTipoColor = (tipo) => {
     switch (tipo) {
-      case "entrada": return "bg-emerald-500/20 text-emerald-400";
-      case "salida": case "venta": return "bg-red-500/20 text-red-400";
-      case "ajuste": return "bg-blue-500/20 text-blue-400";
-      case "transferencia_entrada": return "bg-purple-500/20 text-purple-400";
-      case "transferencia_salida": return "bg-orange-500/20 text-orange-400";
-      default: return "bg-gray-500/20 text-gray-400";
+      case "entrada":
+        return "bg-emerald-500/20 text-emerald-400";
+      case "salida":
+      case "venta":
+        return "bg-red-500/20 text-red-400";
+      case "ajuste":
+        return "bg-blue-500/20 text-blue-400";
+      case "transferencia_entrada":
+        return "bg-purple-500/20 text-purple-400";
+      case "transferencia_salida":
+        return "bg-orange-500/20 text-orange-400";
+      default:
+        return "bg-gray-500/20 text-gray-400";
     }
   };
 
   const getTipoLabel = (tipo) => {
     switch (tipo) {
-      case "entrada": return "Entrada";
-      case "salida": return "Salida";
-      case "venta": return "Venta";
-      case "ajuste": return "Ajuste";
-      case "transferencia_entrada": return "Trans. Entrada";
-      case "transferencia_salida": return "Trans. Salida";
-      default: return tipo;
+      case "entrada":
+        return "Entrada";
+      case "salida":
+        return "Salida";
+      case "venta":
+        return "Venta";
+      case "ajuste":
+        return "Ajuste";
+      case "transferencia_entrada":
+        return "Trans. Entrada";
+      case "transferencia_salida":
+        return "Trans. Salida";
+      default:
+        return tipo;
     }
   };
 
@@ -1055,19 +1210,25 @@ function TabMovimientos() {
           <input
             type="date"
             value={filtros.fecha_inicio}
-            onChange={(e) => setFiltros({ ...filtros, fecha_inicio: e.target.value })}
+            onChange={(e) =>
+              setFiltros({ ...filtros, fecha_inicio: e.target.value })
+            }
             className="px-4 py-2 bg-[#141414] border border-[#2a2a2a] rounded-lg text-white"
           />
 
           <input
             type="date"
             value={filtros.fecha_fin}
-            onChange={(e) => setFiltros({ ...filtros, fecha_fin: e.target.value })}
+            onChange={(e) =>
+              setFiltros({ ...filtros, fecha_fin: e.target.value })
+            }
             className="px-4 py-2 bg-[#141414] border border-[#2a2a2a] rounded-lg text-white"
           />
 
           <button
-            onClick={() => setFiltros({ tipo: "", fecha_inicio: "", fecha_fin: "" })}
+            onClick={() =>
+              setFiltros({ tipo: "", fecha_inicio: "", fecha_fin: "" })
+            }
             className="px-4 py-2 bg-[#1a1a1a] text-gray-400 rounded-lg hover:bg-[#2a2a2a] transition border border-[#2a2a2a]"
           >
             Limpiar filtros
@@ -1091,17 +1252,25 @@ function TabMovimientos() {
                 <div key={mov.id} className="p-4 hover:bg-[#1a1a1a] transition">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <span className={"px-3 py-1 rounded-lg text-xs font-medium " + getTipoColor(mov.tipo)}>
+                      <span
+                        className={
+                          "px-3 py-1 rounded-lg text-xs font-medium " +
+                          getTipoColor(mov.tipo)
+                        }
+                      >
                         {getTipoLabel(mov.tipo)}
                       </span>
                       <div>
-                        <p className="text-white font-medium">{mov.producto_nombre || "Producto desconocido"}</p>
+                        <p className="text-white font-medium">
+                          {mov.producto_nombre || "Producto desconocido"}
+                        </p>
                         <p className="text-sm text-gray-500">{mov.motivo}</p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-white font-bold">
-                        {mov.cantidad > 0 ? "+" : ""}{mov.cantidad} unidades
+                        {mov.cantidad > 0 ? "+" : ""}
+                        {mov.cantidad} unidades
                       </p>
                       <p className="text-sm text-gray-500">
                         {mov.stock_anterior} → {mov.stock_nuevo}
@@ -1123,12 +1292,18 @@ function TabMovimientos() {
 
 // ==================== MODALES ====================
 
-function ModalBarril({ modalBarril, setModalBarril, handleActivarBarril, productos }) {
+function ModalBarril({
+  modalBarril,
+  setModalBarril,
+  handleActivarBarril,
+  productos,
+}) {
   const stockKey = "stock_local" + modalBarril.local;
   const barrilActivoKey = "barril_activo_local" + modalBarril.local;
-  
+
   const barrilesDisponibles = productos.filter(
-    (p) => p.unidad_medida === "barriles" && p[stockKey] > 0 && !p[barrilActivoKey]
+    (p) =>
+      p.unidad_medida === "barriles" && p[stockKey] > 0 && !p[barrilActivoKey],
   );
 
   return (
@@ -1181,7 +1356,14 @@ function ModalBarril({ modalBarril, setModalBarril, handleActivarBarril, product
   );
 }
 
-function ModalProducto({ setModalOpen, productoEditar, formData, setFormData, categorias, handleSubmit }) {
+function ModalProducto({
+  setModalOpen,
+  productoEditar,
+  formData,
+  setFormData,
+  categorias,
+  handleSubmit,
+}) {
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
       <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
@@ -1418,21 +1600,33 @@ function ModalEntrada({ producto, onClose, onSubmit }) {
               <button
                 type="button"
                 onClick={() => setLocal(1)}
-                className={"py-3 rounded-lg font-medium transition " + (local === 1 ? "bg-[#D4B896] text-[#0a0a0a]" : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]")}
+                className={
+                  "py-3 rounded-lg font-medium transition " +
+                  (local === 1
+                    ? "bg-[#D4B896] text-[#0a0a0a]"
+                    : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]")
+                }
               >
                 Castellana ({producto.stock_local1})
               </button>
               <button
                 type="button"
                 onClick={() => setLocal(2)}
-                className={"py-3 rounded-lg font-medium transition " + (local === 2 ? "bg-[#D4B896] text-[#0a0a0a]" : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]")}
+                className={
+                  "py-3 rounded-lg font-medium transition " +
+                  (local === 2
+                    ? "bg-[#D4B896] text-[#0a0a0a]"
+                    : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]")
+                }
               >
                 Avenida 1ra ({producto.stock_local2})
               </button>
             </div>
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-2">Cantidad a agregar</label>
+            <label className="block text-sm text-gray-400 mb-2">
+              Cantidad a agregar
+            </label>
             <input
               type="number"
               value={cantidad}
@@ -1451,7 +1645,9 @@ function ModalEntrada({ producto, onClose, onSubmit }) {
               className="w-full px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white"
             >
               <option value="Compra de inventario">Compra de inventario</option>
-              <option value="Devolución de proveedor">Devolución de proveedor</option>
+              <option value="Devolución de proveedor">
+                Devolución de proveedor
+              </option>
               <option value="Bonificación">Bonificación</option>
               <option value="Otro">Otro</option>
             </select>
@@ -1485,7 +1681,8 @@ function ModalAjuste({ producto, onClose, onSubmit }) {
 
   const handleLocalChange = (nuevoLocal) => {
     setLocal(nuevoLocal);
-    const nuevoStock = nuevoLocal === 1 ? producto.stock_local1 : producto.stock_local2;
+    const nuevoStock =
+      nuevoLocal === 1 ? producto.stock_local1 : producto.stock_local2;
     setCantidadNueva(nuevoStock);
   };
 
@@ -1502,7 +1699,8 @@ function ModalAjuste({ producto, onClose, onSubmit }) {
     onSubmit(producto.id, local, parseInt(cantidadNueva), motivo);
   };
 
-  const stockActual = local === 1 ? producto.stock_local1 : producto.stock_local2;
+  const stockActual =
+    local === 1 ? producto.stock_local1 : producto.stock_local2;
   const diferencia = parseInt(cantidadNueva || 0) - stockActual;
 
   return (
@@ -1519,14 +1717,24 @@ function ModalAjuste({ producto, onClose, onSubmit }) {
               <button
                 type="button"
                 onClick={() => handleLocalChange(1)}
-                className={"py-3 rounded-lg font-medium transition " + (local === 1 ? "bg-[#D4B896] text-[#0a0a0a]" : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]")}
+                className={
+                  "py-3 rounded-lg font-medium transition " +
+                  (local === 1
+                    ? "bg-[#D4B896] text-[#0a0a0a]"
+                    : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]")
+                }
               >
                 Castellana ({producto.stock_local1})
               </button>
               <button
                 type="button"
                 onClick={() => handleLocalChange(2)}
-                className={"py-3 rounded-lg font-medium transition " + (local === 2 ? "bg-[#D4B896] text-[#0a0a0a]" : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]")}
+                className={
+                  "py-3 rounded-lg font-medium transition " +
+                  (local === 2
+                    ? "bg-[#D4B896] text-[#0a0a0a]"
+                    : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]")
+                }
               >
                 Avenida 1ra ({producto.stock_local2})
               </button>
@@ -1534,7 +1742,8 @@ function ModalAjuste({ producto, onClose, onSubmit }) {
           </div>
           <div>
             <label className="block text-sm text-gray-400 mb-2">
-              Stock actual: <span className="text-white font-bold">{stockActual}</span>
+              Stock actual:{" "}
+              <span className="text-white font-bold">{stockActual}</span>
             </label>
             <input
               type="number"
@@ -1544,13 +1753,21 @@ function ModalAjuste({ producto, onClose, onSubmit }) {
               min="0"
             />
             {diferencia !== 0 && (
-              <p className={"text-sm mt-2 " + (diferencia > 0 ? "text-emerald-400" : "text-red-400")}>
-                {diferencia > 0 ? "+" : ""}{diferencia} unidades
+              <p
+                className={
+                  "text-sm mt-2 " +
+                  (diferencia > 0 ? "text-emerald-400" : "text-red-400")
+                }
+              >
+                {diferencia > 0 ? "+" : ""}
+                {diferencia} unidades
               </p>
             )}
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-2">Motivo del ajuste *</label>
+            <label className="block text-sm text-gray-400 mb-2">
+              Motivo del ajuste *
+            </label>
             <input
               type="text"
               value={motivo}
@@ -1585,24 +1802,38 @@ function ModalAjuste({ producto, onClose, onSubmit }) {
 function ModalMovimientos({ producto, movimientos, onClose }) {
   const getTipoColor = (tipo) => {
     switch (tipo) {
-      case "entrada": return "bg-emerald-500/20 text-emerald-400";
-      case "salida": case "venta": return "bg-red-500/20 text-red-400";
-      case "ajuste": return "bg-blue-500/20 text-blue-400";
-      case "transferencia_entrada": return "bg-purple-500/20 text-purple-400";
-      case "transferencia_salida": return "bg-orange-500/20 text-orange-400";
-      default: return "bg-gray-500/20 text-gray-400";
+      case "entrada":
+        return "bg-emerald-500/20 text-emerald-400";
+      case "salida":
+      case "venta":
+        return "bg-red-500/20 text-red-400";
+      case "ajuste":
+        return "bg-blue-500/20 text-blue-400";
+      case "transferencia_entrada":
+        return "bg-purple-500/20 text-purple-400";
+      case "transferencia_salida":
+        return "bg-orange-500/20 text-orange-400";
+      default:
+        return "bg-gray-500/20 text-gray-400";
     }
   };
 
   const getTipoLabel = (tipo) => {
     switch (tipo) {
-      case "entrada": return "Entrada";
-      case "salida": return "Salida";
-      case "venta": return "Venta";
-      case "ajuste": return "Ajuste";
-      case "transferencia_entrada": return "Trans. Entrada";
-      case "transferencia_salida": return "Trans. Salida";
-      default: return tipo;
+      case "entrada":
+        return "Entrada";
+      case "salida":
+        return "Salida";
+      case "venta":
+        return "Venta";
+      case "ajuste":
+        return "Ajuste";
+      case "transferencia_entrada":
+        return "Trans. Entrada";
+      case "transferencia_salida":
+        return "Trans. Salida";
+      default:
+        return tipo;
     }
   };
 
@@ -1610,23 +1841,36 @@ function ModalMovimientos({ producto, movimientos, onClose }) {
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
       <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
         <div className="p-4 border-b border-[#2a2a2a] flex-shrink-0">
-          <h2 className="text-lg font-bold text-white">Historial de Movimientos</h2>
+          <h2 className="text-lg font-bold text-white">
+            Historial de Movimientos
+          </h2>
           <p className="text-sm text-gray-500">{producto.nombre}</p>
         </div>
         <div className="flex-1 overflow-y-auto p-4">
           {movimientos.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">No hay movimientos registrados</p>
+            <p className="text-center text-gray-500 py-8">
+              No hay movimientos registrados
+            </p>
           ) : (
             <div className="space-y-2">
               {movimientos.map((mov) => (
-                <div key={mov.id} className="bg-[#1a1a1a] rounded-lg p-3 flex items-center justify-between">
+                <div
+                  key={mov.id}
+                  className="bg-[#1a1a1a] rounded-lg p-3 flex items-center justify-between"
+                >
                   <div className="flex items-center gap-3">
-                    <span className={"px-2 py-1 rounded text-xs font-medium " + getTipoColor(mov.tipo)}>
+                    <span
+                      className={
+                        "px-2 py-1 rounded text-xs font-medium " +
+                        getTipoColor(mov.tipo)
+                      }
+                    >
                       {getTipoLabel(mov.tipo)}
                     </span>
                     <div>
                       <p className="text-white text-sm">
-                        {mov.cantidad > 0 ? "+" : ""}{mov.cantidad} unidades
+                        {mov.cantidad > 0 ? "+" : ""}
+                        {mov.cantidad} unidades
                       </p>
                       <p className="text-xs text-gray-500">{mov.motivo}</p>
                     </div>
@@ -1659,27 +1903,32 @@ function ModalMovimientos({ producto, movimientos, onClose }) {
 
 // Modal para transferir entre locales
 function ModalTransferencia({ producto, onClose, onSubmit }) {
-  const [localOrigen, setLocalOrigen] = useState(producto.stock_local1 > 0 ? 1 : 2);
+  const [localOrigen, setLocalOrigen] = useState(
+    producto.stock_local1 > 0 ? 1 : 2,
+  );
   const [cantidad, setCantidad] = useState("");
   const [motivo, setMotivo] = useState("Transferencia entre locales");
 
   const localDestino = localOrigen === 1 ? 2 : 1;
-  const stockDisponible = localOrigen === 1 ? producto.stock_local1 : producto.stock_local2;
+  const stockDisponible =
+    localOrigen === 1 ? producto.stock_local1 : producto.stock_local2;
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const cantidadNum = parseInt(cantidad);
-    
+
     if (!cantidad || cantidadNum <= 0) {
       toast.error("Ingresa una cantidad válida");
       return;
     }
-    
+
     if (cantidadNum > stockDisponible) {
-      toast.error(`Solo hay ${stockDisponible} unidades disponibles en Local ${localOrigen}`);
+      toast.error(
+        `Solo hay ${stockDisponible} unidades disponibles en Local ${localOrigen}`,
+      );
       return;
     }
-    
+
     onSubmit(producto.id, localOrigen, localDestino, cantidadNum, motivo);
   };
 
@@ -1687,43 +1936,55 @@ function ModalTransferencia({ producto, onClose, onSubmit }) {
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
       <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl w-full max-w-md">
         <div className="p-4 border-b border-[#2a2a2a]">
-          <h2 className="text-lg font-bold text-white">🔄 Transferir Producto</h2>
+          <h2 className="text-lg font-bold text-white">
+            🔄 Transferir Producto
+          </h2>
           <p className="text-sm text-gray-500">{producto.nombre}</p>
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {/* Selección de origen */}
           <div>
-            <label className="block text-sm text-gray-400 mb-2">Local Origen</label>
+            <label className="block text-sm text-gray-400 mb-2">
+              Local Origen
+            </label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setLocalOrigen(1)}
                 disabled={producto.stock_local1 <= 0}
                 className={
-                  "py-3 rounded-lg font-medium transition " + 
-                  (localOrigen === 1 
-                    ? "bg-[#D4B896] text-[#0a0a0a]" 
+                  "py-3 rounded-lg font-medium transition " +
+                  (localOrigen === 1
+                    ? "bg-[#D4B896] text-[#0a0a0a]"
                     : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]") +
-                  (producto.stock_local1 <= 0 ? " opacity-30 cursor-not-allowed" : "")
+                  (producto.stock_local1 <= 0
+                    ? " opacity-30 cursor-not-allowed"
+                    : "")
                 }
               >
                 Castellana
-                <div className="text-xs mt-1">Stock: {producto.stock_local1}</div>
+                <div className="text-xs mt-1">
+                  Stock: {producto.stock_local1}
+                </div>
               </button>
               <button
                 type="button"
                 onClick={() => setLocalOrigen(2)}
                 disabled={producto.stock_local2 <= 0}
                 className={
-                  "py-3 rounded-lg font-medium transition " + 
-                  (localOrigen === 2 
-                    ? "bg-[#D4B896] text-[#0a0a0a]" 
+                  "py-3 rounded-lg font-medium transition " +
+                  (localOrigen === 2
+                    ? "bg-[#D4B896] text-[#0a0a0a]"
                     : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a]") +
-                  (producto.stock_local2 <= 0 ? " opacity-30 cursor-not-allowed" : "")
+                  (producto.stock_local2 <= 0
+                    ? " opacity-30 cursor-not-allowed"
+                    : "")
                 }
               >
                 Avenida 1ra
-                <div className="text-xs mt-1">Stock: {producto.stock_local2}</div>
+                <div className="text-xs mt-1">
+                  Stock: {producto.stock_local2}
+                </div>
               </button>
             </div>
           </div>
@@ -1732,12 +1993,16 @@ function ModalTransferencia({ producto, onClose, onSubmit }) {
           <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-400">Destino:</span>
-              <span className="text-purple-400 font-bold">Local {localDestino}</span>
+              <span className="text-purple-400 font-bold">
+                {localDestino === 1 ? "Castellana" : "Avenida 1ra"}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm mt-1">
               <span className="text-gray-400">Stock actual destino:</span>
               <span className="text-white font-bold">
-                {localDestino === 1 ? producto.stock_local1 : producto.stock_local2}
+                {localDestino === 1
+                  ? producto.stock_local1
+                  : producto.stock_local2}
               </span>
             </div>
           </div>
@@ -1746,7 +2011,9 @@ function ModalTransferencia({ producto, onClose, onSubmit }) {
           <div>
             <label className="block text-sm text-gray-400 mb-2">
               Cantidad a transferir
-              <span className="text-xs ml-2">(Disponible: {stockDisponible})</span>
+              <span className="text-xs ml-2">
+                (Disponible: {stockDisponible})
+              </span>
             </label>
             <input
               type="number"
@@ -1762,7 +2029,9 @@ function ModalTransferencia({ producto, onClose, onSubmit }) {
 
           {/* Motivo */}
           <div>
-            <label className="block text-sm text-gray-400 mb-2">Motivo (opcional)</label>
+            <label className="block text-sm text-gray-400 mb-2">
+              Motivo (opcional)
+            </label>
             <input
               type="text"
               value={motivo}
