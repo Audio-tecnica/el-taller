@@ -7,30 +7,24 @@ const authMiddleware = require("../middleware/authMiddleware");
 // Todas protegidas
 router.use(authMiddleware);
 
-// ================================
 // INVENTARIO (AGREGADOS)
-// ================================
 router.get(
   "/valorizado",
-  inventarioKardexController.obtenerInventarioValorizado
+  inventarioKardexController.getInventarioValorizado
 );
 
-// ================================
 // MOVIMIENTOS / KARDEX
-// ================================
 router.get(
   "/movimientos",
-  inventarioKardexController.obtenerMovimientos
+  inventarioKardexController.getMovimientos
 );
 
 router.get(
   "/kardex/:producto_id",
-  inventarioKardexController.obtenerKardexProducto
+  inventarioKardexController.getKardexProducto
 );
 
-// ================================
 // OPERACIONES
-// ================================
 router.post(
   "/compra",
   inventarioKardexController.registrarCompra
@@ -38,12 +32,13 @@ router.post(
 
 router.post(
   "/ajustar",
-  inventarioKardexController.registrarAjuste
+  inventarioKardexController.ajustarInventario
 );
 
 router.post(
   "/transferir",
-  inventarioKardexController.registrarTransferencia
+  inventarioKardexController.transferirEntreLocales
 );
+
 
 module.exports = router;
