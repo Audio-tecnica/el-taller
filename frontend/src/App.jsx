@@ -14,6 +14,7 @@ import { AuthProvider } from "./context/AuthContext";
 import Proveedores from "./pages/proveedores/Proveedores";
 import RegistrarCompra from "./pages/compras/RegistrarCompra";
 import InventarioValorizado from "./pages/productos/InventarioValorizado";
+import { Navigate } from "react-router-dom";
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
           <Route path="/proveedores" element={<Proveedores />} />
           <Route path="/compras/nueva" element={<RegistrarCompra />} />
           <Route path="/inventario/valorizado" element={<InventarioValorizado />} />
+          <Route path="/inventario" element={<Navigate to="/productos" replace />} />
           
           <Route path="/" element={<Login />} />
         </Routes>
