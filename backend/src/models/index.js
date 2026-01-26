@@ -15,8 +15,8 @@ const MovimientoInventario = require('./MovimientoInventario');
 // ============ RELACIONES ============
 
 // Usuarios - Locales
-Usuario.belongsTo(Local, { foreignKey: 'local_id', as: 'local' });
-Local.hasMany(Usuario, { foreignKey: 'local_id', as: 'usuarios' });
+Usuario.belongsTo(Local, { foreignKey: 'local_asignado_id', as: 'local' });
+Local.hasMany(Usuario, { foreignKey: 'local_asignado_id', as: 'usuarios' });
 
 // Mesas - Locales
 Mesa.belongsTo(Local, { foreignKey: 'local_id', as: 'local' });
