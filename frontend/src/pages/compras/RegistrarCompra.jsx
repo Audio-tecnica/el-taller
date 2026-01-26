@@ -64,6 +64,7 @@ export default function RegistrarCompra() {
       {
         producto_id: producto.id,
         nombre: producto.nombre,
+        categoria: producto.categoria?.nombre || null,
         cantidad: 1,
         costo_unitario: producto.ultimo_costo || 0,
         precio_venta: producto.precio_venta || 0,
@@ -72,6 +73,7 @@ export default function RegistrarCompra() {
     ]);
     setBusquedaProducto("");
     setMostrarBusqueda(false);
+    toast.success(`${producto.nombre} agregado`);
   };
 
   const actualizarProducto = (index, campo, valor) => {
@@ -272,31 +274,78 @@ export default function RegistrarCompra() {
               {/* Búsqueda de productos */}
               {mostrarBusqueda && (
                 <div className="mb-4 relative">
-                  <input
-                    type="text"
-                    value={busquedaProducto}
-                    onChange={(e) => setBusquedaProducto(e.target.value)}
-                    placeholder="Buscar producto..."
-                    className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-white focus:outline-none focus:border-[#D4B896] transition"
-                    autoFocus
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={busquedaProducto}
+                      onChange={(e) => setBusquedaProducto(e.target.value)}
+                      placeholder="Buscar por nombre, código o categoría..."
+                      className="w-full px-4 py-3 pl-12 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#D4B896] transition"
+                      autoFocus
+                    />
+                    <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
                   
                   {busquedaProducto && productosFiltrados.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden z-10 max-h-60 overflow-y-auto">
-                      {productosFiltrados.map(producto => (
-                        <button
-                          key={producto.id}
-                          type="button"
-                          onClick={() => agregarProducto(producto)}
-                          className="w-full px-4 py-3 text-left hover:bg-[#2a2a2a] transition flex items-center justify-between"
-                        >
-                          <div>
-                            <p className="text-white font-medium">{producto.nombre}</p>
-                            <p className="text-xs text-gray-500">{producto.codigo}</p>
-                          </div>
-                          <span className="text-[#D4B896] text-sm">${producto.precio_venta}</span>
-                        </button>
-                      ))}
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden z-10 max-h-96 overflow-y-auto shadow-2xl">
+                      {productosFiltrados.map(producto => {
+                        const stockTotal = (producto.stock_local1 || 0) + (producto.stock_local2 || 0);
+                        return (
+                          <button
+                            key={producto.id}
+                            type="button"
+                            onClick={() => agregarProducto(producto)}
+                            className="w-full px-4 py-4 text-left hover:bg-[#2a2a2a] transition border-b border-[#2a2a2a] last:border-b-0 group"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="text-white font-bold text-base group-hover:text-[#D4B896] transition truncate">
+                                    {producto.nombre}
+                                  </h4>
+                                  {producto.categoria?.icono && (
+                                    <span className="text-lg flex-shrink-0">{producto.categoria.icono}</span>
+                                  )}
+                                </div>
+                                
+                                <div className="flex items-center gap-3 flex-wrap">
+                                  {producto.categoria?.nombre && (
+                                    <span className="px-2 py-0.5 bg-[#2a2a2a] text-[#D4B896] text-xs rounded-full">
+                                      {producto.categoria.nombre}
+                                    </span>
+                                  )}
+                                  <span className="text-xs text-gray-500 font-mono">
+                                    {producto.codigo}
+                                  </span>
+                                  <span className={`text-xs ${stockTotal > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    Stock: {stockTotal}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-[#D4B896] font-bold text-lg">
+                                  ${Number(producto.precio_venta || 0).toLocaleString()}
+                                </p>
+                                {producto.ultimo_costo > 0 && (
+                                  <p className="text-xs text-gray-500">
+                                    Último costo: ${Number(producto.ultimo_costo).toLocaleString()}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  
+                  {busquedaProducto && productosFiltrados.length === 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6 text-center">
+                      <p className="text-gray-500">No se encontraron productos</p>
+                      <p className="text-xs text-gray-600 mt-1">Intenta con otro término de búsqueda</p>
                     </div>
                   )}
                 </div>
@@ -304,71 +353,94 @@ export default function RegistrarCompra() {
 
               {/* Lista de productos */}
               {productosCompra.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No hay productos agregados</p>
+                <div className="text-center py-12 bg-[#1a1a1a] rounded-xl border border-dashed border-[#2a2a2a]">
+                  <div className="w-20 h-20 mx-auto mb-4 bg-[#0a0a0a] rounded-full flex items-center justify-center">
+                    <span className="text-4xl">📦</span>
+                  </div>
+                  <p className="text-gray-500 font-medium mb-1">No hay productos agregados</p>
+                  <p className="text-xs text-gray-600">Click en "Agregar Producto" para comenzar</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {productosCompra.map((item, index) => (
-                    <div key={index} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4">
+                    <div key={index} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4 hover:border-[#D4B896]/30 transition">
                       <div className="flex items-start gap-4">
-                        <div className="flex-1 grid grid-cols-4 gap-3">
-                          <div className="col-span-4 md:col-span-1">
-                            <label className="block text-xs text-gray-500 mb-1">Producto</label>
-                            <p className="text-white font-medium text-sm">{item.nombre}</p>
+                        <div className="flex-1">
+                          {/* Nombre y categoría */}
+                          <div className="mb-3">
+                            <h4 className="text-white font-bold text-base mb-1">{item.nombre}</h4>
+                            {item.categoria && (
+                              <span className="text-xs text-gray-500 bg-[#0a0a0a] px-2 py-1 rounded">
+                                {item.categoria}
+                              </span>
+                            )}
                           </div>
+                          
+                          {/* Inputs en grid */}
+                          <div className="grid grid-cols-4 gap-3">
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1 font-medium">Cantidad *</label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={item.cantidad}
+                                onChange={(e) => actualizarProducto(index, 'cantidad', e.target.value)}
+                                className="w-full px-3 py-2 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white text-center font-bold focus:outline-none focus:border-[#D4B896] transition"
+                              />
+                            </div>
 
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Cantidad</label>
-                            <input
-                              type="number"
-                              min="1"
-                              value={item.cantidad}
-                              onChange={(e) => actualizarProducto(index, 'cantidad', e.target.value)}
-                              className="w-full px-3 py-2 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white focus:outline-none focus:border-[#D4B896] transition"
-                            />
-                          </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1 font-medium">Costo Unitario *</label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 text-sm">$</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={item.costo_unitario}
+                                  onChange={(e) => actualizarProducto(index, 'costo_unitario', e.target.value)}
+                                  className="w-full px-3 py-2 pl-6 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white text-center font-medium focus:outline-none focus:border-[#D4B896] transition"
+                                />
+                              </div>
+                            </div>
 
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Costo Unit.</label>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={item.costo_unitario}
-                              onChange={(e) => actualizarProducto(index, 'costo_unitario', e.target.value)}
-                              className="w-full px-3 py-2 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white focus:outline-none focus:border-[#D4B896] transition"
-                            />
-                          </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1 font-medium">Precio Venta</label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 text-sm">$</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={item.precio_venta}
+                                  onChange={(e) => actualizarProducto(index, 'precio_venta', e.target.value)}
+                                  className="w-full px-3 py-2 pl-6 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white text-center font-medium focus:outline-none focus:border-emerald-500 transition"
+                                />
+                              </div>
+                            </div>
 
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Precio Venta</label>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={item.precio_venta}
-                              onChange={(e) => actualizarProducto(index, 'precio_venta', e.target.value)}
-                              className="w-full px-3 py-2 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white focus:outline-none focus:border-[#D4B896] transition"
-                            />
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1 font-medium">Subtotal</label>
+                              <div className="px-3 py-2 bg-[#D4B896]/10 border border-[#D4B896]/30 rounded-lg">
+                                <p className="text-[#D4B896] font-black text-center">
+                                  ${item.subtotal.toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="text-right">
-                          <label className="block text-xs text-gray-500 mb-1">Subtotal</label>
-                          <p className="text-[#D4B896] font-bold">
-                            ${item.subtotal.toLocaleString()}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => eliminarProducto(index)}
-                            className="mt-2 p-1 text-gray-400 hover:text-red-400 transition"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
+                        {/* Botón eliminar */}
+                        <button
+                          type="button"
+                          onClick={() => eliminarProducto(index)}
+                          className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition flex-shrink-0"
+                          title="Eliminar producto"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
                       </div>
                     </div>
                   ))}
