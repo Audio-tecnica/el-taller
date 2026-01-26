@@ -31,7 +31,7 @@ export default function Mesas() {
       ]);
       setMesas(mesasData);
       setLocales(localesData);
-    } catch (error) {
+    } catch {
       toast.error('Error al cargar datos');
     } finally {
       setLoading(false);
@@ -51,7 +51,7 @@ export default function Mesas() {
       setModalOpen(false);
       resetForm();
       cargarDatos();
-    } catch (error) {
+    } catch {
       toast.error('Error al guardar mesa');
     }
   };
@@ -72,7 +72,7 @@ export default function Mesas() {
         await mesasService.eliminarMesa(id);
         toast.success('Mesa eliminada');
         cargarDatos();
-      } catch (error) {
+      } catch {
         toast.error('Error al eliminar');
       }
     }
