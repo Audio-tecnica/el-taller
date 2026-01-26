@@ -7,7 +7,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 router.use(authMiddleware);
 
 // Inventario
-//router.get("/consolidado", inventarioController.getInventarioConsolidado);
+router.get("/consolidado", inventarioController.getInventarioConsolidado);
 router.get("/movimientos", inventarioController.getMovimientos);
 router.get(
   "/movimientos/:producto_id",
