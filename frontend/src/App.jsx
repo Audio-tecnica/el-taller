@@ -1,14 +1,17 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
-import Login from './pages/auth/Login';
-import Dashboard from './pages/dashboard/Dashboard';
-import Productos from './pages/productos/Productos';
-import Mesas from './pages/mesas/Mesas';
-import POS from './pages/pos/Pos';
-import Pedido from './pages/pos/Pedido';
-import Caja from './pages/caja/Caja';
-import { AuthProvider } from './context/AuthContext';
-import Reportes from './pages/reportes/Reportes';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
+import Login from "./pages/auth/Login";
+import Dashboard from "./pages/dashboard/Dashboard";
+import Productos from "./pages/productos/Productos";
+import Mesas from "./pages/mesas/Mesas";
+import POS from "./pages/pos/Pos";
+import Pedido from "./pages/pos/Pedido";
+import Caja from "./pages/caja/Caja";
+import { AuthProvider } from "./context/AuthContext";
+import Reportes from "./pages/reportes/Reportes";
+import Proveedores from "./pages/Proveedores";
+import RegistrarCompra from "./pages/RegistrarCompra";
+import InventarioValorizado from "./pages/InventarioValorizado";
 
 function App() {
   return (
@@ -25,6 +28,12 @@ function App() {
           <Route path="/caja" element={<Caja />} />
           <Route path="/" element={<Login />} />
           <Route path="/reportes" element={<Reportes />} />
+          <Route path="/proveedores" element={<Proveedores />} />
+          <Route path="/compras/nueva" element={<RegistrarCompra />} />
+          <Route
+            path="/inventario/valorizado"
+            element={<InventarioValorizado />}
+          />
         </Routes>
       </AuthProvider>
     </Router>

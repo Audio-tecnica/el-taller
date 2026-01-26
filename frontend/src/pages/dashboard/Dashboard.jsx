@@ -57,6 +57,38 @@ export default function Dashboard() {
       destacado: false,
     },
   ];
+
+  // ⭐ NUEVOS MÓDULOS KARDEX PREMIUM
+  const modulosKardex = [
+    {
+      nombre: "Proveedores",
+      icono: "🏪",
+      ruta: "/proveedores",
+      desc: "Gestión de proveedores",
+      color: "from-blue-500/20 to-blue-600/10 border-blue-500/30",
+      hoverColor: "hover:border-blue-500",
+      textColor: "text-blue-400"
+    },
+    {
+      nombre: "Nueva Compra",
+      icono: "📦",
+      ruta: "/compras/nueva",
+      desc: "Registrar compra",
+      color: "from-purple-500/20 to-purple-600/10 border-purple-500/30",
+      hoverColor: "hover:border-purple-500",
+      textColor: "text-purple-400"
+    },
+    {
+      nombre: "Inventario Valorizado",
+      icono: "💰",
+      ruta: "/inventario/valorizado",
+      desc: "Análisis financiero",
+      color: "from-amber-500/20 to-amber-600/10 border-amber-500/30",
+      hoverColor: "hover:border-amber-500",
+      textColor: "text-amber-400"
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
       {/* Header */}
@@ -105,51 +137,104 @@ export default function Dashboard() {
           <p className="text-[#D4B896]">Sistema de gestión El Taller</p>
         </div>
 
-        {/* Módulos */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-          {modulos.map((modulo) => (
-            <button
-              key={modulo.nombre}
-              onClick={() => navigate(modulo.ruta)}
-              className={`${
-                modulo.destacado
-                  ? "bg-emerald-600 hover:bg-emerald-500 border-2 border-emerald-400"
-                  : "bg-[#141414] hover:bg-[#1a1a1a] border border-[#2a2a2a] hover:border-[#D4B896]"
-              } rounded-xl p-5 text-center transition-all duration-200 group`}
-            >
-              <div
-                className={`${modulo.destacado ? "w-16 h-16" : "w-12 h-12"} ${
+        {/* Módulos Principales */}
+        <div className="mb-8">
+          <h3 className="text-lg font-bold text-white mb-4">Módulos Principales</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {modulos.map((modulo) => (
+              <button
+                key={modulo.nombre}
+                onClick={() => navigate(modulo.ruta)}
+                className={`${
                   modulo.destacado
-                    ? "bg-emerald-700"
-                    : "bg-[#1a1a1a] group-hover:bg-[#D4B896]/10"
-                } rounded-xl flex items-center justify-center mx-auto mb-3 transition-colors`}
+                    ? "bg-emerald-600 hover:bg-emerald-500 border-2 border-emerald-400"
+                    : "bg-[#141414] hover:bg-[#1a1a1a] border border-[#2a2a2a] hover:border-[#D4B896]"
+                } rounded-xl p-5 text-center transition-all duration-200 group`}
               >
-                <span
-                  className={`${modulo.destacado ? "text-4xl" : "text-2xl"}`}
+                <div
+                  className={`${modulo.destacado ? "w-16 h-16" : "w-12 h-12"} ${
+                    modulo.destacado
+                      ? "bg-emerald-700"
+                      : "bg-[#1a1a1a] group-hover:bg-[#D4B896]/10"
+                  } rounded-xl flex items-center justify-center mx-auto mb-3 transition-colors`}
                 >
-                  {modulo.icono}
-                </span>
-              </div>
-              <p
-                className={`${
-                  modulo.destacado
-                    ? "text-base font-bold"
-                    : "text-sm font-medium"
-                } text-white`}
+                  <span
+                    className={`${modulo.destacado ? "text-4xl" : "text-2xl"}`}
+                  >
+                    {modulo.icono}
+                  </span>
+                </div>
+                <p
+                  className={`${
+                    modulo.destacado
+                      ? "text-base font-bold"
+                      : "text-sm font-medium"
+                  } text-white`}
+                >
+                  {modulo.nombre}
+                </p>
+                <p
+                  className={`${
+                    modulo.destacado
+                      ? "text-sm text-emerald-100 font-medium"
+                      : "text-xs text-gray-600"
+                  } mt-1`}
+                >
+                  {modulo.desc}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ⭐ NUEVO: Módulos Kardex Premium */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-white">Sistema Kardex Premium</h3>
+            <span className="px-3 py-1 bg-gradient-to-r from-[#D4B896] to-[#C4A576] text-[#0a0a0a] text-xs font-bold rounded-full">
+              NUEVO
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {modulosKardex.map((modulo) => (
+              <button
+                key={modulo.nombre}
+                onClick={() => navigate(modulo.ruta)}
+                className={`bg-gradient-to-br ${modulo.color} border ${modulo.hoverColor} rounded-2xl p-6 text-left transition-all duration-200 group hover:scale-[1.02]`}
               >
-                {modulo.nombre}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-14 h-14 bg-[#0a0a0a] rounded-xl flex items-center justify-center">
+                    <span className="text-3xl">{modulo.icono}</span>
+                  </div>
+                  <svg 
+                    className="w-5 h-5 text-gray-600 group-hover:text-white transition" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+                <h4 className="text-lg font-bold text-white mb-1 group-hover:text-white transition">
+                  {modulo.nombre}
+                </h4>
+                <p className={`text-sm ${modulo.textColor}`}>
+                  {modulo.desc}
+                </p>
+              </button>
+            ))}
+          </div>
+          
+          {/* Info adicional */}
+          <div className="mt-4 bg-[#141414] border border-[#2a2a2a] rounded-xl p-4 flex items-start gap-3">
+            <span className="text-2xl">💡</span>
+            <div className="flex-1">
+              <p className="text-sm text-white font-medium mb-1">Sistema Kardex Profesional</p>
+              <p className="text-xs text-gray-500">
+                Gestiona proveedores, registra compras con costos reales, y visualiza el valor financiero de tu inventario en tiempo real.
               </p>
-              <p
-                className={`${
-                  modulo.destacado
-                    ? "text-sm text-emerald-100 font-medium"
-                    : "text-xs text-gray-600"
-                } mt-1`}
-              >
-                {modulo.desc}
-              </p>
-            </button>
-          ))}
+            </div>
+          </div>
         </div>
 
         {/* Stats */}
