@@ -8,14 +8,6 @@ const authMiddleware = require("../middleware/authMiddleware");
 router.use(authMiddleware);
 
 /**
- * INVENTARIO (calculado desde movimientos)
- */
-router.get(
-  "/consolidado",
-  inventarioKardexController.obtenerInventarioConsolidado
-);
-
-/**
  * MOVIMIENTOS (KARDEX)
  */
 router.get(
