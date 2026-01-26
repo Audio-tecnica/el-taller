@@ -15,13 +15,10 @@ const MovimientoInventario = sequelize.define('MovimientoInventario', {
       key: 'id'
     }
   },
-  local_id: {
-    type: DataTypes.UUID,
+  local: {
+    type: DataTypes.INTEGER,
     allowNull: false,
-    references: {
-      model: 'locales',
-      key: 'id'
-    }
+    comment: '1 = Castellana, 2 = Avenida 1ra'
   },
   tipo: {
     type: DataTypes.ENUM('entrada', 'salida', 'ajuste', 'venta', 'transferencia_entrada', 'transferencia_salida'),
@@ -29,7 +26,8 @@ const MovimientoInventario = sequelize.define('MovimientoInventario', {
   },
   cantidad: {
     type: DataTypes.INTEGER,
-    allowNull: false
+    allowNull: false,
+    comment: 'Positivo para entradas, negativo para salidas'
   },
   stock_anterior: {
     type: DataTypes.INTEGER,
@@ -45,9 +43,17 @@ const MovimientoInventario = sequelize.define('MovimientoInventario', {
   },
   usuario_id: {
     type: DataTypes.UUID,
-    allowNull: false,
+    allowNull: true,
     references: {
       model: 'usuarios',
+      key: 'id'
+    }
+  },
+  pedido_id: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'pedidos',
       key: 'id'
     }
   }
