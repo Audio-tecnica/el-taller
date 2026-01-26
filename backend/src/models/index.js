@@ -1,18 +1,28 @@
 const sequelize = require('../config/database');
 
-// Importar modelos (nombres correctos según tu carpeta)
+// ==========================================
+// IMPORTAR MODELOS EXISTENTES
+// ==========================================
 const Usuario = require('./Usuario');
 const Local = require('./Local');
 const Mesa = require('./Mesa');
 const Categoria = require('./Categoria');
 const Producto = require('./Producto');
 const Pedido = require('./Pedido');
-const ItemPedido = require('./ItemPedido');  // ⭐ Era DetallePedido antes
+const ItemPedido = require('./ItemPedido');
 const Cortesia = require('./Cortesia');
 const Turno = require('./Turno');
-const MovimientoInventario = require('./MovimientoInventario');
 
-// ============ RELACIONES ============
+// ==========================================
+// IMPORTAR NUEVOS MODELOS KARDEX
+// ==========================================
+const MovimientoInventario = require('./MovimientoInventario');
+const Proveedor = require('./Proveedor');
+const Compra = require('./Compra');
+
+// ==========================================
+// RELACIONES EXISTENTES
+// ==========================================
 
 // Usuarios - Locales
 Usuario.belongsTo(Local, { foreignKey: 'local_asignado_id', as: 'local' });
@@ -30,7 +40,7 @@ Categoria.hasMany(Producto, { foreignKey: 'categoria_id', as: 'productos' });
 Pedido.belongsTo(Mesa, { foreignKey: 'mesa_id', as: 'mesa' });
 Mesa.hasMany(Pedido, { foreignKey: 'mesa_id', as: 'pedidos' });
 
-// Pedidos - Usuario (mesero)
+// Pedidos - Usuario
 Pedido.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
 Usuario.hasMany(Pedido, { foreignKey: 'usuario_id', as: 'pedidos' });
 
@@ -65,21 +75,62 @@ Usuario.hasMany(Turno, { foreignKey: 'usuario_apertura', as: 'turnos_abiertos' }
 Turno.belongsTo(Usuario, { foreignKey: 'usuario_cierre', as: 'usuario_cierre_rel' });
 Usuario.hasMany(Turno, { foreignKey: 'usuario_cierre', as: 'turnos_cerrados' });
 
+// ==========================================
+// NUEVAS RELACIONES KARDEX
+// ==========================================
+
 // MovimientoInventario - Producto
 MovimientoInventario.belongsTo(Producto, { foreignKey: 'producto_id', as: 'producto' });
 Producto.hasMany(MovimientoInventario, { foreignKey: 'producto_id', as: 'movimientos' });
 
+// MovimientoInventario - Local
+MovimientoInventario.belongsTo(Local, { foreignKey: 'local_id', as: 'local' });
+Local.hasMany(MovimientoInventario, { foreignKey: 'local_id', as: 'movimientos_inventario' });
+
+// MovimientoInventario - Proveedor
+MovimientoInventario.belongsTo(Proveedor, { foreignKey: 'proveedor_id', as: 'proveedor' });
+Proveedor.hasMany(MovimientoInventario, { foreignKey: 'proveedor_id', as: 'movimientos' });
+
 // MovimientoInventario - Usuario
 MovimientoInventario.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
-Usuario.hasMany(MovimientoInventario, { foreignKey: 'usuario_id', as: 'movimientos_inventario' });
+Usuario.hasMany(MovimientoInventario, { foreignKey: 'usuario_id', as: 'movimientos_realizados' });
+
+MovimientoInventario.belongsTo(Usuario, { foreignKey: 'autorizado_por', as: 'autorizador' });
+Usuario.hasMany(MovimientoInventario, { foreignKey: 'autorizado_por', as: 'movimientos_autorizados' });
 
 // MovimientoInventario - Pedido
 MovimientoInventario.belongsTo(Pedido, { foreignKey: 'pedido_id', as: 'pedido' });
 Pedido.hasMany(MovimientoInventario, { foreignKey: 'pedido_id', as: 'movimientos' });
 
-// ============ EXPORTAR ============
+// MovimientoInventario - Transferencias (origen/destino)
+MovimientoInventario.belongsTo(Local, { foreignKey: 'local_origen_id', as: 'local_origen' });
+MovimientoInventario.belongsTo(Local, { foreignKey: 'local_destino_id', as: 'local_destino' });
+
+// MovimientoInventario - Movimiento relacionado (para transferencias)
+MovimientoInventario.belongsTo(MovimientoInventario, { 
+  foreignKey: 'movimiento_relacionado_id', 
+  as: 'movimiento_relacionado' 
+});
+
+// Compra - Proveedor
+Compra.belongsTo(Proveedor, { foreignKey: 'proveedor_id', as: 'proveedor' });
+Proveedor.hasMany(Compra, { foreignKey: 'proveedor_id', as: 'compras' });
+
+// Compra - Local
+Compra.belongsTo(Local, { foreignKey: 'local_id', as: 'local' });
+Local.hasMany(Compra, { foreignKey: 'local_id', as: 'compras' });
+
+// Compra - Usuario
+Compra.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+Usuario.hasMany(Compra, { foreignKey: 'usuario_id', as: 'compras_realizadas' });
+
+// ==========================================
+// EXPORTAR MODELOS
+// ==========================================
 module.exports = {
   sequelize,
+  
+  // Modelos existentes
   Usuario,
   Local,
   Mesa,
@@ -89,5 +140,9 @@ module.exports = {
   ItemPedido,
   Cortesia,
   Turno,
-  MovimientoInventario
+  
+  // Modelos nuevos kardex
+  MovimientoInventario,
+  Proveedor,
+  Compra
 };
