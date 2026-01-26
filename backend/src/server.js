@@ -72,7 +72,9 @@ const pedidosRoutes = require("./routes/pedidosRoutes");
 const cortesiasRoutes = require("./routes/cortesiasRoutes");
 const turnosRoutes = require("./routes/turnosRoutes");
 const barrilesRoutes = require('./routes/barrilesRoutes');
-const inventarioRoutes = require('./routes/inventarioRoutes'); // ⭐ AGREGADO
+const inventarioRoutes = require('./routes/inventarioRoutes'); 
+const reportesRoutes = require('./routes/reportesRoutes');
+app.use('/api/reportes', reportesRoutes);
 
 app.use("/api/turnos", turnosRoutes);
 app.use("/api/cortesias", cortesiasRoutes);

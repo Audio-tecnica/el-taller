@@ -8,6 +8,7 @@ import POS from './pages/pos/Pos';
 import Pedido from './pages/pos/Pedido';
 import Caja from './pages/caja/Caja';
 import { AuthProvider } from './context/AuthContext';
+import Reportes from './pages/reportes/Reportes';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <Route path="/pos/pedido/:pedido_id" element={<Pedido />} />
           <Route path="/caja" element={<Caja />} />
           <Route path="/" element={<Login />} />
+          <Route path="/reportes" element={<Reportes />} />
         </Routes>
       </AuthProvider>
     </Router>
