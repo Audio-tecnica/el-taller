@@ -1,32 +1,49 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const inventarioKardexController = require('../controllers/inventarioKardexController');
-const authMiddleware = require('../middleware/authMiddleware');
 
+const inventarioKardexController = require("../controllers/inventarioKardexController");
+const authMiddleware = require("../middleware/authMiddleware");
+
+// Todas protegidas
 router.use(authMiddleware);
 
-// ==========================================
-// COMPRAS Y ENTRADAS
-// ==========================================
-router.post('/compra', inventarioKardexController.registrarCompra);
-router.post('/devolucion-proveedor', inventarioKardexController.registrarDevolucionProveedor);
+// ================================
+// INVENTARIO (AGREGADOS)
+// ================================
+router.get(
+  "/valorizado",
+  inventarioKardexController.obtenerInventarioValorizado
+);
 
-// ==========================================
-// AJUSTES
-// ==========================================
-router.post('/ajustar', inventarioKardexController.ajustarInventario);
-router.post('/merma', inventarioKardexController.registrarMerma);
+// ================================
+// MOVIMIENTOS / KARDEX
+// ================================
+router.get(
+  "/movimientos",
+  inventarioKardexController.obtenerMovimientos
+);
 
-// ==========================================
-// TRANSFERENCIAS
-// ==========================================
-router.post('/transferir', inventarioKardexController.transferirEntreLocales);
+router.get(
+  "/kardex/:producto_id",
+  inventarioKardexController.obtenerKardexProducto
+);
 
-// ==========================================
-// CONSULTAS KARDEX
-// ==========================================
-router.get('/kardex/:producto_id', inventarioKardexController.getKardexProducto);
-router.get('/movimientos', inventarioKardexController.getMovimientos);
-router.get('/valorizado', inventarioKardexController.getInventarioValorizado);
+// ================================
+// OPERACIONES
+// ================================
+router.post(
+  "/compra",
+  inventarioKardexController.registrarCompra
+);
+
+router.post(
+  "/ajustar",
+  inventarioKardexController.registrarAjuste
+);
+
+router.post(
+  "/transferir",
+  inventarioKardexController.registrarTransferencia
+);
 
 module.exports = router;
