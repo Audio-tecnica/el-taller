@@ -20,12 +20,12 @@ router.get(
  */
 router.get(
   "/movimientos",
-  inventarioKardexController.obtenerMovimientos
+  inventarioKardexController.getMovimientos
 );
 
 router.get(
   "/movimientos/:producto_id",
-  inventarioKardexController.obtenerMovimientosPorProducto
+  inventarioKardexController.getMovimientosPorProducto
 );
 
 /**
@@ -38,12 +38,12 @@ router.post(
 
 router.post(
   "/ajuste",
-  inventarioKardexController.registrarAjuste
+  inventarioKardexController.ajustarInventario
 );
 
 router.post(
   "/transferencia",
-  inventarioKardexController.registrarTransferencia
+  inventarioKardexController.transferirEntreLocales
 );
 
 module.exports = router;
