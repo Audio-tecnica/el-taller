@@ -1,13 +1,13 @@
 const sequelize = require('../config/database');
 
-// Importar modelos
+// Importar modelos (nombres correctos según tu carpeta)
 const Usuario = require('./Usuario');
 const Local = require('./Local');
 const Mesa = require('./Mesa');
 const Categoria = require('./Categoria');
 const Producto = require('./Producto');
 const Pedido = require('./Pedido');
-const DetallePedido = require('./DetallePedido');
+const ItemPedido = require('./ItemPedido');  // ⭐ Era DetallePedido antes
 const Cortesia = require('./Cortesia');
 const Turno = require('./Turno');
 const MovimientoInventario = require('./MovimientoInventario');
@@ -38,13 +38,13 @@ Usuario.hasMany(Pedido, { foreignKey: 'usuario_id', as: 'pedidos' });
 Pedido.belongsTo(Local, { foreignKey: 'local_id', as: 'local' });
 Local.hasMany(Pedido, { foreignKey: 'local_id', as: 'pedidos' });
 
-// DetallePedido - Pedido
-DetallePedido.belongsTo(Pedido, { foreignKey: 'pedido_id', as: 'pedido' });
-Pedido.hasMany(DetallePedido, { foreignKey: 'pedido_id', as: 'detalles' });
+// ItemPedido - Pedido
+ItemPedido.belongsTo(Pedido, { foreignKey: 'pedido_id', as: 'pedido' });
+Pedido.hasMany(ItemPedido, { foreignKey: 'pedido_id', as: 'items' });
 
-// DetallePedido - Producto
-DetallePedido.belongsTo(Producto, { foreignKey: 'producto_id', as: 'producto' });
-Producto.hasMany(DetallePedido, { foreignKey: 'producto_id', as: 'detalles' });
+// ItemPedido - Producto
+ItemPedido.belongsTo(Producto, { foreignKey: 'producto_id', as: 'producto' });
+Producto.hasMany(ItemPedido, { foreignKey: 'producto_id', as: 'items' });
 
 // Cortesías - Pedido
 Cortesia.belongsTo(Pedido, { foreignKey: 'pedido_id', as: 'pedido' });
@@ -86,7 +86,7 @@ module.exports = {
   Categoria,
   Producto,
   Pedido,
-  DetallePedido,
+  ItemPedido,
   Cortesia,
   Turno,
   MovimientoInventario
