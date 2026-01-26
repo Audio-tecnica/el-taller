@@ -27,6 +27,7 @@ export default function Caja() {
     if (localSeleccionado) {
       cargarTurno();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localSeleccionado]);
 
   const cargarLocales = async () => {
@@ -36,7 +37,7 @@ export default function Caja() {
       if (data.length > 0) {
         setLocalSeleccionado(data[0].id);
       }
-    } catch (error) {
+    } catch {
       toast.error('Error al cargar locales');
     } finally {
       setLoading(false);
@@ -47,7 +48,7 @@ export default function Caja() {
     try {
       const turno = await turnosService.getTurnoActivo(localSeleccionado);
       setTurnoActivo(turno);
-    } catch (error) {
+    } catch {
       setTurnoActivo(null);
     }
   };
@@ -57,7 +58,7 @@ export default function Caja() {
       const data = await turnosService.getHistorial(localSeleccionado);
       setHistorial(data);
       setVerHistorial(true);
-    } catch (error) {
+    } catch {
       toast.error('Error al cargar historial');
     }
   };
@@ -80,7 +81,7 @@ export default function Caja() {
       return;
     }
     try {
-      const resultado = await turnosService.cerrarTurno(
+      await turnosService.cerrarTurno(
         turnoActivo.id,
         parseFloat(efectivoReal),
         notasCierre
@@ -90,7 +91,7 @@ export default function Caja() {
       setEfectivoReal('');
       setNotasCierre('');
       setTurnoActivo(null);
-    } catch (error) {
+    } catch {
       toast.error('Error al cerrar turno');
     }
   };
