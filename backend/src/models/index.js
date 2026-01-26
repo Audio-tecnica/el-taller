@@ -69,11 +69,8 @@ Turno.belongsTo(Local, { foreignKey: 'local_id', as: 'local' });
 Local.hasMany(Turno, { foreignKey: 'local_id', as: 'turnos' });
 
 // Turnos - Usuario
-Turno.belongsTo(Usuario, { foreignKey: 'usuario_apertura', as: 'usuario' });
-Usuario.hasMany(Turno, { foreignKey: 'usuario_apertura', as: 'turnos_abiertos' });
-
-Turno.belongsTo(Usuario, { foreignKey: 'usuario_cierre', as: 'usuario_cierre_rel' });
-Usuario.hasMany(Turno, { foreignKey: 'usuario_cierre', as: 'turnos_cerrados' });
+Turno.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+Usuario.hasMany(Turno, { foreignKey: 'usuario_id', as: 'turnos' });
 
 // ==========================================
 // NUEVAS RELACIONES KARDEX
