@@ -1,4 +1,5 @@
 const sequelize = require('../config/database');
+const IntentoAcceso = require('./IntentoAcceso');
 
 // ==========================================
 // IMPORTAR MODELOS EXISTENTES
@@ -32,6 +33,10 @@ const IntentoAcceso = require('./IntentoAcceso');
 // Usuarios - Locales
 Usuario.belongsTo(Local, { foreignKey: 'local_asignado_id', as: 'local' });
 Local.hasMany(Usuario, { foreignKey: 'local_asignado_id', as: 'usuarios' });
+
+// IntentoAcceso - Usuario
+IntentoAcceso.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+Usuario.hasMany(IntentoAcceso, { foreignKey: 'usuario_id', as: 'intentos_acceso' });
 
 // Mesas - Locales
 Mesa.belongsTo(Local, { foreignKey: 'local_id', as: 'local' });
