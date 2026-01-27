@@ -68,12 +68,12 @@ const authController = {
         return res.status(401).json({ error: "Usuario desactivado" });
       }
 
-      // ⭐ VALIDACIÓN ESPECIAL PARA CAJEROS - Control por turnos
+      // ⭐ VALIDACIÓN PARA CAJEROS - Solo pueden entrar si tienen turno abierto
       if (usuario.rol === "cajero") {
-        // Buscar turno activo DEL CAJERO (usar cajero_id en lugar de usuario_id)
+        // Buscar turno activo DEL CAJERO (usar cajero_id)
         const turnoActivo = await Turno.findOne({
           where: {
-            cajero_id: usuario.id, // ⭐ CAMBIAR de usuario_id a cajero_id
+            cajero_id: usuario.id,
             estado: "abierto",
           },
         });
@@ -90,11 +90,12 @@ const authController = {
           });
 
           return res.status(403).json({
-            error: "No tienes un turno abierto. Contacta al administrador.",
+            error: "No tienes un turno abierto. Espera a que el administrador te asigne un turno.",
             codigo: "SIN_TURNO_ABIERTO",
           });
         }
       }
+
 
       // Login exitoso - Generar token
       const token = jwt.sign(
