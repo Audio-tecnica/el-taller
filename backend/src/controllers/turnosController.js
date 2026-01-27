@@ -134,7 +134,10 @@ cerrarTurno: async (req, res) => {
     const { efectivo_real, notas_cierre } = req.body;
 
     const turno = await Turno.findByPk(turno_id, {
-      include: [{ model: Usuario, as: 'usuario' }]  // ⭐ AGREGAR INCLUDE
+      include: [
+        { model: Usuario, as: 'usuario' },
+        { model: Usuario, as: 'cajero' }  // ⭐ AGREGAR CAJERO
+      ]
     });
 
     if (!turno || turno.estado !== 'abierto') {
@@ -185,15 +188,18 @@ cerrarTurno: async (req, res) => {
       notas_cierre
     });
 
-    // ⭐ AGREGAR ESTO: Emitir evento para cerrar sesión del cajero
-    if (req.app.get('io')) {
-      req.app.get('io').emit('turno_cerrado', {
+    // ⭐ EMITIR EVENTO para cerrar sesión del cajero
+    const io = req.app.get('io');
+    if (io) {
+      const cajero_id = turno.cajero_id || turno.usuario_id; // Usar cajero_id si existe
+      io.emit('turno_cerrado', {
         turno_id: turno.id,
-        usuario_id: turno.usuario_id,
-        usuario_email: turno.usuario?.email,
+        usuario_id: cajero_id,  // ⭐ USAR CAJERO_ID
+        usuario_email: turno.cajero?.email || turno.usuario?.email,
+        local_id: turno.local_id,
         fecha_cierre: new Date()
       });
-      console.log(`🔒 Evento turno_cerrado emitido para usuario ${turno.usuario_id}`);
+      console.log(`🔒 Evento turno_cerrado emitido para cajero ${cajero_id}`);
     }
 
       res.json({
