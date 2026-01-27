@@ -15,6 +15,7 @@ import Proveedores from "./pages/proveedores/Proveedores";
 import RegistrarCompra from "./pages/compras/RegistrarCompra";
 import InventarioValorizado from "./pages/productos/InventarioValorizado";
 import { Navigate } from "react-router-dom";
+import IntentosAcceso from "./pages/admin/IntentosAcceso";
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
           <Route path="/pos/pedido/:pedido_id" element={<Pedido />} />
           <Route path="/caja" element={<Caja />} />
           <Route path="/reportes" element={<Reportes />} />
+          <Route path="/admin/intentos-acceso" element={<IntentosAcceso />} />
           
           {/* ⭐ Rutas Kardex Premium */}
           <Route path="/proveedores" element={<Proveedores />} />
