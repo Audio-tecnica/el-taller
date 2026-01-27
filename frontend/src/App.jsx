@@ -19,33 +19,42 @@ import IntentosAcceso from "./pages/admin/IntentosAcceso";
 import GestionUsuarios from "./pages/admin/GestionUsuarios";
 import { useSocket } from './hooks/useSocket';
 
-function App() {
-  useSocket();
+// ⭐ Componente interno que usa useSocket dentro del Router
+function AppContent() {
+  useSocket(); // Ahora está dentro del Router
+  
+  return (
+    <>
+      <Toaster position="top-right" />
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/productos" element={<Productos />} />
+        <Route path="/mesas" element={<Mesas />} />
+        <Route path="/pos" element={<POS />} />
+        <Route path="/pos/pedido/:pedido_id" element={<Pedido />} />
+        <Route path="/caja" element={<Caja />} />
+        <Route path="/reportes" element={<Reportes />} />
+        <Route path="/admin/intentos-acceso" element={<IntentosAcceso />} />
+        <Route path="/admin/usuarios" element={<GestionUsuarios />} />
+        
+        {/* ⭐ Rutas Kardex Premium */}
+        <Route path="/proveedores" element={<Proveedores />} />
+        <Route path="/compras/nueva" element={<RegistrarCompra />} />
+        <Route path="/inventario/valorizado" element={<InventarioValorizado />} />
+        <Route path="/inventario" element={<Navigate to="/productos" replace />} />
+        
+        <Route path="/" element={<Login />} />
+      </Routes>
+    </>
+  );
+}
 
+function App() {
   return (
     <Router>
       <AuthProvider>
-        <Toaster position="top-right" />
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/productos" element={<Productos />} />
-          <Route path="/mesas" element={<Mesas />} />
-          <Route path="/pos" element={<POS />} />
-          <Route path="/pos/pedido/:pedido_id" element={<Pedido />} />
-          <Route path="/caja" element={<Caja />} />
-          <Route path="/reportes" element={<Reportes />} />
-          <Route path="/admin/intentos-acceso" element={<IntentosAcceso />} />
-          <Route path="/admin/usuarios" element={<GestionUsuarios />} />
-          
-          {/* ⭐ Rutas Kardex Premium */}
-          <Route path="/proveedores" element={<Proveedores />} />
-          <Route path="/compras/nueva" element={<RegistrarCompra />} />
-          <Route path="/inventario/valorizado" element={<InventarioValorizado />} />
-          <Route path="/inventario" element={<Navigate to="/productos" replace />} />
-          
-          <Route path="/" element={<Login />} />
-        </Routes>
+        <AppContent />
       </AuthProvider>
     </Router>
   );
