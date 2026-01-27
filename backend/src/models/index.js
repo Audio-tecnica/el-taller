@@ -1,5 +1,4 @@
 const sequelize = require('../config/database');
-const IntentoAcceso = require('./IntentoAcceso');
 
 // ==========================================
 // IMPORTAR MODELOS EXISTENTES
@@ -22,7 +21,7 @@ const Proveedor = require('./Proveedor');
 const Compra = require('./Compra');
 
 // ==========================================
-// ⭐ IMPORTAR MODELO DE INTENTOS DE ACCESO
+// IMPORTAR MODELO DE INTENTOS DE ACCESO
 // ==========================================
 const IntentoAcceso = require('./IntentoAcceso');
 
@@ -33,10 +32,6 @@ const IntentoAcceso = require('./IntentoAcceso');
 // Usuarios - Locales
 Usuario.belongsTo(Local, { foreignKey: 'local_asignado_id', as: 'local' });
 Local.hasMany(Usuario, { foreignKey: 'local_asignado_id', as: 'usuarios' });
-
-// IntentoAcceso - Usuario
-IntentoAcceso.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
-Usuario.hasMany(IntentoAcceso, { foreignKey: 'usuario_id', as: 'intentos_acceso' });
 
 // Mesas - Locales
 Mesa.belongsTo(Local, { foreignKey: 'local_id', as: 'local' });
@@ -78,13 +73,18 @@ Usuario.hasMany(Cortesia, { foreignKey: 'autorizado_por', as: 'cortesias_autoriz
 Turno.belongsTo(Local, { foreignKey: 'local_id', as: 'local' });
 Local.hasMany(Turno, { foreignKey: 'local_id', as: 'turnos' });
 
-// Turno - Cajero
+// ⭐ TURNOS - USUARIO (CORREGIDO)
+// Quien abre el turno (puede ser admin)
+Turno.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+Usuario.hasMany(Turno, { foreignKey: 'usuario_id', as: 'turnos_abiertos' });
+
+// ⭐ NUEVO: Cajero asignado al turno
 Turno.belongsTo(Usuario, { foreignKey: 'cajero_id', as: 'cajero' });
 Usuario.hasMany(Turno, { foreignKey: 'cajero_id', as: 'turnos_como_cajero' });
 
-// Turnos - Usuario
-Turno.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
-Usuario.hasMany(Turno, { foreignKey: 'usuario_id', as: 'turnos' });
+// ⭐ INTENTOS DE ACCESO - USUARIO
+IntentoAcceso.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+Usuario.hasMany(IntentoAcceso, { foreignKey: 'usuario_id', as: 'intentos_acceso' });
 
 // ==========================================
 // NUEVAS RELACIONES KARDEX
@@ -136,14 +136,6 @@ Compra.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
 Usuario.hasMany(Compra, { foreignKey: 'usuario_id', as: 'compras_realizadas' });
 
 // ==========================================
-// ⭐ NUEVAS RELACIONES - INTENTOS DE ACCESO
-// ==========================================
-
-// IntentoAcceso - Usuario
-IntentoAcceso.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
-Usuario.hasMany(IntentoAcceso, { foreignKey: 'usuario_id', as: 'intentos_acceso' });
-
-// ==========================================
 // EXPORTAR MODELOS
 // ==========================================
 module.exports = {
@@ -165,6 +157,6 @@ module.exports = {
   Proveedor,
   Compra,
   
-  // ⭐ Modelo de seguridad
+  // ⭐ Modelo de intentos de acceso
   IntentoAcceso
 };

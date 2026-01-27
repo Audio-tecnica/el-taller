@@ -9,7 +9,7 @@ const IntentoAcceso = sequelize.define('IntentoAcceso', {
   },
   usuario_id: {
     type: DataTypes.UUID,
-    allowNull: true, // Puede ser null si el usuario no existe
+    allowNull: true,
     references: {
       model: 'usuarios',
       key: 'id'
