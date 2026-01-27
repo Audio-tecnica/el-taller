@@ -69,7 +69,6 @@ const authController = {
       }
 
       // ⭐ VALIDACIÓN ESPECIAL PARA CAJEROS - Control por turnos
-
       if (usuario.rol === "cajero") {
         // Buscar turno activo DEL CAJERO (usar cajero_id en lugar de usuario_id)
         const turnoActivo = await Turno.findOne({
@@ -420,39 +419,40 @@ const authController = {
       console.error("Error eliminando usuario:", error);
       res.status(500).json({ error: error.message });
     }
-    // Obtener cajeros activos
-    getCajeros: async (req, res) => {
-      try {
-        const { local_id } = req.query;
+  }, // ⭐ CERRAR la función eliminarUsuario aquí
 
-        const where = {
-          activo: true,
-          rol: "cajero",
-        };
+  // ⭐ NUEVO: Obtener cajeros activos
+  getCajeros: async (req, res) => {
+    try {
+      const { local_id } = req.query;
 
-        if (local_id) {
-          where.local_asignado_id = local_id;
-        }
+      const where = {
+        activo: true,
+        rol: "cajero",
+      };
 
-        const cajeros = await Usuario.findAll({
-          where,
-          attributes: ["id", "nombre", "email", "rol", "local_asignado_id"],
-          include: [
-            {
-              model: Local,
-              as: "local",
-              attributes: ["id", "nombre"],
-            },
-          ],
-          order: [["nombre", "ASC"]],
-        });
-
-        res.json(cajeros);
-      } catch (error) {
-        console.error("Error obteniendo cajeros:", error);
-        res.status(500).json({ error: error.message });
+      if (local_id) {
+        where.local_asignado_id = local_id;
       }
-    };
+
+      const cajeros = await Usuario.findAll({
+        where,
+        attributes: ["id", "nombre", "email", "rol", "local_asignado_id"],
+        include: [
+          {
+            model: Local,
+            as: "local",
+            attributes: ["id", "nombre"],
+          },
+        ],
+        order: [["nombre", "ASC"]],
+      });
+
+      res.json(cajeros);
+    } catch (error) {
+      console.error("Error obteniendo cajeros:", error);
+      res.status(500).json({ error: error.message });
+    }
   },
 };
 
