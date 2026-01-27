@@ -17,34 +17,55 @@ export default function Dashboard() {
     } else {
       setLoadingTurno(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const cargarTurnoActivo = async () => {
     try {
+      console.log('🔍 Buscando turno para cajero:', usuario.id, usuario.nombre);
+      
       // Buscar turno del cajero en TODOS los locales
       const { mesasService } = await import("../../services/mesasService");
       const localesData = await mesasService.getLocales();
+      
+      console.log('📍 Locales encontrados:', localesData.length);
       
       let turnoEncontrado = null;
       
       for (const local of localesData) {
         try {
+          console.log(`🔎 Buscando turno en ${local.nombre} (${local.id})`);
           const turno = await turnosService.getTurnoActivo(local.id);
+          
+          console.log(`✅ Turno encontrado en ${local.nombre}:`, turno);
+          console.log(`   - cajero_id: ${turno.cajero_id}`);
+          console.log(`   - usuario_id: ${turno.usuario_id}`);
+          console.log(`   - mi id: ${usuario.id}`);
           
           // Verificar si este turno es del cajero actual
           const cajeroId = turno.cajero_id || turno.usuario_id;
           if (cajeroId === usuario.id) {
+            console.log('🎯 ¡TURNO ENCONTRADO! Este es mi turno');
             turnoEncontrado = turno;
             break;
+          } else {
+            console.log('❌ Este turno NO es mío (es de otro cajero)');
           }
-        } catch {
+        } catch  {
+          console.log(`⚠️ No hay turno en ${local.nombre}`);
           continue; // No hay turno en este local
         }
       }
       
+      if (turnoEncontrado) {
+        console.log('✅ TURNO FINAL ASIGNADO:', turnoEncontrado.local?.nombre);
+      } else {
+        console.log('❌ NO SE ENCONTRÓ TURNO PARA ESTE CAJERO');
+      }
+      
       setTurnoActivo(turnoEncontrado);
     } catch (error) {
-      console.log("No hay turno activo o error al cargar:", error);
+      console.error("❌ Error al cargar turno:", error);
       setTurnoActivo(null);
     } finally {
       setLoadingTurno(false);
