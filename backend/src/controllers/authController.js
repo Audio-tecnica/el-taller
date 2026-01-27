@@ -310,6 +310,8 @@ const authController = {
         activo: true
       });
 
+      
+
       const { password_hash: _, ...usuarioSinPassword } = usuario.toJSON();
 
       res.status(201).json({
@@ -320,7 +322,114 @@ const authController = {
       console.error('Error en registro:', error);
       res.status(500).json({ error: 'Error en el servidor' });
     }
+  },
+  
+   // Listar todos los usuarios (solo admin)
+  listarUsuarios: async (req, res) => {
+    try {
+      const usuarios = await Usuario.findAll({
+        attributes: { exclude: ['password_hash'] },
+        include: [
+          { model: Local, as: 'local', attributes: ['id', 'nombre'] }
+        ],
+        order: [['created_at', 'DESC']]
+      });
+
+      res.json(usuarios);
+    } catch (error) {
+      console.error('Error listando usuarios:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Obtener un usuario específico (solo admin)
+  obtenerUsuario: async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const usuario = await Usuario.findByPk(id, {
+        attributes: { exclude: ['password_hash'] },
+        include: [
+          { model: Local, as: 'local', attributes: ['id', 'nombre'] }
+        ]
+      });
+
+      if (!usuario) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+
+      res.json(usuario);
+    } catch (error) {
+      console.error('Error obteniendo usuario:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Actualizar usuario (solo admin)
+  actualizarUsuario: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { nombre, email, password, rol, local_asignado_id, activo } = req.body;
+
+      const usuario = await Usuario.findByPk(id);
+
+      if (!usuario) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+
+      // Preparar datos para actualizar
+      const updateData = {
+        nombre,
+        email,
+        rol,
+        local_asignado_id,
+        activo
+      };
+
+      // Solo actualizar password si se proporcionó uno nuevo
+      if (password && password.trim() !== '') {
+        updateData.password_hash = await bcrypt.hash(password, 10);
+      }
+
+      await usuario.update(updateData);
+
+      const { password_hash: _, ...usuarioSinPassword } = usuario.toJSON();
+
+      res.json({
+        message: 'Usuario actualizado exitosamente',
+        user: usuarioSinPassword
+      });
+    } catch (error) {
+      console.error('Error actualizando usuario:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Eliminar usuario (solo admin)
+  eliminarUsuario: async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // No permitir eliminar al usuario actual
+      if (id === req.usuario.id) {
+        return res.status(400).json({ error: 'No puedes eliminar tu propio usuario' });
+      }
+
+      const usuario = await Usuario.findByPk(id);
+
+      if (!usuario) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+
+      await usuario.destroy();
+
+      res.json({ message: 'Usuario eliminado exitosamente' });
+    } catch (error) {
+      console.error('Error eliminando usuario:', error);
+      res.status(500).json({ error: error.message });
+    }
   }
-};
+};  
+
 
 module.exports = authController;

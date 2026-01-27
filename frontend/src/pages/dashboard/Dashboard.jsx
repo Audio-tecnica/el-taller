@@ -67,7 +67,7 @@ export default function Dashboard() {
       desc: "Gestión de proveedores",
       color: "from-blue-500/20 to-blue-600/10 border-blue-500/30",
       hoverColor: "hover:border-blue-500",
-      textColor: "text-blue-400"
+      textColor: "text-blue-400",
     },
     {
       nombre: "Nueva Compra",
@@ -76,7 +76,7 @@ export default function Dashboard() {
       desc: "Registrar compra",
       color: "from-purple-500/20 to-purple-600/10 border-purple-500/30",
       hoverColor: "hover:border-purple-500",
-      textColor: "text-purple-400"
+      textColor: "text-purple-400",
     },
     {
       nombre: "Inventario Valorizado",
@@ -85,7 +85,7 @@ export default function Dashboard() {
       desc: "Análisis financiero",
       color: "from-amber-500/20 to-amber-600/10 border-amber-500/30",
       hoverColor: "hover:border-amber-500",
-      textColor: "text-amber-400"
+      textColor: "text-amber-400",
     },
   ];
 
@@ -98,7 +98,16 @@ export default function Dashboard() {
       desc: "Registro de seguridad",
       color: "from-red-500/20 to-red-600/10 border-red-500/30",
       hoverColor: "hover:border-red-500",
-      textColor: "text-red-400"
+      textColor: "text-red-400",
+    },
+    {
+      nombre: "Gestión de Usuarios",
+      icono: "👥",
+      ruta: "/admin/usuarios",
+      desc: "Crear y editar usuarios",
+      color: "from-orange-500/20 to-orange-600/10 border-orange-500/30",
+      hoverColor: "hover:border-orange-500",
+      textColor: "text-orange-400",
     },
   ];
 
@@ -152,7 +161,9 @@ export default function Dashboard() {
 
         {/* Módulos Principales */}
         <div className="mb-8">
-          <h3 className="text-lg font-bold text-white mb-4">Módulos Principales</h3>
+          <h3 className="text-lg font-bold text-white mb-4">
+            Módulos Principales
+          </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {modulos.map((modulo) => (
               <button
@@ -203,7 +214,9 @@ export default function Dashboard() {
         {/* ⭐ NUEVO: Módulos Kardex Premium */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-white">Sistema Kardex Premium</h3>
+            <h3 className="text-lg font-bold text-white">
+              Sistema Kardex Premium
+            </h3>
             <span className="px-3 py-1 bg-gradient-to-r from-[#D4B896] to-[#C4A576] text-[#0a0a0a] text-xs font-bold rounded-full">
               NUEVO
             </span>
@@ -219,42 +232,50 @@ export default function Dashboard() {
                   <div className="w-14 h-14 bg-[#0a0a0a] rounded-xl flex items-center justify-center">
                     <span className="text-3xl">{modulo.icono}</span>
                   </div>
-                  <svg 
-                    className="w-5 h-5 text-gray-600 group-hover:text-white transition" 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <svg
+                    className="w-5 h-5 text-gray-600 group-hover:text-white transition"
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
                   </svg>
                 </div>
                 <h4 className="text-lg font-bold text-white mb-1 group-hover:text-white transition">
                   {modulo.nombre}
                 </h4>
-                <p className={`text-sm ${modulo.textColor}`}>
-                  {modulo.desc}
-                </p>
+                <p className={`text-sm ${modulo.textColor}`}>{modulo.desc}</p>
               </button>
             ))}
           </div>
-          
+
           {/* Info adicional */}
           <div className="mt-4 bg-[#141414] border border-[#2a2a2a] rounded-xl p-4 flex items-start gap-3">
             <span className="text-2xl">💡</span>
             <div className="flex-1">
-              <p className="text-sm text-white font-medium mb-1">Sistema Kardex Profesional</p>
+              <p className="text-sm text-white font-medium mb-1">
+                Sistema Kardex Profesional
+              </p>
               <p className="text-xs text-gray-500">
-                Gestiona proveedores, registra compras con costos reales, y visualiza el valor financiero de tu inventario en tiempo real.
+                Gestiona proveedores, registra compras con costos reales, y
+                visualiza el valor financiero de tu inventario en tiempo real.
               </p>
             </div>
           </div>
         </div>
 
         {/* ⭐ NUEVO: Módulo de Seguridad (Solo Administradores) */}
-        {usuario?.rol === 'administrador' && (
+        {usuario?.rol === "administrador" && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white">Seguridad y Auditoría</h3>
+              <h3 className="text-lg font-bold text-white">
+                Seguridad y Auditoría
+              </h3>
               <span className="px-3 py-1 bg-red-500/20 text-red-400 text-xs font-bold rounded-full border border-red-500/30">
                 SOLO ADMIN
               </span>
@@ -270,32 +291,39 @@ export default function Dashboard() {
                     <div className="w-14 h-14 bg-[#0a0a0a] rounded-xl flex items-center justify-center">
                       <span className="text-3xl">{modulo.icono}</span>
                     </div>
-                    <svg 
-                      className="w-5 h-5 text-gray-600 group-hover:text-white transition" 
-                      fill="none" 
-                      stroke="currentColor" 
+                    <svg
+                      className="w-5 h-5 text-gray-600 group-hover:text-white transition"
+                      fill="none"
+                      stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
                     </svg>
                   </div>
                   <h4 className="text-lg font-bold text-white mb-1 group-hover:text-white transition">
                     {modulo.nombre}
                   </h4>
-                  <p className={`text-sm ${modulo.textColor}`}>
-                    {modulo.desc}
-                  </p>
+                  <p className={`text-sm ${modulo.textColor}`}>{modulo.desc}</p>
                 </button>
               ))}
             </div>
-            
+
             {/* Info adicional */}
             <div className="mt-4 bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3">
               <span className="text-2xl">🔒</span>
               <div className="flex-1">
-                <p className="text-sm text-red-400 font-medium mb-1">Control de Acceso por Turnos</p>
+                <p className="text-sm text-red-400 font-medium mb-1">
+                  Control de Acceso por Turnos
+                </p>
                 <p className="text-xs text-red-300/70">
-                  Los cajeros solo pueden iniciar sesión cuando tienen un turno abierto. Todos los intentos de acceso quedan registrados para auditoría.
+                  Los cajeros solo pueden iniciar sesión cuando tienen un turno
+                  abierto. Todos los intentos de acceso quedan registrados para
+                  auditoría.
                 </p>
               </div>
             </div>

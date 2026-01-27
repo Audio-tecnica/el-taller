@@ -17,4 +17,10 @@ router.post('/registro', authMiddleware, authController.registro); // Solo admin
 router.get('/intentos-acceso', authMiddleware, adminMiddleware, authController.getIntentosAcceso);
 router.get('/estadisticas-intentos', authMiddleware, adminMiddleware, authController.getEstadisticasIntentos);
 
+// Rutas de gestión de usuarios (solo administradores)
+router.get('/usuarios', authMiddleware, adminMiddleware, authController.listarUsuarios);
+router.get('/usuarios/:id', authMiddleware, adminMiddleware, authController.obtenerUsuario);
+router.put('/usuarios/:id', authMiddleware, adminMiddleware, authController.actualizarUsuario);
+router.delete('/usuarios/:id', authMiddleware, adminMiddleware, authController.eliminarUsuario);
+
 module.exports = router;
