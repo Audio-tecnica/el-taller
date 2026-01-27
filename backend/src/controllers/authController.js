@@ -424,19 +424,13 @@ const authController = {
   // ⭐ NUEVO: Obtener cajeros activos
   getCajeros: async (req, res) => {
     try {
-      const { local_id } = req.query;
-
-      const where = {
-        activo: true,
-        rol: "cajero",
-      };
-
-      if (local_id) {
-        where.local_asignado_id = local_id;
-      }
-
+      // Devolver TODOS los cajeros activos, sin filtrar por local
+      // Así pueden trabajar en cualquier local según el día
       const cajeros = await Usuario.findAll({
-        where,
+        where: {
+          activo: true,
+          rol: "cajero",
+        },
         attributes: ["id", "nombre", "email", "rol", "local_asignado_id"],
         include: [
           {
