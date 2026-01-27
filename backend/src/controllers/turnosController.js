@@ -128,16 +128,18 @@ const turnosController = {
   },
 
   // Cerrar turno
-  cerrarTurno: async (req, res) => {
-    try {
-      const { turno_id } = req.params;
-      const { efectivo_real, notas_cierre } = req.body;
+cerrarTurno: async (req, res) => {
+  try {
+    const { turno_id } = req.params;
+    const { efectivo_real, notas_cierre } = req.body;
 
-      const turno = await Turno.findByPk(turno_id);
+    const turno = await Turno.findByPk(turno_id, {
+      include: [{ model: Usuario, as: 'usuario' }]  // ⭐ AGREGAR INCLUDE
+    });
 
-      if (!turno || turno.estado !== "abierto") {
-        return res.status(400).json({ error: "Turno no válido o ya cerrado" });
-      }
+    if (!turno || turno.estado !== 'abierto') {
+      return res.status(400).json({ error: 'Turno no válido o ya cerrado' });
+    }
 
       // Calcular ventas del turno
       const pedidos = await Pedido.findAll({
@@ -168,20 +170,31 @@ const turnosController = {
         parseFloat(turno.efectivo_inicial) + total_efectivo;
       const diferencia = parseFloat(efectivo_real) - efectivo_esperado;
 
-      await turno.update({
-        estado: "cerrado",
-        efectivo_esperado,
-        efectivo_real,
-        diferencia,
-        total_efectivo,
-        total_transferencias,
-        total_nequi,
-        total_ventas,
-        total_cortesias,
-        cantidad_pedidos: pedidos.length,
-        fecha_cierre: new Date(),
-        notas_cierre,
+     await turno.update({
+      estado: 'cerrado',
+      efectivo_esperado,
+      efectivo_real,
+      diferencia,
+      total_efectivo,
+      total_transferencias,
+      total_nequi,
+      total_ventas,
+      total_cortesias,
+      cantidad_pedidos: pedidos.length,
+      fecha_cierre: new Date(),
+      notas_cierre
+    });
+
+    // ⭐ AGREGAR ESTO: Emitir evento para cerrar sesión del cajero
+    if (req.app.get('io')) {
+      req.app.get('io').emit('turno_cerrado', {
+        turno_id: turno.id,
+        usuario_id: turno.usuario_id,
+        usuario_email: turno.usuario?.email,
+        fecha_cierre: new Date()
       });
+      console.log(`🔒 Evento turno_cerrado emitido para usuario ${turno.usuario_id}`);
+    }
 
       res.json({
         message: "Turno cerrado exitosamente",

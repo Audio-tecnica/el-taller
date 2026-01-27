@@ -13,50 +13,56 @@ export default function Dashboard() {
     navigate("/login");
   };
 
-  const modulos = [
-    {
-      nombre: "Punto de Venta",
-      icono: "🍺",
-      ruta: "/pos",
-      desc: "¡Tomar pedidos aquí!",
-      destacado: true,
-    },
-    {
-      nombre: "Productos",
-      icono: "📦",
-      ruta: "/productos",
-      desc: "Catálogo e inventario",
-      destacado: false,
-    },
-    {
-      nombre: "Gestión de Mesas",
-      icono: "🪑",
-      ruta: "/mesas",
-      desc: "Configurar mesas",
-      destacado: false,
-    },
-    {
-      nombre: "Caja",
-      icono: "💰",
-      ruta: "/caja",
-      desc: "Turnos y arqueo",
-      destacado: false,
-    },
-    {
-      nombre: "Clientes B2B",
-      icono: "🏢",
-      ruta: "/clientes-b2b",
-      desc: "Ventas mayoristas",
-      destacado: false,
-    },
-    {
-      nombre: "Reportes",
-      icono: "📈",
-      ruta: "/reportes",
-      desc: "Estadísticas",
-      destacado: false,
-    },
-  ];
+ const modulos = [
+  {
+    nombre: "Punto de Venta",
+    icono: "🍺",
+    ruta: "/pos",
+    desc: "¡Tomar pedidos aquí!",
+    destacado: true,
+  },
+  {
+    nombre: "Productos",
+    icono: "📦",
+    ruta: "/productos",
+    desc: "Catálogo e inventario",
+    destacado: false,
+  },
+  {
+    nombre: "Gestión de Mesas",
+    icono: "🪑",
+    ruta: "/mesas",
+    desc: "Configurar mesas",
+    destacado: false,
+  },
+  {
+    nombre: "Caja",
+    icono: "💰",
+    ruta: "/caja",
+    desc: "Turnos y arqueo",
+    destacado: false,
+  },
+  {
+    nombre: "Clientes B2B",
+    icono: "🏢",
+    ruta: "/clientes-b2b",
+    desc: "Ventas mayoristas",
+    destacado: false,
+  },
+  {
+    nombre: "Reportes",
+    icono: "📈",
+    ruta: "/reportes",
+    desc: "Estadísticas",
+    destacado: false,
+  },
+];
+
+
+// ⭐ AGREGAR: Filtrar módulos según rol
+const modulosFiltrados = usuario?.rol === 'cajero' 
+  ? modulos.filter(m => m.ruta === '/pos') // Solo Punto de Venta
+  : modulos; // Admin ve todo
 
   // ⭐ NUEVOS MÓDULOS KARDEX PREMIUM
   const modulosKardex = [
@@ -165,7 +171,7 @@ export default function Dashboard() {
             Módulos Principales
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {modulos.map((modulo) => (
+            {modulosFiltrados.map((modulo) => (
               <button
                 key={modulo.nombre}
                 onClick={() => navigate(modulo.ruta)}

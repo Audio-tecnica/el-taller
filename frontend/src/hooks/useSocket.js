@@ -1,118 +1,60 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
+import { authService } from '../services/authService';
+import toast from 'react-hot-toast';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://el-taller.onrender.com';
+const SOCKET_URL = import.meta.env.VITE_API_URL || 'https://el-taller.onrender.com';
 
-// Singleton para mantener una única conexión
-let socket = null;
-let connectionPromise = null;
+export const useSocket = () => {
+  const navigate = useNavigate();
 
-const getSocket = () => {
-  if (!socket) {
-    socket = io(SOCKET_URL, {
+  useEffect(() => {
+    const currentUser = authService.getCurrentUser();
+    
+    // Solo conectar socket para cajeros
+    if (!currentUser || currentUser.rol !== 'cajero') {
+      return;
+    }
+
+    const socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 10,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
-      autoConnect: true
+      reconnectionAttempts: 5
     });
 
     socket.on('connect', () => {
-      console.log('🔌 Socket conectado:', socket.id);
+      console.log('🔌 Socket conectado');
     });
 
-    socket.on('disconnect', (reason) => {
-      console.log('❌ Socket desconectado:', reason);
-    });
+    // ⭐ Escuchar evento de turno cerrado
+    socket.on('turno_cerrado', (data) => {
+      console.log('🔒 Turno cerrado detectado:', data);
+      
+      // Verificar si es el usuario actual
+      if (data.usuario_id === currentUser.id) {
+        toast.error('Tu turno ha sido cerrado. Cerrando sesión...', {
+          duration: 3000,
+          icon: '🔒'
+        });
 
-    socket.on('connect_error', (error) => {
-      console.error('🔴 Error de conexión Socket:', error.message);
-    });
-
-    socket.on('reconnect', (attemptNumber) => {
-      console.log('🔄 Reconectado después de', attemptNumber, 'intentos');
-    });
-  }
-  return socket;
-};
-
-export function useSocket() {
-  const socketRef = useRef(null);
-
-  useEffect(() => {
-    socketRef.current = getSocket();
-    
-    return () => {
-      // No desconectamos el socket al desmontar, lo mantenemos vivo
-    };
-  }, []);
-
-  // Unirse a un local
-  const joinLocal = useCallback((local) => {
-    if (socketRef.current?.connected) {
-      socketRef.current.emit('join_local', local);
-    }
-  }, []);
-
-  // Unirse a una mesa
-  const joinMesa = useCallback((mesaId) => {
-    if (socketRef.current?.connected) {
-      socketRef.current.emit('join_mesa', mesaId);
-    }
-  }, []);
-
-  // Salir de una mesa
-  const leaveMesa = useCallback((mesaId) => {
-    if (socketRef.current?.connected) {
-      socketRef.current.emit('leave_mesa', mesaId);
-    }
-  }, []);
-
-  // Escuchar evento
-  const on = useCallback((event, callback) => {
-    if (socketRef.current) {
-      socketRef.current.on(event, callback);
-    }
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.off(event, callback);
+        // Esperar 2 segundos y cerrar sesión
+        setTimeout(() => {
+          authService.logout();
+          navigate('/login');
+          toast.success('Sesión cerrada');
+        }, 2000);
       }
+    });
+
+    socket.on('disconnect', () => {
+      console.log('❌ Socket desconectado');
+    });
+
+    // Cleanup
+    return () => {
+      socket.disconnect();
     };
-  }, []);
-
-  // Dejar de escuchar evento
-  const off = useCallback((event, callback) => {
-    if (socketRef.current) {
-      socketRef.current.off(event, callback);
-    }
-  }, []);
-
-  // Emitir evento
-  const emit = useCallback((event, data) => {
-    if (socketRef.current?.connected) {
-      socketRef.current.emit(event, data);
-    }
-  }, []);
-
-  return {
-    socket: socketRef.current,
-    isConnected: socketRef.current?.connected || false,
-    joinLocal,
-    joinMesa,
-    leaveMesa,
-    on,
-    off,
-    emit
-  };
-}
-
-// Eventos disponibles:
-// - mesa_actualizada: cuando cambia el estado de una mesa
-// - pedido_actualizado: cuando se actualiza un pedido
-// - producto_agregado: cuando se agrega producto a un pedido
-// - barril_actualizado: cuando cambia el estado de un barril
-// - turno_actualizado: cuando hay cambios en el turno
-
-export default useSocket;
+  }, [navigate]);
+};

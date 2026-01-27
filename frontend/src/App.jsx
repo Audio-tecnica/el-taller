@@ -17,8 +17,11 @@ import InventarioValorizado from "./pages/productos/InventarioValorizado";
 import { Navigate } from "react-router-dom";
 import IntentosAcceso from "./pages/admin/IntentosAcceso";
 import GestionUsuarios from "./pages/admin/GestionUsuarios";
+import { useSocket } from './hooks/useSocket';
 
 function App() {
+  useSocket();
+
   return (
     <Router>
       <AuthProvider>

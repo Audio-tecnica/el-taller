@@ -28,6 +28,7 @@ export default function Caja() {
   useEffect(() => {
     if (localSeleccionado) {
       cargarTurno();
+      cargarCajeros(); // ⭐ Cargar cajeros cuando cambie el local
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localSeleccionado]);
@@ -55,19 +56,9 @@ export default function Caja() {
     }
   };
 
-  const cargarHistorial = async () => {
+  // ⭐ NUEVA FUNCIÓN: Cargar cajeros del local
+  const cargarCajeros = async () => {
     try {
-      const data = await turnosService.getHistorial(localSeleccionado);
-      setHistorial(data);
-      setVerHistorial(true);
-    } catch {
-      toast.error("Error al cargar historial");
-    }
-  };
-
-  const handleOpenModalAbrir = async () => {
-    try {
-      // Cargar cajeros del local seleccionado
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/auth/cajeros?local_id=${localSeleccionado}`,
         {
@@ -78,10 +69,25 @@ export default function Caja() {
       );
       const data = await response.json();
       setCajeros(data);
-      setModalAbrir(true);
     } catch {
       toast.error("Error al cargar cajeros");
+      setCajeros([]);
     }
+  };
+
+  const cargarHistorial = async () => {
+    try {
+      const data = await turnosService.getHistorial(localSeleccionado);
+      setHistorial(data);
+      setVerHistorial(true);
+    } catch {
+      toast.error("Error al cargar historial");
+    }
+  };
+
+  const handleOpenModalAbrir = () => {
+    // Ya no necesitamos cargar cajeros aquí porque se cargan automáticamente
+    setModalAbrir(true);
   };
 
   const handleAbrirTurno = async () => {
