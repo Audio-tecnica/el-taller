@@ -1,23 +1,25 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { turnosService } from '../../services/turnosService';
-import { mesasService } from '../../services/mesasService';
-import toast from 'react-hot-toast';
-import logo from '../../assets/logo.jpeg';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { turnosService } from "../../services/turnosService";
+import { mesasService } from "../../services/mesasService";
+import toast from "react-hot-toast";
+import logo from "../../assets/logo.jpeg";
 
 export default function Caja() {
   const navigate = useNavigate();
   const [locales, setLocales] = useState([]);
-  const [localSeleccionado, setLocalSeleccionado] = useState('');
+  const [localSeleccionado, setLocalSeleccionado] = useState("");
   const [turnoActivo, setTurnoActivo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [modalAbrir, setModalAbrir] = useState(false);
   const [modalCerrar, setModalCerrar] = useState(false);
-  const [efectivoInicial, setEfectivoInicial] = useState('');
-  const [efectivoReal, setEfectivoReal] = useState('');
-  const [notasCierre, setNotasCierre] = useState('');
+  const [efectivoInicial, setEfectivoInicial] = useState("");
+  const [efectivoReal, setEfectivoReal] = useState("");
+  const [notasCierre, setNotasCierre] = useState("");
   const [historial, setHistorial] = useState([]);
   const [verHistorial, setVerHistorial] = useState(false);
+  const [cajeros, setCajeros] = useState([]);
+  const [cajeroSeleccionado, setCajeroSeleccionado] = useState("");
 
   useEffect(() => {
     cargarLocales();
@@ -38,7 +40,7 @@ export default function Caja() {
         setLocalSeleccionado(data[0].id);
       }
     } catch {
-      toast.error('Error al cargar locales');
+      toast.error("Error al cargar locales");
     } finally {
       setLoading(false);
     }
@@ -59,51 +61,80 @@ export default function Caja() {
       setHistorial(data);
       setVerHistorial(true);
     } catch {
-      toast.error('Error al cargar historial');
+      toast.error("Error al cargar historial");
+    }
+  };
+
+  const handleOpenModalAbrir = async () => {
+    try {
+      // Cargar cajeros del local seleccionado
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/auth/cajeros?local_id=${localSeleccionado}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        },
+      );
+      const data = await response.json();
+      setCajeros(data);
+      setModalAbrir(true);
+    } catch {
+      toast.error("Error al cargar cajeros");
     }
   };
 
   const handleAbrirTurno = async () => {
+    if (!cajeroSeleccionado) {
+      toast.error("Selecciona un cajero");
+      return;
+    }
+
     try {
-      await turnosService.abrirTurno(localSeleccionado, parseFloat(efectivoInicial) || 0);
-      toast.success('Turno abierto');
+      await turnosService.abrirTurno(
+        localSeleccionado,
+        parseFloat(efectivoInicial) || 0,
+        cajeroSeleccionado,
+      );
+      toast.success("Turno abierto");
       setModalAbrir(false);
-      setEfectivoInicial('');
+      setEfectivoInicial("");
+      setCajeroSeleccionado("");
       cargarTurno();
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Error al abrir turno');
+      toast.error(error.response?.data?.error || "Error al abrir turno");
     }
   };
 
   const handleCerrarTurno = async () => {
     if (!efectivoReal) {
-      toast.error('Ingresa el efectivo en caja');
+      toast.error("Ingresa el efectivo en caja");
       return;
     }
     try {
       await turnosService.cerrarTurno(
         turnoActivo.id,
         parseFloat(efectivoReal),
-        notasCierre
+        notasCierre,
       );
-      toast.success('Turno cerrado');
+      toast.success("Turno cerrado");
       setModalCerrar(false);
-      setEfectivoReal('');
-      setNotasCierre('');
+      setEfectivoReal("");
+      setNotasCierre("");
       setTurnoActivo(null);
     } catch {
-      toast.error('Error al cerrar turno');
+      toast.error("Error al cerrar turno");
     }
   };
 
   const formatMoney = (value) => {
-    return '$' + Number(value || 0).toLocaleString();
+    return "$" + Number(value || 0).toLocaleString();
   };
 
   const formatDate = (date) => {
-    return new Date(date).toLocaleString('es-CO', {
-      dateStyle: 'short',
-      timeStyle: 'short'
+    return new Date(date).toLocaleString("es-CO", {
+      dateStyle: "short",
+      timeStyle: "short",
     });
   };
 
@@ -121,23 +152,34 @@ export default function Caja() {
       <header className="bg-[#0a0a0a] border-b border-[#2a2a2a]">
         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center space-x-4">
-            <button onClick={() => navigate('/dashboard')} className="flex items-center space-x-3 hover:opacity-80 transition">
-              <img src={logo} alt="El Taller" className="w-12 h-12 rounded-full object-contain bg-black" />
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="flex items-center space-x-3 hover:opacity-80 transition"
+            >
+              <img
+                src={logo}
+                alt="El Taller"
+                className="w-12 h-12 rounded-full object-contain bg-black"
+              />
               <div>
-                <h1 className="text-lg font-bold text-[#D4B896] tracking-wide">EL TALLER</h1>
+                <h1 className="text-lg font-bold text-[#D4B896] tracking-wide">
+                  EL TALLER
+                </h1>
                 <p className="text-xs text-gray-500">Caja y Turnos</p>
               </div>
             </button>
           </div>
-          
+
           {/* Selector de local */}
           <select
             value={localSeleccionado}
             onChange={(e) => setLocalSeleccionado(e.target.value)}
             className="px-4 py-2 bg-[#141414] border border-[#2a2a2a] rounded-lg text-white"
           >
-            {locales.map(local => (
-              <option key={local.id} value={local.id}>{local.nombre}</option>
+            {locales.map((local) => (
+              <option key={local.id} value={local.id}>
+                {local.nombre}
+              </option>
             ))}
           </select>
         </div>
@@ -153,7 +195,9 @@ export default function Caja() {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
-                    <span className="text-emerald-500 font-medium">Turno Abierto</span>
+                    <span className="text-emerald-500 font-medium">
+                      Turno Abierto
+                    </span>
                   </div>
                   <p className="text-gray-400 text-sm">
                     Abierto: {formatDate(turnoActivo.fecha_apertura)}
@@ -228,10 +272,14 @@ export default function Caja() {
           /* Sin turno activo */
           <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-8 text-center">
             <div className="text-6xl mb-4">💰</div>
-            <h2 className="text-xl font-bold text-white mb-2">No hay turno abierto</h2>
-            <p className="text-gray-500 mb-6">Abre un turno para comenzar a registrar ventas</p>
+            <h2 className="text-xl font-bold text-white mb-2">
+              No hay turno abierto
+            </h2>
+            <p className="text-gray-500 mb-6">
+              Abre un turno para comenzar a registrar ventas
+            </p>
             <button
-              onClick={() => setModalAbrir(true)}
+              onClick={handleOpenModalAbrir}
               className="px-6 py-3 bg-[#D4B896] text-[#0a0a0a] font-semibold rounded-lg hover:bg-[#C4A576] transition"
             >
               Abrir Turno
@@ -253,24 +301,46 @@ export default function Caja() {
         {verHistorial && (
           <div className="mt-6 bg-[#141414] border border-[#2a2a2a] rounded-2xl overflow-hidden">
             <div className="p-4 border-b border-[#2a2a2a] flex justify-between items-center">
-              <h3 className="text-lg font-bold text-white">Historial de Turnos</h3>
-              <button onClick={() => setVerHistorial(false)} className="text-gray-500 hover:text-white">✕</button>
+              <h3 className="text-lg font-bold text-white">
+                Historial de Turnos
+              </h3>
+              <button
+                onClick={() => setVerHistorial(false)}
+                className="text-gray-500 hover:text-white"
+              >
+                ✕
+              </button>
             </div>
             <div className="max-h-96 overflow-y-auto">
               {historial.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">No hay turnos anteriores</p>
+                <p className="text-center text-gray-500 py-8">
+                  No hay turnos anteriores
+                </p>
               ) : (
-                historial.map(turno => (
-                  <div key={turno.id} className="p-4 border-b border-[#2a2a2a] last:border-0">
+                historial.map((turno) => (
+                  <div
+                    key={turno.id}
+                    className="p-4 border-b border-[#2a2a2a] last:border-0"
+                  >
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="text-white font-medium">{turno.local?.nombre}</p>
-                        <p className="text-gray-500 text-sm">{formatDate(turno.fecha_apertura)}</p>
-                        <p className="text-gray-600 text-xs">Por: {turno.usuario?.nombre}</p>
+                        <p className="text-white font-medium">
+                          {turno.local?.nombre}
+                        </p>
+                        <p className="text-gray-500 text-sm">
+                          {formatDate(turno.fecha_apertura)}
+                        </p>
+                        <p className="text-gray-600 text-xs">
+                          Por: {turno.usuario?.nombre}
+                        </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[#D4B896] font-bold">{formatMoney(turno.total_ventas)}</p>
-                        <p className={`text-sm ${turno.diferencia >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                        <p className="text-[#D4B896] font-bold">
+                          {formatMoney(turno.total_ventas)}
+                        </p>
+                        <p
+                          className={`text-sm ${turno.diferencia >= 0 ? "text-emerald-500" : "text-red-500"}`}
+                        >
                           Dif: {formatMoney(turno.diferencia)}
                         </p>
                       </div>
@@ -289,11 +359,39 @@ export default function Caja() {
           <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl w-full max-w-md">
             <div className="p-6 border-b border-[#2a2a2a]">
               <h2 className="text-xl font-bold text-white">Abrir Turno</h2>
-              <p className="text-gray-500">{locales.find(l => l.id === localSeleccionado)?.nombre}</p>
+              <p className="text-gray-500">
+                {locales.find((l) => l.id === localSeleccionado)?.nombre}
+              </p>
             </div>
             <div className="p-6 space-y-4">
+              {/* Selector de Cajero */}
               <div>
-                <label className="block text-sm text-gray-400 mb-2">Efectivo inicial en caja</label>
+                <label className="block text-sm text-gray-400 mb-2">Cajero</label>
+                <select
+                  value={cajeroSeleccionado}
+                  onChange={(e) => setCajeroSeleccionado(e.target.value)}
+                  className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white"
+                  required
+                >
+                  <option value="">Seleccionar cajero...</option>
+                  {cajeros.map((cajero) => (
+                    <option key={cajero.id} value={cajero.id}>
+                      {cajero.nombre} - {cajero.email}
+                    </option>
+                  ))}
+                </select>
+                {cajeros.length === 0 && (
+                  <p className="text-xs text-red-400 mt-1">
+                    ⚠️ No hay cajeros asignados a este local
+                  </p>
+                )}
+              </div>
+
+              {/* Efectivo Inicial */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">
+                  Efectivo inicial en caja
+                </label>
                 <input
                   type="number"
                   value={efectivoInicial}
@@ -302,9 +400,14 @@ export default function Caja() {
                   placeholder="0"
                 />
               </div>
+
               <div className="flex gap-3">
                 <button
-                  onClick={() => setModalAbrir(false)}
+                  onClick={() => {
+                    setModalAbrir(false);
+                    setCajeroSeleccionado("");
+                    setEfectivoInicial("");
+                  }}
                   className="flex-1 py-3 bg-[#1a1a1a] text-gray-300 rounded-lg border border-[#2a2a2a]"
                 >
                   Cancelar
@@ -333,15 +436,21 @@ export default function Caja() {
               <div className="bg-[#1a1a1a] rounded-xl p-4">
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-400">Efectivo esperado</span>
-                  <span className="text-white font-bold">{formatMoney(turnoActivo?.resumen?.efectivo_esperado)}</span>
+                  <span className="text-white font-bold">
+                    {formatMoney(turnoActivo?.resumen?.efectivo_esperado)}
+                  </span>
                 </div>
                 <p className="text-xs text-gray-600">
-                  (Inicial: {formatMoney(turnoActivo?.efectivo_inicial)} + Ventas efectivo: {formatMoney(turnoActivo?.resumen?.total_efectivo)})
+                  (Inicial: {formatMoney(turnoActivo?.efectivo_inicial)} +
+                  Ventas efectivo:{" "}
+                  {formatMoney(turnoActivo?.resumen?.total_efectivo)})
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-2">Efectivo real en caja</label>
+                <label className="block text-sm text-gray-400 mb-2">
+                  Efectivo real en caja
+                </label>
                 <input
                   type="number"
                   value={efectivoReal}
@@ -352,16 +461,25 @@ export default function Caja() {
               </div>
 
               {efectivoReal && (
-                <div className={`p-4 rounded-xl ${parseFloat(efectivoReal) - (turnoActivo?.resumen?.efectivo_esperado || 0) >= 0 ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
+                <div
+                  className={`p-4 rounded-xl ${parseFloat(efectivoReal) - (turnoActivo?.resumen?.efectivo_esperado || 0) >= 0 ? "bg-emerald-500/20" : "bg-red-500/20"}`}
+                >
                   <p className="text-sm text-gray-400">Diferencia</p>
-                  <p className={`text-2xl font-bold ${parseFloat(efectivoReal) - (turnoActivo?.resumen?.efectivo_esperado || 0) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                    {formatMoney(parseFloat(efectivoReal) - (turnoActivo?.resumen?.efectivo_esperado || 0))}
+                  <p
+                    className={`text-2xl font-bold ${parseFloat(efectivoReal) - (turnoActivo?.resumen?.efectivo_esperado || 0) >= 0 ? "text-emerald-500" : "text-red-500"}`}
+                  >
+                    {formatMoney(
+                      parseFloat(efectivoReal) -
+                        (turnoActivo?.resumen?.efectivo_esperado || 0),
+                    )}
                   </p>
                 </div>
               )}
 
               <div>
-                <label className="block text-sm text-gray-400 mb-2">Notas (opcional)</label>
+                <label className="block text-sm text-gray-400 mb-2">
+                  Notas (opcional)
+                </label>
                 <textarea
                   value={notasCierre}
                   onChange={(e) => setNotasCierre(e.target.value)}

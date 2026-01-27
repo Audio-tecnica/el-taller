@@ -1,43 +1,64 @@
-const { Turno, Local, Usuario, Pedido, Cortesia } = require('../models');
-const { Op } = require('sequelize');
+const { Turno, Local, Usuario, Pedido, Cortesia } = require("../models");
+const { Op } = require("sequelize");
 
 const turnosController = {
   // Abrir turno
   abrirTurno: async (req, res) => {
     try {
-      const { local_id, efectivo_inicial } = req.body;
+      const { local_id, efectivo_inicial, cajero_id } = req.body; // ⭐ Agregar cajero_id
       const usuario_id = req.usuario.id;
 
       // Verificar si ya hay turno abierto en este local
       const turnoExistente = await Turno.findOne({
-        where: { local_id, estado: 'abierto' }
+        where: { local_id, estado: "abierto" },
       });
 
       if (turnoExistente) {
-        return res.status(400).json({ 
-          error: 'Ya hay un turno abierto en este local',
-          turno_id: turnoExistente.id
+        return res.status(400).json({
+          error: "Ya hay un turno abierto en este local",
+          turno_id: turnoExistente.id,
         });
+      }
+
+      // ⭐ Validar que cajero_id sea de un cajero real
+      if (cajero_id) {
+        const cajero = await Usuario.findByPk(cajero_id);
+        if (!cajero || cajero.rol !== "cajero") {
+          return res.status(400).json({
+            error: "El usuario seleccionado no es un cajero válido",
+          });
+        }
       }
 
       const turno = await Turno.create({
         local_id,
-        usuario_id,
+        usuario_id, // Quien abre (puede ser admin)
+        cajero_id: cajero_id || usuario_id, // ⭐ Cajero asignado
         efectivo_inicial: efectivo_inicial || 0,
         efectivo_esperado: efectivo_inicial || 0,
-        estado: 'abierto',
-        fecha_apertura: new Date()
+        estado: "abierto",
+        fecha_apertura: new Date(),
       });
 
       const turnoCompleto = await Turno.findByPk(turno.id, {
         include: [
-          { model: Local, as: 'local' },
-          { model: Usuario, as: 'usuario', attributes: ['id', 'nombre', 'email'] }
-        ]
+          { model: Local, as: "local" },
+          {
+            model: Usuario,
+            as: "usuario",
+            attributes: ["id", "nombre", "email", "rol"],
+          },
+          {
+            model: Usuario,
+            as: "cajero",
+            attributes: ["id", "nombre", "email", "rol"],
+          }, // ⭐ Incluir cajero
+        ],
       });
 
       res.status(201).json(turnoCompleto);
     } catch (error) {
+      console.error("Error en abrirTurno:", error);
       res.status(500).json({ error: error.message });
     }
   },
@@ -48,24 +69,33 @@ const turnosController = {
       const { local_id } = req.params;
 
       const turno = await Turno.findOne({
-        where: { local_id, estado: 'abierto' },
+        where: { local_id, estado: "abierto" },
         include: [
-          { model: Local, as: 'local' },
-          { model: Usuario, as: 'usuario', attributes: ['id', 'nombre', 'email'] }
-        ]
+          { model: Local, as: "local" },
+          {
+            model: Usuario,
+            as: "usuario",
+            attributes: ["id", "nombre", "email", "rol"],
+          },
+          {
+            model: Usuario,
+            as: "cajero",
+            attributes: ["id", "nombre", "email", "rol"],
+          }, // ⭐ AGREGAR
+        ],
       });
 
       if (!turno) {
-        return res.status(404).json({ error: 'No hay turno abierto' });
+        return res.status(404).json({ error: "No hay turno abierto" });
       }
 
       // Calcular ventas del turno
       const pedidos = await Pedido.findAll({
         where: {
           local_id,
-          estado: 'cerrado',
-          closed_at: { [Op.gte]: turno.fecha_apertura }
-        }
+          estado: "cerrado",
+          closed_at: { [Op.gte]: turno.fecha_apertura },
+        },
       });
 
       const resumen = {
@@ -74,20 +104,22 @@ const turnosController = {
         total_transferencias: 0,
         total_nequi: 0,
         total_cortesias: 0,
-        cantidad_pedidos: pedidos.length
+        cantidad_pedidos: pedidos.length,
       };
 
-      pedidos.forEach(p => {
+      pedidos.forEach((p) => {
         const total = parseFloat(p.total_final) || 0;
         resumen.total_ventas += total;
         resumen.total_cortesias += parseFloat(p.monto_cortesia) || 0;
 
-        if (p.metodo_pago === 'efectivo') resumen.total_efectivo += total;
-        if (p.metodo_pago === 'transferencia') resumen.total_transferencias += total;
-        if (p.metodo_pago === 'nequi') resumen.total_nequi += total;
+        if (p.metodo_pago === "efectivo") resumen.total_efectivo += total;
+        if (p.metodo_pago === "transferencia")
+          resumen.total_transferencias += total;
+        if (p.metodo_pago === "nequi") resumen.total_nequi += total;
       });
 
-      resumen.efectivo_esperado = parseFloat(turno.efectivo_inicial) + resumen.total_efectivo;
+      resumen.efectivo_esperado =
+        parseFloat(turno.efectivo_inicial) + resumen.total_efectivo;
 
       res.json({ ...turno.toJSON(), resumen });
     } catch (error) {
@@ -103,17 +135,17 @@ const turnosController = {
 
       const turno = await Turno.findByPk(turno_id);
 
-      if (!turno || turno.estado !== 'abierto') {
-        return res.status(400).json({ error: 'Turno no válido o ya cerrado' });
+      if (!turno || turno.estado !== "abierto") {
+        return res.status(400).json({ error: "Turno no válido o ya cerrado" });
       }
 
       // Calcular ventas del turno
       const pedidos = await Pedido.findAll({
         where: {
           local_id: turno.local_id,
-          estado: 'cerrado',
-          closed_at: { [Op.gte]: turno.fecha_apertura }
-        }
+          estado: "cerrado",
+          closed_at: { [Op.gte]: turno.fecha_apertura },
+        },
       });
 
       let total_ventas = 0;
@@ -122,21 +154,22 @@ const turnosController = {
       let total_nequi = 0;
       let total_cortesias = 0;
 
-      pedidos.forEach(p => {
+      pedidos.forEach((p) => {
         const total = parseFloat(p.total_final) || 0;
         total_ventas += total;
         total_cortesias += parseFloat(p.monto_cortesia) || 0;
 
-        if (p.metodo_pago === 'efectivo') total_efectivo += total;
-        if (p.metodo_pago === 'transferencia') total_transferencias += total;
-        if (p.metodo_pago === 'nequi') total_nequi += total;
+        if (p.metodo_pago === "efectivo") total_efectivo += total;
+        if (p.metodo_pago === "transferencia") total_transferencias += total;
+        if (p.metodo_pago === "nequi") total_nequi += total;
       });
 
-      const efectivo_esperado = parseFloat(turno.efectivo_inicial) + total_efectivo;
+      const efectivo_esperado =
+        parseFloat(turno.efectivo_inicial) + total_efectivo;
       const diferencia = parseFloat(efectivo_real) - efectivo_esperado;
 
       await turno.update({
-        estado: 'cerrado',
+        estado: "cerrado",
         efectivo_esperado,
         efectivo_real,
         diferencia,
@@ -147,11 +180,11 @@ const turnosController = {
         total_cortesias,
         cantidad_pedidos: pedidos.length,
         fecha_cierre: new Date(),
-        notas_cierre
+        notas_cierre,
       });
 
       res.json({
-        message: 'Turno cerrado exitosamente',
+        message: "Turno cerrado exitosamente",
         resumen: {
           efectivo_inicial: turno.efectivo_inicial,
           total_ventas,
@@ -162,8 +195,8 @@ const turnosController = {
           efectivo_esperado,
           efectivo_real,
           diferencia,
-          cantidad_pedidos: pedidos.length
-        }
+          cantidad_pedidos: pedidos.length,
+        },
       });
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -180,18 +213,18 @@ const turnosController = {
       const turnos = await Turno.findAll({
         where,
         include: [
-          { model: Local, as: 'local' },
-          { model: Usuario, as: 'usuario', attributes: ['id', 'nombre'] }
+          { model: Local, as: "local" },
+          { model: Usuario, as: "usuario", attributes: ["id", "nombre"] },
         ],
-        order: [['fecha_apertura', 'DESC']],
-        limit: 50
+        order: [["fecha_apertura", "DESC"]],
+        limit: 50,
       });
 
       res.json(turnos);
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
-  }
+  },
 };
 
 module.exports = turnosController;

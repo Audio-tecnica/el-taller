@@ -1,8 +1,13 @@
-import api from './api';
+import api from "./api";
 
 export const turnosService = {
-  abrirTurno: async (local_id, efectivo_inicial) => {
-    const response = await api.post('/turnos/abrir', { local_id, efectivo_inicial });
+  abrirTurno: async (localId, efectivoInicial, cajeroId) => {
+    // ⭐ Agregar cajeroId
+    const response = await api.post("/turnos/abrir", {
+      local_id: localId,
+      efectivo_inicial: efectivoInicial,
+      cajero_id: cajeroId, // ⭐ AGREGAR
+    });
     return response.data;
   },
 
@@ -11,17 +16,17 @@ export const turnosService = {
     return response.data;
   },
 
-  cerrarTurno: async (turno_id, efectivo_real, notas_cierre = '') => {
+  cerrarTurno: async (turno_id, efectivo_real, notas_cierre = "") => {
     const response = await api.post(`/turnos/${turno_id}/cerrar`, {
       efectivo_real,
-      notas_cierre
+      notas_cierre,
     });
     return response.data;
   },
 
   getHistorial: async (local_id = null) => {
-    const params = local_id ? `?local_id=${local_id}` : '';
+    const params = local_id ? `?local_id=${local_id}` : "";
     const response = await api.get(`/turnos/historial${params}`);
     return response.data;
-  }
+  },
 };

@@ -73,6 +73,10 @@ Usuario.hasMany(Cortesia, { foreignKey: 'autorizado_por', as: 'cortesias_autoriz
 Turno.belongsTo(Local, { foreignKey: 'local_id', as: 'local' });
 Local.hasMany(Turno, { foreignKey: 'local_id', as: 'turnos' });
 
+// Turno - Cajero
+Turno.belongsTo(Usuario, { foreignKey: 'cajero_id', as: 'cajero' });
+Usuario.hasMany(Turno, { foreignKey: 'cajero_id', as: 'turnos_como_cajero' });
+
 // Turnos - Usuario
 Turno.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
 Usuario.hasMany(Turno, { foreignKey: 'usuario_id', as: 'turnos' });

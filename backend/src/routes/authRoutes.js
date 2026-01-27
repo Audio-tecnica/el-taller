@@ -23,4 +23,6 @@ router.get('/usuarios/:id', authMiddleware, adminMiddleware, authController.obte
 router.put('/usuarios/:id', authMiddleware, adminMiddleware, authController.actualizarUsuario);
 router.delete('/usuarios/:id', authMiddleware, adminMiddleware, authController.eliminarUsuario);
 
+router.get('/cajeros', authMiddleware, authController.getCajeros);
+
 module.exports = router;
