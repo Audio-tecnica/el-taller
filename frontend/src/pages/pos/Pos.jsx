@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { mesasService } from "../../services/mesasService";
 import { pedidosService } from "../../services/pedidosService";
+import { turnosService } from "../../services/turnosService";
 import toast from "react-hot-toast";
 import logo from "../../assets/logo.jpeg";
 
@@ -11,13 +12,70 @@ export default function POS() {
   const [locales, setLocales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtroLocal, setFiltroLocal] = useState("");
+  const [turnoActivo, setTurnoActivo] = useState(null);
+  const [localTurno, setLocalTurno] = useState(null);
+  const [cargandoTurno, setCargandoTurno] = useState(true);
 
+  // ⭐ Obtener turno activo del cajero
+  const obtenerTurnoActivo = useCallback(async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      
+      // Solo cajeros tienen restricción por turno
+      if (user?.rol !== 'cajero') {
+        setLocalTurno(null);
+        setCargandoTurno(false);
+        return;
+      }
+
+      // Obtener el local asignado del usuario
+      const localId = user?.local_asignado_id;
+      
+      if (!localId) {
+        toast.error('No tienes un local asignado. Contacta al administrador.');
+        setCargandoTurno(false);
+        return;
+      }
+
+      // Obtener el turno activo del local
+      try {
+        const turno = await turnosService.getTurnoActivo(localId);
+        
+        // Verificar que el cajero del turno coincida con el usuario actual
+        const cajeroId = turno.cajero_id || turno.usuario_id;
+        if (cajeroId !== user.id) {
+          toast.error('No tienes un turno abierto. Contacta al administrador.');
+          setLocalTurno(null);
+          setTurnoActivo(null);
+          setCargandoTurno(false);
+          return;
+        }
+        
+        setTurnoActivo(turno);
+        setLocalTurno(localId);
+        
+      } catch  {
+        // Si no hay turno activo, mostrar error
+        toast.error('No tienes un turno abierto. Contacta al administrador.');
+        setLocalTurno(null);
+        setTurnoActivo(null);
+      }
+      
+    } catch (error) {
+      console.error('Error obteniendo turno:', error);
+      toast.error('Error al verificar turno');
+    } finally {
+      setCargandoTurno(false);
+    }
+  }, []);
+
+  // ⭐ Cargar datos filtrados por local del turno (si es cajero)
   const cargarDatos = useCallback(async () => {
     try {
-      const [mesasData, localesData] = await Promise.all([
-        mesasService.getMesas(),
-        mesasService.getLocales(),
-      ]);
+      // Si es cajero, usar el local del turno. Si no, cargar todas las mesas
+      const mesasData = await mesasService.getMesas(localTurno);
+      const localesData = await mesasService.getLocales();
+      
       setMesas(mesasData);
       setLocales(localesData);
     } catch {
@@ -25,28 +83,44 @@ export default function POS() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [localTurno]);
 
+  // ⭐ Obtener turno al montar el componente
   useEffect(() => {
-    cargarDatos();
-  }, [cargarDatos]);
+    obtenerTurnoActivo();
+  }, [obtenerTurnoActivo]);
 
+  // ⭐ Cargar datos solo cuando se haya verificado el turno
   useEffect(() => {
-    const interval = setInterval(() => {
-      cargarDatos();
-    }, 7000);
-    return () => clearInterval(interval);
-  }, [cargarDatos]);
+    if (!cargandoTurno) {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      // Si no es cajero O si es cajero y tiene turno activo
+      if (user?.rol !== 'cajero' || (user?.rol === 'cajero' && localTurno)) {
+        cargarDatos();
+      }
+    }
+  }, [cargarDatos, cargandoTurno, localTurno]);
 
+  // Refrescar datos periódicamente
+  useEffect(() => {
+    if (!cargandoTurno) {
+      const interval = setInterval(() => {
+        cargarDatos();
+      }, 7000);
+      return () => clearInterval(interval);
+    }
+  }, [cargarDatos, cargandoTurno]);
+
+  // Refrescar al volver a la pestaña
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
+      if (document.visibilityState === "visible" && !cargandoTurno) {
         cargarDatos();
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [cargarDatos]);
+  }, [cargarDatos, cargandoTurno]);
 
   const handleMesaClick = async (mesa) => {
     try {
@@ -99,12 +173,45 @@ export default function POS() {
   const mesasOcupadas = mesas.filter((m) => m.estado === "ocupada").length;
   const mesasDisponibles = mesas.filter((m) => m.estado === "disponible").length;
 
-  if (loading && mesas.length === 0) {
+  // ⭐ Pantalla de carga inicial
+  if (cargandoTurno || (loading && mesas.length === 0)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#0a0a0a] via-[#0f0f0f] to-[#0a0a0a] flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-[#D4B896] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-[#D4B896] text-lg">Cargando mesas...</p>
+          <p className="text-[#D4B896] text-lg">
+            {cargandoTurno ? 'Verificando turno...' : 'Cargando mesas...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ⭐ Si es cajero sin turno, mostrar mensaje
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  if (user?.rol === 'cajero' && !turnoActivo) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
+        <div className="bg-[#141414] border border-red-500/30 rounded-2xl p-8 max-w-md text-center">
+          <div className="text-6xl mb-4">🔒</div>
+          <h2 className="text-2xl font-bold text-white mb-2">Sin Turno Abierto</h2>
+          <p className="text-gray-400 mb-6">
+            No tienes un turno abierto en tu local asignado. Contacta al administrador para que abra un turno en tu nombre.
+          </p>
+          <div className="space-y-3">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="w-full px-6 py-3 bg-[#D4B896] text-[#0a0a0a] font-semibold rounded-lg hover:bg-[#c4a886] transition"
+            >
+              Volver al Dashboard
+            </button>
+            <button
+              onClick={obtenerTurnoActivo}
+              className="w-full px-6 py-3 bg-[#1a1a1a] text-gray-300 rounded-lg hover:bg-[#2a2a2a] transition border border-[#2a2a2a]"
+            >
+              🔄 Verificar nuevamente
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -136,6 +243,19 @@ export default function POS() {
                 <p className="text-xs text-[#D4B896]">Punto de Venta</p>
               </div>
             </button>
+
+            {/* ⭐ Información del local (solo para cajeros con turno) */}
+            {user?.rol === 'cajero' && turnoActivo && (
+              <div className="hidden md:flex items-center gap-3 bg-[#141414] border border-emerald-500/30 rounded-xl px-4 py-2">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wider">Local del Turno</p>
+                  <p className="text-sm font-bold text-emerald-500">
+                    {turnoActivo.local?.nombre || 'Cargando...'}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Stats rápidos */}
             <div className="hidden md:flex items-center gap-6">
@@ -177,53 +297,85 @@ export default function POS() {
               </svg>
             </button>
           </div>
+
+          {/* Stats móvil + Indicador de local para cajeros */}
+          <div className="mt-3 grid grid-cols-3 gap-2 md:hidden">
+            <div className="bg-[#141414] rounded-lg p-2 text-center">
+              <p className="text-xs text-gray-500">Libres</p>
+              <p className="text-xl font-black text-emerald-400">{mesasDisponibles}</p>
+            </div>
+            <div className="bg-[#141414] rounded-lg p-2 text-center">
+              <p className="text-xs text-gray-500">Ocupadas</p>
+              <p className="text-xl font-black text-red-400">{mesasOcupadas}</p>
+            </div>
+            <div className="bg-[#141414] rounded-lg p-2 text-center">
+              <p className="text-xs text-gray-500">Total</p>
+              <p className="text-xl font-black text-[#D4B896]">{totalMesas}</p>
+            </div>
+          </div>
+
+          {/* ⭐ Mostrar local del turno en móvil para cajeros */}
+          {user?.rol === 'cajero' && turnoActivo && (
+            <div className="mt-2 md:hidden bg-[#141414] border border-emerald-500/30 rounded-lg px-3 py-2 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] text-gray-400 uppercase">Local del Turno</p>
+                <p className="text-sm font-bold text-emerald-500">
+                  {turnoActivo.local?.nombre}
+                </p>
+              </div>
+              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+            </div>
+          )}
         </div>
       </header>
 
-      {/* Filtros con estilo pill */}
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => setFiltroLocal("")}
-            className={
-              "px-5 py-2.5 rounded-full font-semibold text-sm transition-all duration-300 " +
-              (filtroLocal === ""
-                ? "bg-gradient-to-r from-[#D4B896] to-[#C4A576] text-[#0a0a0a] shadow-lg shadow-[#D4B896]/25"
-                : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a] hover:border-[#D4B896]/50 hover:text-[#D4B896]")
-            }
-          >
-            Todos los locales
-          </button>
-          {locales.map((local) => {
-            const mesasLocal = mesas.filter((m) => m.local_id === local.id);
-            const ocupadas = mesasLocal.filter((m) => m.estado === "ocupada").length;
-            return (
-              <button
-                key={local.id}
-                onClick={() => setFiltroLocal(local.id)}
-                className={
-                  "px-5 py-2.5 rounded-full font-semibold text-sm transition-all duration-300 flex items-center gap-2 " +
-                  (filtroLocal === local.id
-                    ? "bg-gradient-to-r from-[#D4B896] to-[#C4A576] text-[#0a0a0a] shadow-lg shadow-[#D4B896]/25"
-                    : "bg-[#1a1a1a] text-gray-400 border border-[#2a2a2a] hover:border-[#D4B896]/50 hover:text-[#D4B896]")
-                }
-              >
-                {local.nombre}
-                {ocupadas > 0 && (
-                  <span className={
-                    "text-xs px-2 py-0.5 rounded-full " +
+      {/* Filtros de local - ⭐ Solo visible para administradores */}
+      {user?.rol !== 'cajero' && locales.length > 1 && (
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            <button
+              onClick={() => setFiltroLocal("")}
+              className={
+                "px-4 py-2 rounded-xl font-medium transition-all whitespace-nowrap flex items-center gap-2 " +
+                (!filtroLocal
+                  ? "bg-[#D4B896] text-[#0a0a0a] shadow-lg shadow-[#D4B896]/20"
+                  : "bg-[#1a1a1a] text-gray-400 hover:bg-[#2a2a2a]")
+              }
+            >
+              Todos los locales
+            </button>
+            {locales.map((local) => {
+              const ocupadas = mesas.filter(
+                (m) => m.local_id === local.id && m.estado === "ocupada"
+              ).length;
+              return (
+                <button
+                  key={local.id}
+                  onClick={() => setFiltroLocal(local.id)}
+                  className={
+                    "px-4 py-2 rounded-xl font-medium transition-all whitespace-nowrap flex items-center gap-2 " +
                     (filtroLocal === local.id
-                      ? "bg-[#0a0a0a]/20 text-[#0a0a0a]"
-                      : "bg-red-500/20 text-red-400")
-                  }>
-                    {ocupadas}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+                      ? "bg-[#D4B896] text-[#0a0a0a] shadow-lg shadow-[#D4B896]/20"
+                      : "bg-[#1a1a1a] text-gray-400 hover:bg-[#2a2a2a]")
+                  }
+                >
+                  {local.nombre}
+                  {ocupadas > 0 && (
+                    <span className={
+                      "text-xs px-2 py-0.5 rounded-full " +
+                      (filtroLocal === local.id
+                        ? "bg-[#0a0a0a]/20 text-[#0a0a0a]"
+                        : "bg-red-500/20 text-red-400")
+                    }>
+                      {ocupadas}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Mesas por local */}
       <div className="max-w-7xl mx-auto px-4 pb-8 space-y-8">
@@ -233,8 +385,8 @@ export default function POS() {
           
           return (
             <div key={local.id} className="space-y-4">
-              {/* Header del local */}
-              {!filtroLocal && (
+              {/* Header del local - ⭐ Solo mostrar si no hay filtro o no es cajero */}
+              {(!filtroLocal && user?.rol !== 'cajero') && (
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4B896]/20 to-[#D4B896]/5 flex items-center justify-center">
