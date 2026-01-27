@@ -1,11 +1,34 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../../services/authService";
+import { turnosService } from "../../services/turnosService";
 import toast from "react-hot-toast";
 import logo from "../../assets/logo.jpeg";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const usuario = authService.getCurrentUser();
+  const [turnoActivo, setTurnoActivo] = useState(null);
+  const [loadingTurno, setLoadingTurno] = useState(true);
+
+  useEffect(() => {
+    if (usuario?.rol === "cajero" && usuario?.local_asignado_id) {
+      cargarTurnoActivo();
+    } else {
+      setLoadingTurno(false);
+    }
+  }, []);
+
+  const cargarTurnoActivo = async () => {
+    try {
+      const turno = await turnosService.getTurnoActivo(usuario.local_asignado_id);
+      setTurnoActivo(turno);
+    } catch {
+      setTurnoActivo(null);
+    } finally {
+      setLoadingTurno(false);
+    }
+  };
 
   const handleLogout = () => {
     authService.logout();
@@ -13,58 +36,64 @@ export default function Dashboard() {
     navigate("/login");
   };
 
- const modulos = [
-  {
-    nombre: "Punto de Venta",
-    icono: "🍺",
-    ruta: "/pos",
-    desc: "¡Tomar pedidos aquí!",
-    destacado: true,
-  },
-  {
-    nombre: "Productos",
-    icono: "📦",
-    ruta: "/productos",
-    desc: "Catálogo e inventario",
-    destacado: false,
-  },
-  {
-    nombre: "Gestión de Mesas",
-    icono: "🪑",
-    ruta: "/mesas",
-    desc: "Configurar mesas",
-    destacado: false,
-  },
-  {
-    nombre: "Caja",
-    icono: "💰",
-    ruta: "/caja",
-    desc: "Turnos y arqueo",
-    destacado: false,
-  },
-  {
-    nombre: "Clientes B2B",
-    icono: "🏢",
-    ruta: "/clientes-b2b",
-    desc: "Ventas mayoristas",
-    destacado: false,
-  },
-  {
-    nombre: "Reportes",
-    icono: "📈",
-    ruta: "/reportes",
-    desc: "Estadísticas",
-    destacado: false,
-  },
-];
+  const formatMoney = (value) => {
+    return "$" + Number(value || 0).toLocaleString();
+  };
 
+  const formatDate = (date) => {
+    return new Date(date).toLocaleString("es-CO", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+  };
 
-// ⭐ AGREGAR: Filtrar módulos según rol
-const modulosFiltrados = usuario?.rol === 'cajero' 
-  ? modulos.filter(m => m.ruta === '/pos') // Solo Punto de Venta
-  : modulos; // Admin ve todo
+  // Módulos para administradores
+  const modulos = [
+    {
+      nombre: "Punto de Venta",
+      icono: "🍺",
+      ruta: "/pos",
+      desc: "¡Tomar pedidos aquí!",
+      destacado: true,
+    },
+    {
+      nombre: "Productos",
+      icono: "📦",
+      ruta: "/productos",
+      desc: "Catálogo e inventario",
+      destacado: false,
+    },
+    {
+      nombre: "Gestión de Mesas",
+      icono: "🪑",
+      ruta: "/mesas",
+      desc: "Configurar mesas",
+      destacado: false,
+    },
+    {
+      nombre: "Caja",
+      icono: "💰",
+      ruta: "/caja",
+      desc: "Turnos y arqueo",
+      destacado: false,
+    },
+    {
+      nombre: "Clientes B2B",
+      icono: "🏢",
+      ruta: "/clientes-b2b",
+      desc: "Ventas mayoristas",
+      destacado: false,
+    },
+    {
+      nombre: "Reportes",
+      icono: "📈",
+      ruta: "/reportes",
+      desc: "Estadísticas",
+      destacado: false,
+    },
+  ];
 
-  // ⭐ NUEVOS MÓDULOS KARDEX PREMIUM
+  // ⭐ NUEVOS MÓDULOS KARDEX PREMIUM (Solo Admin)
   const modulosKardex = [
     {
       nombre: "Proveedores",
@@ -117,6 +146,145 @@ const modulosFiltrados = usuario?.rol === 'cajero'
     },
   ];
 
+  // 🎯 VISTA PARA CAJEROS
+  if (usuario?.rol === "cajero") {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a]">
+        {/* Header */}
+        <header className="bg-[#0a0a0a] border-b border-[#2a2a2a]">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div className="flex items-center space-x-4">
+              <img
+                src={logo}
+                alt="El Taller"
+                className="w-14 h-14 rounded-full object-cover"
+              />
+              <div>
+                <h1 className="text-xl font-bold text-[#D4B896] tracking-wide">
+                  EL TALLER
+                </h1>
+                <p className="text-xs text-gray-500">
+                  Beers and Games • Montería
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <p className="text-sm font-medium text-white">
+                  {usuario?.nombre}
+                </p>
+                <p className="text-xs text-[#D4B896]">Cajero</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] text-gray-400 rounded-lg hover:bg-[#2a2a2a] hover:text-white transition"
+              >
+                Salir
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Contenido Cajero */}
+        <main className="max-w-4xl mx-auto px-4 py-8">
+          {/* Bienvenida */}
+          <div className="bg-gradient-to-r from-[#1a1a1a] to-[#141414] border border-[#2a2a2a] rounded-2xl p-6 mb-8">
+            <h2 className="text-2xl font-bold text-white mb-1">
+              Bienvenido, {usuario?.nombre}
+            </h2>
+            <p className="text-[#D4B896]">Punto de Venta - {usuario?.local?.nombre}</p>
+          </div>
+
+          {/* Información del Turno */}
+          {loadingTurno ? (
+            <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-8 text-center mb-8">
+              <p className="text-gray-400">Cargando información del turno...</p>
+            </div>
+          ) : turnoActivo ? (
+            <div className="bg-[#141414] border border-emerald-500/30 rounded-2xl p-6 mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
+                    <span className="text-emerald-500 font-bold text-lg">
+                      Turno Activo
+                    </span>
+                  </div>
+                  <p className="text-gray-400 text-sm">
+                    🏪 {turnoActivo.local?.nombre}
+                  </p>
+                  <p className="text-gray-500 text-sm">
+                    🕐 Abierto: {formatDate(turnoActivo.fecha_apertura)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-gray-500 text-xs mb-1">Efectivo Inicial</p>
+                  <p className="text-2xl font-bold text-[#D4B896]">
+                    {formatMoney(turnoActivo.efectivo_inicial)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Resumen de ventas del turno */}
+              <div className="grid grid-cols-2 gap-4 mt-6">
+                <div className="bg-[#1a1a1a] rounded-xl p-4">
+                  <p className="text-gray-500 text-sm">Ventas Totales</p>
+                  <p className="text-2xl font-bold text-white">
+                    {formatMoney(turnoActivo.resumen?.total_ventas)}
+                  </p>
+                </div>
+                <div className="bg-[#1a1a1a] rounded-xl p-4">
+                  <p className="text-gray-500 text-sm">Pedidos</p>
+                  <p className="text-2xl font-bold text-white">
+                    {turnoActivo.resumen?.cantidad_pedidos || 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 mb-8">
+              <div className="flex items-start gap-3">
+                <span className="text-3xl">⚠️</span>
+                <div>
+                  <h3 className="text-lg font-bold text-red-400 mb-1">
+                    Sin turno activo
+                  </h3>
+                  <p className="text-red-300/80 text-sm">
+                    No tienes un turno abierto. Contacta al administrador para que
+                    abra tu turno de trabajo.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Botón Punto de Venta */}
+          <button
+            onClick={() => navigate("/pos")}
+            disabled={!turnoActivo}
+            className={`w-full rounded-2xl p-8 text-center transition-all duration-200 ${
+              turnoActivo
+                ? "bg-emerald-600 hover:bg-emerald-500 border-2 border-emerald-400 cursor-pointer hover:scale-[1.02]"
+                : "bg-gray-800 border-2 border-gray-700 cursor-not-allowed opacity-50"
+            }`}
+          >
+            <div className="w-20 h-20 bg-emerald-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <span className="text-5xl">🍺</span>
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-2">
+              Punto de Venta
+            </h3>
+            <p className="text-emerald-100 font-medium">
+              {turnoActivo ? "¡Tomar pedidos aquí!" : "Requiere turno activo"}
+            </p>
+          </button>
+        </main>
+      </div>
+    );
+  }
+
+  // 🎯 VISTA PARA ADMINISTRADORES
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
       {/* Header */}
@@ -171,7 +339,7 @@ const modulosFiltrados = usuario?.rol === 'cajero'
             Módulos Principales
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {modulosFiltrados.map((modulo) => (
+            {modulos.map((modulo) => (
               <button
                 key={modulo.nombre}
                 onClick={() => navigate(modulo.ruta)}
@@ -276,65 +444,63 @@ const modulosFiltrados = usuario?.rol === 'cajero'
         </div>
 
         {/* ⭐ NUEVO: Módulo de Seguridad (Solo Administradores) */}
-        {usuario?.rol === "administrador" && (
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white">
-                Seguridad y Auditoría
-              </h3>
-              <span className="px-3 py-1 bg-red-500/20 text-red-400 text-xs font-bold rounded-full border border-red-500/30">
-                SOLO ADMIN
-              </span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {modulosSeguridad.map((modulo) => (
-                <button
-                  key={modulo.nombre}
-                  onClick={() => navigate(modulo.ruta)}
-                  className={`bg-gradient-to-br ${modulo.color} border ${modulo.hoverColor} rounded-2xl p-6 text-left transition-all duration-200 group hover:scale-[1.02]`}
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-14 h-14 bg-[#0a0a0a] rounded-xl flex items-center justify-center">
-                      <span className="text-3xl">{modulo.icono}</span>
-                    </div>
-                    <svg
-                      className="w-5 h-5 text-gray-600 group-hover:text-white transition"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-white">
+              Seguridad y Auditoría
+            </h3>
+            <span className="px-3 py-1 bg-red-500/20 text-red-400 text-xs font-bold rounded-full border border-red-500/30">
+              SOLO ADMIN
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {modulosSeguridad.map((modulo) => (
+              <button
+                key={modulo.nombre}
+                onClick={() => navigate(modulo.ruta)}
+                className={`bg-gradient-to-br ${modulo.color} border ${modulo.hoverColor} rounded-2xl p-6 text-left transition-all duration-200 group hover:scale-[1.02]`}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-14 h-14 bg-[#0a0a0a] rounded-xl flex items-center justify-center">
+                    <span className="text-3xl">{modulo.icono}</span>
                   </div>
-                  <h4 className="text-lg font-bold text-white mb-1 group-hover:text-white transition">
-                    {modulo.nombre}
-                  </h4>
-                  <p className={`text-sm ${modulo.textColor}`}>{modulo.desc}</p>
-                </button>
-              ))}
-            </div>
+                  <svg
+                    className="w-5 h-5 text-gray-600 group-hover:text-white transition"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </div>
+                <h4 className="text-lg font-bold text-white mb-1 group-hover:text-white transition">
+                  {modulo.nombre}
+                </h4>
+                <p className={`text-sm ${modulo.textColor}`}>{modulo.desc}</p>
+              </button>
+            ))}
+          </div>
 
-            {/* Info adicional */}
-            <div className="mt-4 bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3">
-              <span className="text-2xl">🔒</span>
-              <div className="flex-1">
-                <p className="text-sm text-red-400 font-medium mb-1">
-                  Control de Acceso por Turnos
-                </p>
-                <p className="text-xs text-red-300/70">
-                  Los cajeros solo pueden iniciar sesión cuando tienen un turno
-                  abierto. Todos los intentos de acceso quedan registrados para
-                  auditoría.
-                </p>
-              </div>
+          {/* Info adicional */}
+          <div className="mt-4 bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3">
+            <span className="text-2xl">🔒</span>
+            <div className="flex-1">
+              <p className="text-sm text-red-400 font-medium mb-1">
+                Control de Acceso por Turnos
+              </p>
+              <p className="text-xs text-red-300/70">
+                Los cajeros solo pueden iniciar sesión cuando tienen un turno
+                abierto. Todos los intentos de acceso quedan registrados para
+                auditoría.
+              </p>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
