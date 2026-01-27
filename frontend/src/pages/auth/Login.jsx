@@ -22,7 +22,20 @@ export default function Login() {
       toast.success("¡Bienvenido a El Taller!");
       navigate("/dashboard");
     } catch (error) {
-      toast.error(error.response?.data?.error || "Error al iniciar sesión");
+      // ⭐ Manejar error específico de cajero sin turno abierto
+      const errorData = error.response?.data;
+      
+      if (errorData?.codigo === 'SIN_TURNO_ABIERTO') {
+        toast.error(
+          'No tienes un turno abierto. Contacta al administrador para que abra tu turno.',
+          { 
+            duration: 6000,
+            icon: '🔒'
+          }
+        );
+      } else {
+        toast.error(errorData?.error || "Error al iniciar sesión");
+      }
     } finally {
       setLoading(false);
     }

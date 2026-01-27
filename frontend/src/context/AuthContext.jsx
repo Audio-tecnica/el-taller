@@ -177,7 +177,7 @@ export function AuthProvider({ children }) {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [refreshToken]);
 
-  // Login
+  // ⭐ Login actualizado con manejo de código de error
   const login = async (email, password) => {
     try {
       const response = await fetch(`${API_URL}/auth/login`, {
@@ -196,7 +196,11 @@ export function AuthProvider({ children }) {
         setUser(data.user);
         return { success: true, user: data.user };
       } else {
-        return { success: false, error: data.error || 'Error al iniciar sesión' };
+        return { 
+          success: false, 
+          error: data.error || 'Error al iniciar sesión',
+          codigo: data.codigo // ⭐ CAPTURAR CÓDIGO DE ERROR
+        };
       }
     } catch (error) {
       console.error('Login error:', error);

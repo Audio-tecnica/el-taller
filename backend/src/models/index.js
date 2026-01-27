@@ -21,6 +21,11 @@ const Proveedor = require('./Proveedor');
 const Compra = require('./Compra');
 
 // ==========================================
+// ⭐ IMPORTAR MODELO DE INTENTOS DE ACCESO
+// ==========================================
+const IntentoAcceso = require('./IntentoAcceso');
+
+// ==========================================
 // RELACIONES EXISTENTES
 // ==========================================
 
@@ -122,6 +127,14 @@ Compra.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
 Usuario.hasMany(Compra, { foreignKey: 'usuario_id', as: 'compras_realizadas' });
 
 // ==========================================
+// ⭐ NUEVAS RELACIONES - INTENTOS DE ACCESO
+// ==========================================
+
+// IntentoAcceso - Usuario
+IntentoAcceso.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+Usuario.hasMany(IntentoAcceso, { foreignKey: 'usuario_id', as: 'intentos_acceso' });
+
+// ==========================================
 // EXPORTAR MODELOS
 // ==========================================
 module.exports = {
@@ -141,5 +154,8 @@ module.exports = {
   // Modelos nuevos kardex
   MovimientoInventario,
   Proveedor,
-  Compra
+  Compra,
+  
+  // ⭐ Modelo de seguridad
+  IntentoAcceso
 };

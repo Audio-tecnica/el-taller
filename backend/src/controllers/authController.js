@@ -1,33 +1,111 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { Usuario } = require('../models');
+const { Usuario, Local, Turno, IntentoAcceso } = require('../models');
+const { Op } = require('sequelize');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'el_taller_secret_2024';
 const JWT_EXPIRES_IN = '24h';
 
 const authController = {
-  // Login
+  // Login con control de turnos para cajeros
   login: async (req, res) => {
     try {
       const { email, password } = req.body;
+      const ip_address = req.ip || req.connection.remoteAddress;
+      const user_agent = req.headers['user-agent'];
 
-      const usuario = await Usuario.findOne({ where: { email } });
+      // Buscar usuario
+      const usuario = await Usuario.findOne({ 
+        where: { email },
+        include: [
+          { model: Local, as: 'local', attributes: ['id', 'nombre'] }
+        ]
+      });
       
       if (!usuario) {
+        // Registrar intento fallido - usuario no encontrado
+        await IntentoAcceso.create({
+          usuario_id: null,
+          email,
+          exitoso: false,
+          motivo_rechazo: 'Usuario no encontrado',
+          ip_address,
+          user_agent
+        });
+
         return res.status(401).json({ error: 'Credenciales inválidas' });
       }
 
-      // Usar el método del modelo o comparar directamente con password_hash
+      // Validar password
       const passwordValida = await bcrypt.compare(password, usuario.password_hash);
       
       if (!passwordValida) {
+        // Registrar intento fallido - contraseña incorrecta
+        await IntentoAcceso.create({
+          usuario_id: usuario.id,
+          email,
+          exitoso: false,
+          motivo_rechazo: 'Contraseña incorrecta',
+          ip_address,
+          user_agent
+        });
+
         return res.status(401).json({ error: 'Credenciales inválidas' });
       }
 
       if (!usuario.activo) {
+        // Registrar intento fallido - usuario desactivado
+        await IntentoAcceso.create({
+          usuario_id: usuario.id,
+          email,
+          exitoso: false,
+          motivo_rechazo: 'Usuario desactivado',
+          ip_address,
+          user_agent
+        });
+
         return res.status(401).json({ error: 'Usuario desactivado' });
       }
 
+      // ⭐ VALIDACIÓN ESPECIAL PARA CAJEROS - Control por turnos
+      if (usuario.rol === 'cajero') {
+        // Buscar turno activo del cajero
+        const turnoActivo = await Turno.findOne({
+          where: {
+            usuario_id: usuario.id,
+            estado: 'abierto'
+          }
+        });
+
+        if (!turnoActivo) {
+          // Registrar intento bloqueado - sin turno abierto
+          await IntentoAcceso.create({
+            usuario_id: usuario.id,
+            email,
+            exitoso: false,
+            motivo_rechazo: 'Sin turno abierto - acceso denegado',
+            ip_address,
+            user_agent
+          });
+
+          // TODO: Emitir notificación en tiempo real (Socket.IO)
+          // if (req.app.get('io')) {
+          //   req.app.get('io').emit('intento_acceso_bloqueado', {
+          //     usuario: usuario.nombre,
+          //     email: usuario.email,
+          //     fecha: new Date(),
+          //     motivo: 'Cajero intentó acceder sin turno abierto'
+          //   });
+          // }
+
+          return res.status(403).json({ 
+            error: 'No tienes un turno abierto. Contacta al administrador para que abra tu turno.',
+            codigo: 'SIN_TURNO_ABIERTO'
+          });
+        }
+      }
+
+      // Login exitoso - Generar token
       const token = jwt.sign(
         { 
           id: usuario.id, 
@@ -38,6 +116,16 @@ const authController = {
         JWT_SECRET,
         { expiresIn: JWT_EXPIRES_IN }
       );
+
+      // Registrar intento exitoso
+      await IntentoAcceso.create({
+        usuario_id: usuario.id,
+        email,
+        exitoso: true,
+        motivo_rechazo: null,
+        ip_address,
+        user_agent
+      });
 
       const { password_hash: _, ...usuarioSinPassword } = usuario.toJSON();
 
@@ -52,10 +140,77 @@ const authController = {
     }
   },
 
+  // ⭐ NUEVO: Obtener historial de intentos de acceso (solo admin)
+  getIntentosAcceso: async (req, res) => {
+    try {
+      const { limit = 50, solo_bloqueados = 'false' } = req.query;
+
+      const where = {};
+      if (solo_bloqueados === 'true') {
+        where.exitoso = false;
+      }
+
+      const intentos = await IntentoAcceso.findAll({
+        where,
+        include: [
+          { 
+            model: Usuario, 
+            as: 'usuario',
+            attributes: ['id', 'nombre', 'email', 'rol'],
+            required: false // LEFT JOIN para incluir intentos sin usuario
+          }
+        ],
+        order: [['fecha_intento', 'DESC']],
+        limit: parseInt(limit)
+      });
+
+      res.json(intentos);
+    } catch (error) {
+      console.error('Error obteniendo intentos:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // ⭐ NUEVO: Obtener estadísticas de intentos
+  getEstadisticasIntentos: async (req, res) => {
+    try {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+
+      const [totalHoy, bloqueadosHoy, exitososHoy] = await Promise.all([
+        IntentoAcceso.count({
+          where: { fecha_intento: { [Op.gte]: hoy } }
+        }),
+        IntentoAcceso.count({
+          where: { 
+            fecha_intento: { [Op.gte]: hoy },
+            exitoso: false
+          }
+        }),
+        IntentoAcceso.count({
+          where: { 
+            fecha_intento: { [Op.gte]: hoy },
+            exitoso: true
+          }
+        })
+      ]);
+
+      res.json({
+        hoy: {
+          total: totalHoy,
+          bloqueados: bloqueadosHoy,
+          exitosos: exitososHoy
+        }
+      });
+    } catch (error) {
+      console.error('Error obteniendo estadísticas:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
   // Obtener usuario actual
   me: async (req, res) => {
     try {
-      // req.usuario viene del middleware (no req.user)
       const usuario = await Usuario.findByPk(req.usuario.id, {
         attributes: { exclude: ['password_hash'] }
       });
