@@ -12,7 +12,7 @@ export default function Dashboard() {
   const [loadingTurno, setLoadingTurno] = useState(true);
 
   useEffect(() => {
-    if (usuario?.rol === "cajero" && usuario?.local_asignado_id) {
+    if (usuario?.rol === "cajero") {
       cargarTurnoActivo();
     } else {
       setLoadingTurno(false);
@@ -21,8 +21,28 @@ export default function Dashboard() {
 
   const cargarTurnoActivo = async () => {
     try {
-      const turno = await turnosService.getTurnoActivo(usuario.local_asignado_id);
-      setTurnoActivo(turno);
+      // Buscar turno del cajero en TODOS los locales
+      const { mesasService } = await import("../../services/mesasService");
+      const localesData = await mesasService.getLocales();
+      
+      let turnoEncontrado = null;
+      
+      for (const local of localesData) {
+        try {
+          const turno = await turnosService.getTurnoActivo(local.id);
+          
+          // Verificar si este turno es del cajero actual
+          const cajeroId = turno.cajero_id || turno.usuario_id;
+          if (cajeroId === usuario.id) {
+            turnoEncontrado = turno;
+            break;
+          }
+        } catch {
+          continue; // No hay turno en este local
+        }
+      }
+      
+      setTurnoActivo(turnoEncontrado);
     } catch (error) {
       console.log("No hay turno activo o error al cargar:", error);
       setTurnoActivo(null);
@@ -194,7 +214,9 @@ export default function Dashboard() {
             <h2 className="text-2xl font-bold text-white mb-1">
               Bienvenido, {usuario?.nombre}
             </h2>
-            <p className="text-[#D4B896]">Punto de Venta - {usuario?.local?.nombre || 'Cargando...'}</p>
+            <p className="text-[#D4B896]">
+              Punto de Venta - {turnoActivo?.local?.nombre || 'Sin turno asignado'}
+            </p>
           </div>
 
           {/* Grid con Punto de Venta e Información del Turno */}
@@ -242,7 +264,7 @@ export default function Dashboard() {
                     <div>
                       <p className="text-gray-500 text-xs mb-1">Local</p>
                       <p className="text-white font-medium">
-                        🏪 {turnoActivo.local?.nombre || usuario?.local?.nombre}
+                        🏪 {turnoActivo.local?.nombre || 'Sin local asignado'}
                       </p>
                     </div>
 
