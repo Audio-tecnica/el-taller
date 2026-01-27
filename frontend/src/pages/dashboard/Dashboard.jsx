@@ -89,6 +89,19 @@ export default function Dashboard() {
     },
   ];
 
+  // ⭐ MÓDULO DE SEGURIDAD (Solo para Administradores)
+  const modulosSeguridad = [
+    {
+      nombre: "Intentos de Acceso",
+      icono: "🔐",
+      ruta: "/admin/intentos-acceso",
+      desc: "Registro de seguridad",
+      color: "from-red-500/20 to-red-600/10 border-red-500/30",
+      hoverColor: "hover:border-red-500",
+      textColor: "text-red-400"
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
       {/* Header */}
@@ -236,6 +249,58 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* ⭐ NUEVO: Módulo de Seguridad (Solo Administradores) */}
+        {usuario?.rol === 'administrador' && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">Seguridad y Auditoría</h3>
+              <span className="px-3 py-1 bg-red-500/20 text-red-400 text-xs font-bold rounded-full border border-red-500/30">
+                SOLO ADMIN
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {modulosSeguridad.map((modulo) => (
+                <button
+                  key={modulo.nombre}
+                  onClick={() => navigate(modulo.ruta)}
+                  className={`bg-gradient-to-br ${modulo.color} border ${modulo.hoverColor} rounded-2xl p-6 text-left transition-all duration-200 group hover:scale-[1.02]`}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-14 h-14 bg-[#0a0a0a] rounded-xl flex items-center justify-center">
+                      <span className="text-3xl">{modulo.icono}</span>
+                    </div>
+                    <svg 
+                      className="w-5 h-5 text-gray-600 group-hover:text-white transition" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-bold text-white mb-1 group-hover:text-white transition">
+                    {modulo.nombre}
+                  </h4>
+                  <p className={`text-sm ${modulo.textColor}`}>
+                    {modulo.desc}
+                  </p>
+                </button>
+              ))}
+            </div>
+            
+            {/* Info adicional */}
+            <div className="mt-4 bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3">
+              <span className="text-2xl">🔒</span>
+              <div className="flex-1">
+                <p className="text-sm text-red-400 font-medium mb-1">Control de Acceso por Turnos</p>
+                <p className="text-xs text-red-300/70">
+                  Los cajeros solo pueden iniciar sesión cuando tienen un turno abierto. Todos los intentos de acceso quedan registrados para auditoría.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
