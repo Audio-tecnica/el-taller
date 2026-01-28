@@ -16,35 +16,35 @@ export default function POS() {
   const [localTurno, setLocalTurno] = useState(null);
   const [cargandoTurno, setCargandoTurno] = useState(true);
   
-  // ⭐ Usuario actual (se obtiene una sola vez)
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  // ⭐ Obtener usuario inicial (solo para el rol, no cambia durante la sesión)
+  const userInicial = JSON.parse(localStorage.getItem('user') || '{}');
+  const esCajero = userInicial?.rol === 'cajero';
 
   // ⭐ Obtener turno activo del cajero
   const obtenerTurnoActivo = useCallback(async () => {
     try {
       // Solo cajeros tienen restricción por turno
-      if (user?.rol !== 'cajero') {
+      if (!esCajero) {
         setLocalTurno(null);
         setCargandoTurno(false);
         return;
       }
 
-      // ⭐ CAMBIO PRINCIPAL: Usar getMiTurnoActivo que busca el turno del cajero actual
-      // sin depender del local_asignado_id
+      // ⭐ Usar getMiTurnoActivo que busca el turno del cajero actual
       try {
         const turno = await turnosService.getMiTurnoActivo();
         
         setTurnoActivo(turno);
-        setLocalTurno(turno.local_id); // ⭐ Usar el local DEL TURNO, no del usuario
+        setLocalTurno(turno.local_id);
         
-        // ⭐ Actualizar el localStorage con el local correcto del turno
+        // Actualizar localStorage
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
         const updatedUser = { ...user, local_asignado_id: turno.local_id };
         localStorage.setItem('user', JSON.stringify(updatedUser));
         
-        console.log(`✅ Turno activo encontrado para local: ${turno.local?.nombre}`);
+        console.log(`✅ Turno activo encontrado para local: ${turno.local?.nombre}, local_id: ${turno.local_id}`);
         
       } catch {
-        // Si no hay turno activo, mostrar error
         toast.error('No tienes un turno abierto. Contacta al administrador.');
         setLocalTurno(null);
         setTurnoActivo(null);
@@ -56,7 +56,7 @@ export default function POS() {
     } finally {
       setCargandoTurno(false);
     }
-  }, []);
+  }, [esCajero]);
 
   // ⭐ Cargar datos filtrados por local del turno (si es cajero)
   const cargarDatos = useCallback(async () => {
@@ -83,11 +83,11 @@ export default function POS() {
   useEffect(() => {
     if (!cargandoTurno) {
       // Si no es cajero O si es cajero y tiene turno activo
-      if (user?.rol !== 'cajero' || (user?.rol === 'cajero' && localTurno)) {
+      if (!esCajero || (esCajero && localTurno)) {
         cargarDatos();
       }
     }
-  }, [cargarDatos, cargandoTurno, localTurno]);
+  }, [cargarDatos, cargandoTurno, localTurno, esCajero]);
 
   // Refrescar datos periódicamente
   useEffect(() => {
@@ -146,14 +146,14 @@ export default function POS() {
   };
 
   // ⭐ Para cajeros: usar localTurno como filtro. Para admin: usar filtroLocal manual
-  const filtroEfectivo = user?.rol === 'cajero' ? localTurno : filtroLocal;
+  const filtroEfectivo = esCajero ? localTurno : filtroLocal;
 
   const mesasFiltradas = filtroEfectivo
     ? mesas.filter((m) => m.local_id === filtroEfectivo)
     : mesas;
 
   // ⭐ Para cajeros: solo mostrar el local asignado
-  const localesFiltrados = user?.rol === 'cajero' && localTurno
+  const localesFiltrados = esCajero && localTurno
     ? locales.filter((l) => l.id === localTurno)
     : locales;
 
@@ -184,7 +184,7 @@ export default function POS() {
   }
 
   // ⭐ Si es cajero sin turno, mostrar mensaje
-  if (user?.rol === 'cajero' && !turnoActivo) {
+  if (esCajero && !turnoActivo) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
         <div className="bg-[#141414] border border-red-500/30 rounded-2xl p-8 max-w-md text-center">
@@ -240,7 +240,7 @@ export default function POS() {
             </button>
 
             {/* ⭐ Información del local (solo para cajeros con turno) */}
-            {user?.rol === 'cajero' && turnoActivo && (
+            {esCajero && turnoActivo && (
               <div className="hidden md:flex items-center gap-3 bg-[#141414] border border-emerald-500/30 rounded-xl px-4 py-2">
                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
                 <div>
@@ -310,7 +310,7 @@ export default function POS() {
           </div>
 
           {/* ⭐ Mostrar local del turno en móvil para cajeros */}
-          {user?.rol === 'cajero' && turnoActivo && (
+          {esCajero && turnoActivo && (
             <div className="mt-2 md:hidden bg-[#141414] border border-emerald-500/30 rounded-lg px-3 py-2 flex items-center justify-between">
               <div>
                 <p className="text-[10px] text-gray-400 uppercase">Local del Turno</p>
@@ -325,7 +325,7 @@ export default function POS() {
       </header>
 
       {/* Filtros de local - ⭐ Solo visible para administradores */}
-      {user?.rol !== 'cajero' && locales.length > 1 && (
+      {!esCajero && locales.length > 1 && (
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             <button
@@ -381,7 +381,7 @@ export default function POS() {
           return (
             <div key={local.id} className="space-y-4">
               {/* Header del local - ⭐ Solo mostrar si no hay filtro o no es cajero */}
-              {(!filtroLocal && user?.rol !== 'cajero') && (
+              {(!filtroLocal && !esCajero) && (
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4B896]/20 to-[#D4B896]/5 flex items-center justify-center">
