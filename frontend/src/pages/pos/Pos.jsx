@@ -47,16 +47,32 @@ export default function POS() {
         try {
           console.log('🔍 Buscando turno del cajero...');
           const turno = await turnosService.getMiTurnoActivo();
-          console.log(`✅ Turno encontrado: ${turno.local?.nombre} (${turno.local_id})`);
+          
+          // ⭐ DEBUG: Ver estructura completa del turno
+          console.log('🔍 ESTRUCTURA COMPLETA DEL TURNO:', JSON.stringify(turno, null, 2));
+          console.log('🔍 turno.local_id:', turno.local_id);
+          console.log('🔍 turno.local:', turno.local);
+          console.log('🔍 turno.local?.id:', turno.local?.id);
+          
+          // Intentar obtener el local_id de diferentes lugares
+          const localId = turno.local_id || turno.local?.id || turno.localId;
+          
+          if (!localId) {
+            console.error('❌ NO SE PUDO OBTENER local_id del turno');
+            throw new Error('Turno sin local_id');
+          }
+          
+          console.log(`✅ Turno encontrado: ${turno.local?.nombre} (ID: ${localId})`);
           
           setTurnoActivo(turno);
-          setLocalDelTurno(turno.local_id);
+          setLocalDelTurno(localId);
           
           // Cargar mesas SOLO del local del turno
-          await cargarMesas(turno.local_id);
+          console.log(`📞 Llamando cargarMesas con localId: ${localId}`);
+          await cargarMesas(localId);
           
-        } catch {
-          console.log('❌ No hay turno abierto');
+        } catch (err) {
+          console.log('❌ Error obteniendo turno:', err);
           toast.error('No tienes un turno abierto');
           setTurnoActivo(null);
           setLocalDelTurno(null);
@@ -76,25 +92,38 @@ export default function POS() {
   useEffect(() => {
     if (!inicializado) return;
     // ⭐ CRÍTICO: Si es cajero, SOLO refrescar cuando localDelTurno esté definido
-    if (esCajero && !localDelTurno) return;
+    if (esCajero && !localDelTurno) {
+      console.log('⏸️ Refresh pausado - esperando localDelTurno');
+      return;
+    }
 
+    // ⭐ CALCULAR localAUsar DENTRO del useEffect para capturar el valor correcto
     const localAUsar = esCajero ? localDelTurno : null;
     console.log(`🔄 Iniciando refresh automático para local: ${localAUsar || 'TODOS'}`);
 
     const interval = setInterval(() => {
+      console.log(`⏰ Tick refresh - local: ${localAUsar || 'TODOS'}`);
       cargarMesas(localAUsar);
     }, 7000);
 
-    return () => clearInterval(interval);
-  }, [inicializado, esCajero, localDelTurno]);
+    return () => {
+      console.log(`🛑 Limpiando interval para local: ${localAUsar || 'TODOS'}`);
+      clearInterval(interval);
+    };
+  }, [inicializado, esCajero, localDelTurno]); // ⭐ localDelTurno como dependencia
 
   // Refrescar al volver a la pestaña
   useEffect(() => {
     if (!inicializado) return;
     // ⭐ CRÍTICO: Si es cajero, SOLO refrescar cuando localDelTurno esté definido
-    if (esCajero && !localDelTurno) return;
+    if (esCajero && !localDelTurno) {
+      console.log('⏸️ Visibility listener pausado - esperando localDelTurno');
+      return;
+    }
 
+    // ⭐ CALCULAR localAUsar DENTRO del useEffect
     const localAUsar = esCajero ? localDelTurno : null;
+    console.log(`👁️ Configurando visibility listener para local: ${localAUsar || 'TODOS'}`);
 
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
@@ -103,8 +132,11 @@ export default function POS() {
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [inicializado, esCajero, localDelTurno]);
+    return () => {
+      console.log(`🛑 Limpiando visibility listener para local: ${localAUsar || 'TODOS'}`);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [inicializado, esCajero, localDelTurno]); // ⭐ localDelTurno como dependencia
 
   const handleMesaClick = async (mesa) => {
     try {
