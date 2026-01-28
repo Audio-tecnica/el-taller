@@ -48,31 +48,34 @@ export default function POS() {
           console.log('🔍 Buscando turno del cajero...');
           const turno = await turnosService.getMiTurnoActivo();
           
-          // ⭐ DEBUG: Ver estructura completa del turno
-          console.log('🔍 ESTRUCTURA COMPLETA DEL TURNO:', JSON.stringify(turno, null, 2));
-          console.log('🔍 turno.local_id:', turno.local_id);
-          console.log('🔍 turno.local:', turno.local);
-          console.log('🔍 turno.local?.id:', turno.local?.id);
+          // ⭐ OBTENER local_id del lugar correcto (turno.local.id en vez de turno.local_id)
+          const localId = turno.local?.id || turno.local_id || turno.localId;
           
-          // Intentar obtener el local_id de diferentes lugares
-          const localId = turno.local_id || turno.local?.id || turno.localId;
+          console.log('🔍 DEBUG TURNO:', {
+            'turno completo': turno,
+            'turno.local': turno.local,
+            'turno.local?.id': turno.local?.id,
+            'turno.local_id': turno.local_id,
+            'localId FINAL': localId
+          });
           
           if (!localId) {
-            console.error('❌ NO SE PUDO OBTENER local_id del turno');
+            console.error('❌ ERROR: No se pudo obtener local_id del turno');
+            console.error('Estructura del turno:', JSON.stringify(turno, null, 2));
             throw new Error('Turno sin local_id');
           }
           
-          console.log(`✅ Turno encontrado: ${turno.local?.nombre} (ID: ${localId})`);
+          console.log(`✅ Turno encontrado: ${turno.local?.nombre} (LOCAL_ID: ${localId})`);
           
           setTurnoActivo(turno);
-          setLocalDelTurno(localId);
+          setLocalDelTurno(localId); // ⭐ GUARDAR EL ID CORRECTO
           
           // Cargar mesas SOLO del local del turno
-          console.log(`📞 Llamando cargarMesas con localId: ${localId}`);
+          console.log(`📞 Llamando cargarMesas con localId: "${localId}"`);
           await cargarMesas(localId);
           
         } catch (err) {
-          console.log('❌ Error obteniendo turno:', err);
+          console.error('❌ Error obteniendo turno:', err);
           toast.error('No tienes un turno abierto');
           setTurnoActivo(null);
           setLocalDelTurno(null);
@@ -80,6 +83,7 @@ export default function POS() {
         }
       } else {
         // ADMIN: Cargar todas las mesas
+        console.log('👤 Usuario ADMIN - cargando todas las mesas');
         await cargarMesas(null);
       }
       setInicializado(true);
