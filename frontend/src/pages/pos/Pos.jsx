@@ -7,12 +7,14 @@ import toast from "react-hot-toast";
 import logo from "../../assets/logo.jpeg";
 import ModalCambiarMesa from "./ModalCambiarMesa";
 import { useSocket } from "../../hooks/useSocket"; // ⭐ AGREGAR
+import { useTurnoCerrado } from "../../hooks/useTurnoCerrado";
 
 export default function POS() {
   const navigate = useNavigate();
   
-  // ⭐ AGREGAR - Escucha cuando cierran el turno
+
   useSocket();
+  useTurnoCerrado();
   
   const [mesas, setMesas] = useState([]);
   const [locales, setLocales] = useState([]);
