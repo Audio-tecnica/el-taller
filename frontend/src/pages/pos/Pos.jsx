@@ -6,9 +6,14 @@ import { turnosService } from "../../services/turnosService";
 import toast from "react-hot-toast";
 import logo from "../../assets/logo.jpeg";
 import ModalCambiarMesa from "./ModalCambiarMesa";
+import { useSocket } from "../../hooks/useSocket"; // ⭐ AGREGAR
 
 export default function POS() {
   const navigate = useNavigate();
+  
+  // ⭐ AGREGAR - Escucha cuando cierran el turno
+  useSocket();
+  
   const [mesas, setMesas] = useState([]);
   const [locales, setLocales] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +75,7 @@ export default function POS() {
         // Cargar SOLO mesas de su local
         await cargarMesas(localId);
         
-      } catch {
+      } catch  {
         // ⭐ NO TIENE TURNO = ES ADMIN
         console.log('ℹ️ Usuario sin turno activo = ADMIN con acceso total');
         
