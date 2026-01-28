@@ -6,15 +6,10 @@ import { turnosService } from "../../services/turnosService";
 import toast from "react-hot-toast";
 import logo from "../../assets/logo.jpeg";
 import ModalCambiarMesa from "./ModalCambiarMesa";
-// ❌ ELIMINADO: import { useSocket } from "../../hooks/useSocket";
-// ❌ ELIMINADO: import { useTurnoCerrado } from "../../hooks/useTurnoCerrado";
 
 export default function POS() {
   const navigate = useNavigate();
   
-  // ❌ ELIMINADO: useSocket();
-  // ❌ ELIMINADO: useTurnoCerrado();
-  // ✅ El socket ya está activo a nivel global en App.jsx
   
   const [mesas, setMesas] = useState([]);
   const [locales, setLocales] = useState([]);
