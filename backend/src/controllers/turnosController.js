@@ -3,71 +3,72 @@ const { Op } = require("sequelize");
 
 const turnosController = {
   // ⭐ NUEVO: Obtener turno activo del cajero actual
-  getMiTurnoActivo: async (req, res) => {
-    try {
-      const usuario_id = req.usuario.id;
+ // ⭐ NUEVO: Obtener turno activo del cajero actual
+getMiTurnoActivo: async (req, res) => {
+  try {
+    const usuario_id = req.usuario.id;
 
-      // Buscar turno donde este usuario sea el cajero
-      const turno = await Turno.findOne({
-        where: { 
-          cajero_id: usuario_id, 
-          estado: "abierto" 
+    // Buscar turno donde este usuario sea el cajero
+    const turno = await Turno.findOne({
+      where: { 
+        cajero_id: usuario_id, 
+        estado: "abierto" 
+      },
+      include: [
+        { model: Local, as: "local" },
+        {
+          model: Usuario,
+          as: "usuario",
+          attributes: ["id", "nombre", "email", "rol"],
         },
-        include: [
-          { model: Local, as: "local" },
-          {
-            model: Usuario,
-            as: "usuario",
-            attributes: ["id", "nombre", "email", "rol"],
-          },
-          {
-            model: Usuario,
-            as: "cajero",
-            attributes: ["id", "nombre", "email", "rol"],
-          },
-        ],
-      });
-
-      if (!turno) {
-        return res.status(404).json({ error: "No tienes un turno abierto" });
-      }
-
-      // Calcular ventas del turno
-      const pedidos = await Pedido.findAll({
-        where: {
-          local_id: turno.local_id,
-          estado: "cerrado",
-          closed_at: { [Op.gte]: turno.fecha_apertura },
+        {
+          model: Usuario,
+          as: "cajero",
+          attributes: ["id", "nombre", "email", "rol"],
         },
-      });
+      ],
+    });
 
-      const resumen = {
-        total_ventas: 0,
-        total_efectivo: 0,
-        total_transferencias: 0,
-        total_nequi: 0,
-        total_cortesias: 0,
-        cantidad_pedidos: pedidos.length,
-      };
-
-      pedidos.forEach((p) => {
-        const total = parseFloat(p.total_final) || 0;
-        resumen.total_ventas += total;
-        resumen.total_cortesias += parseFloat(p.monto_cortesia) || 0;
-
-        if (p.metodo_pago === "efectivo") resumen.total_efectivo += total;
-        if (p.metodo_pago === "transferencia") resumen.total_transferencias += total;
-        if (p.metodo_pago === "nequi") resumen.total_nequi += total;
-      });
-
-      resumen.efectivo_esperado = parseFloat(turno.efectivo_inicial) + resumen.total_efectivo;
-
-      res.json({ ...turno.toJSON(), resumen });
-    } catch (error) {
-      console.error("Error en getMiTurnoActivo:", error);
-      res.status(500).json({ error: error.message });
+    if (!turno) {
+      return res.status(404).json({ error: "No tienes un turno abierto" });
     }
-  },
+
+    // Calcular ventas del turno
+    const pedidos = await Pedido.findAll({
+      where: {
+        local_id: turno.local_id,
+        estado: "cerrado",
+        closed_at: { [Op.gte]: turno.fecha_apertura },
+      },
+    });
+
+    const resumen = {
+      total_ventas: 0,
+      total_efectivo: 0,
+      total_transferencias: 0,
+      total_nequi: 0,
+      total_cortesias: 0,
+      cantidad_pedidos: pedidos.length,
+    };
+
+    pedidos.forEach((p) => {
+      const total = parseFloat(p.total_final) || 0;
+      resumen.total_ventas += total;
+      resumen.total_cortesias += parseFloat(p.monto_cortesia) || 0;
+
+      if (p.metodo_pago === "efectivo") resumen.total_efectivo += total;
+      if (p.metodo_pago === "transferencia") resumen.total_transferencias += total;
+      if (p.metodo_pago === "nequi") resumen.total_nequi += total;
+    });
+
+    resumen.efectivo_esperado = parseFloat(turno.efectivo_inicial) + resumen.total_efectivo;
+
+    res.json({ ...turno.toJSON(), resumen });
+  } catch (error) {
+    console.error("Error en getMiTurnoActivo:", error);
+    res.status(500).json({ error: error.message });
+  }
+},
 
   // Abrir turno
   abrirTurno: async (req, res) => {
