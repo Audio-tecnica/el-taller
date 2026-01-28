@@ -75,10 +75,14 @@ export default function POS() {
   // Refrescar periódicamente
   useEffect(() => {
     if (!inicializado) return;
+    // ⭐ CRÍTICO: Si es cajero, SOLO refrescar cuando localDelTurno esté definido
     if (esCajero && !localDelTurno) return;
 
+    const localAUsar = esCajero ? localDelTurno : null;
+    console.log(`🔄 Iniciando refresh automático para local: ${localAUsar || 'TODOS'}`);
+
     const interval = setInterval(() => {
-      cargarMesas(esCajero ? localDelTurno : null);
+      cargarMesas(localAUsar);
     }, 7000);
 
     return () => clearInterval(interval);
@@ -87,12 +91,15 @@ export default function POS() {
   // Refrescar al volver a la pestaña
   useEffect(() => {
     if (!inicializado) return;
+    // ⭐ CRÍTICO: Si es cajero, SOLO refrescar cuando localDelTurno esté definido
+    if (esCajero && !localDelTurno) return;
+
+    const localAUsar = esCajero ? localDelTurno : null;
 
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
-        if (!esCajero || localDelTurno) {
-          cargarMesas(esCajero ? localDelTurno : null);
-        }
+        console.log(`👁️ Pestaña visible - refrescando local: ${localAUsar || 'TODOS'}`);
+        cargarMesas(localAUsar);
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
