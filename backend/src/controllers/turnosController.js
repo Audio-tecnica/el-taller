@@ -194,22 +194,22 @@ const turnosController = {
     }
   },
 
-  // Cerrar turno
-cerrarTurno: async (req, res) => {
-  try {
-    const { turno_id } = req.params;
-    const { efectivo_real, notas_cierre } = req.body;
+// Cerrar turno - VERSIÓN MEJORADA
+  cerrarTurno: async (req, res) => {
+    try {
+      const { turno_id } = req.params;
+      const { efectivo_real, notas_cierre } = req.body;
 
-    const turno = await Turno.findByPk(turno_id, {
-      include: [
-        { model: Usuario, as: 'usuario' },
-        { model: Usuario, as: 'cajero' }  // ⭐ AGREGAR CAJERO
-      ]
-    });
+      const turno = await Turno.findByPk(turno_id, {
+        include: [
+          { model: Usuario, as: 'usuario' },
+          { model: Usuario, as: 'cajero' }
+        ]
+      });
 
-    if (!turno || turno.estado !== 'abierto') {
-      return res.status(400).json({ error: 'Turno no válido o ya cerrado' });
-    }
+      if (!turno || turno.estado !== 'abierto') {
+        return res.status(400).json({ error: 'Turno no válido o ya cerrado' });
+      }
 
       // Calcular ventas del turno
       const pedidos = await Pedido.findAll({
@@ -240,34 +240,46 @@ cerrarTurno: async (req, res) => {
         parseFloat(turno.efectivo_inicial) + total_efectivo;
       const diferencia = parseFloat(efectivo_real) - efectivo_esperado;
 
-     await turno.update({
-      estado: 'cerrado',
-      efectivo_esperado,
-      efectivo_real,
-      diferencia,
-      total_efectivo,
-      total_transferencias,
-      total_nequi,
-      total_ventas,
-      total_cortesias,
-      cantidad_pedidos: pedidos.length,
-      fecha_cierre: new Date(),
-      notas_cierre
-    });
-
-    // ⭐ EMITIR EVENTO para cerrar sesión del cajero
-    const io = req.app.get('io');
-    if (io) {
-      const cajero_id = turno.cajero_id || turno.usuario_id; // Usar cajero_id si existe
-      io.emit('turno_cerrado', {
-        turno_id: turno.id,
-        usuario_id: cajero_id,  // ⭐ USAR CAJERO_ID
-        usuario_email: turno.cajero?.email || turno.usuario?.email,
-        local_id: turno.local_id,
-        fecha_cierre: new Date()
+      await turno.update({
+        estado: 'cerrado',
+        efectivo_esperado,
+        efectivo_real,
+        diferencia,
+        total_efectivo,
+        total_transferencias,
+        total_nequi,
+        total_ventas,
+        total_cortesias,
+        cantidad_pedidos: pedidos.length,
+        fecha_cierre: new Date(),
+        notas_cierre
       });
-      console.log(`🔒 Evento turno_cerrado emitido para cajero ${cajero_id}`);
-    }
+
+      // ⭐ EMITIR EVENTO DE CIERRE - MEJORADO
+      const io = req.app.get('io');
+      if (io) {
+        const cajero_id = turno.cajero_id || turno.usuario_id;
+        const eventoData = {
+          turno_id: turno.id,
+          usuario_id: cajero_id,
+          cajero_id: cajero_id, // ⭐ AGREGAR TAMBIÉN cajero_id
+          usuario_email: turno.cajero?.email || turno.usuario?.email,
+          usuario_nombre: turno.cajero?.nombre || turno.usuario?.nombre,
+          local_id: turno.local_id,
+          fecha_cierre: new Date().toISOString()
+        };
+        
+        // Emitir el evento globalmente
+        io.emit('turno_cerrado', eventoData);
+        
+        console.log('🔒 ===== EVENTO TURNO_CERRADO EMITIDO =====');
+        console.log('📡 Datos del evento:', JSON.stringify(eventoData, null, 2));
+        console.log('👤 Cajero afectado:', cajero_id, '-', eventoData.usuario_nombre);
+        console.log('🌐 Sockets conectados:', io.engine.clientsCount);
+        console.log('==========================================');
+      } else {
+        console.error('⚠️ Socket.IO no está disponible - Evento no emitido');
+      }
 
       res.json({
         message: "Turno cerrado exitosamente",
@@ -285,6 +297,7 @@ cerrarTurno: async (req, res) => {
         },
       });
     } catch (error) {
+      console.error('❌ Error al cerrar turno:', error);
       res.status(500).json({ error: error.message });
     }
   },

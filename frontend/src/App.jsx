@@ -1,5 +1,8 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import { useEffect } from "react";
+import { io } from 'socket.io-client';
+import toast from 'react-hot-toast';
 import Login from "./pages/auth/Login";
 import Dashboard from "./pages/dashboard/Dashboard";
 import Productos from "./pages/productos/Productos";
@@ -18,10 +21,97 @@ import { Navigate } from "react-router-dom";
 import IntentosAcceso from "./pages/admin/IntentosAcceso";
 import GestionUsuarios from "./pages/admin/GestionUsuarios";
 import { useSocket } from './hooks/useSocket';
+import { authService } from './services/authService';
 
-// ⭐ Componente interno que usa useSocket dentro del Router
+const SOCKET_URL = import.meta.env.VITE_API_URL || 'https://el-taller.onrender.com';
+
+// ⭐ Hook global para monitorear cierre de turno
+function useTurnoCerradoGlobal() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const currentUser = authService.getCurrentUser();
+    
+    // Solo activar para usuarios autenticados
+    if (!currentUser || !currentUser.id) {
+      return;
+    }
+
+    // No activar para admins (ellos cierran los turnos)
+    if (currentUser.rol === 'admin') {
+      return;
+    }
+
+    console.log('🔒 Monitoreo de turno_cerrado activo para:', currentUser.nombre, `(ID: ${currentUser.id})`);
+
+    const socket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5,
+      timeout: 10000
+    });
+
+    socket.on('connect', () => {
+      console.log('✅ Socket turno_cerrado conectado:', socket.id);
+    });
+
+    socket.on('turno_cerrado', (data) => {
+      console.log('🔒 Evento turno_cerrado recibido:', data);
+      
+      // Verificar si este evento es para el usuario actual
+      const esMiTurno = 
+        data.usuario_id === currentUser.id || 
+        data.cajero_id === currentUser.id;
+      
+      if (esMiTurno) {
+        console.log('⚠️ MI TURNO FUE CERRADO - Cerrando sesión automáticamente...');
+        
+        // Mostrar notificación al usuario
+        toast.error('Tu turno ha sido cerrado por el administrador', {
+          duration: 4000,
+          icon: '🔒',
+          position: 'top-center',
+          style: {
+            background: '#ef4444',
+            color: '#fff',
+            fontWeight: 'bold',
+            fontSize: '16px'
+          }
+        });
+
+        // Cerrar sesión después de 2 segundos
+        setTimeout(() => {
+          console.log('🚪 Cerrando sesión...');
+          authService.logout();
+          navigate('/login', { replace: true });
+          window.location.reload();
+        }, 2000);
+      } else {
+        console.log('ℹ️ Evento de cierre de turno para otro usuario:', data.usuario_id);
+      }
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('❌ Error de conexión Socket.IO:', error);
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('❌ Socket turno_cerrado desconectado:', reason);
+    });
+
+    // Cleanup al desmontar
+    return () => {
+      console.log('🧹 Limpiando socket turno_cerrado');
+      socket.disconnect();
+    };
+  }, [navigate]);
+}
+
+// ⭐ Componente interno que usa hooks dentro del Router
 function AppContent() {
-  useSocket(); // Ahora está dentro del Router
+  useSocket(); // Socket para mesas y otros eventos
+  useTurnoCerradoGlobal(); // ⭐ Socket para monitorear cierre de turno (GLOBAL)
   
   return (
     <>
