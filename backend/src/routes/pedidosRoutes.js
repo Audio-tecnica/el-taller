@@ -11,6 +11,7 @@ router.post('/abrir', pedidosController.abrirPedido);
 router.post('/:pedido_id/items', pedidosController.agregarItem);
 router.delete('/:pedido_id/items/:item_id', pedidosController.quitarItem);
 router.post('/:pedido_id/cerrar', pedidosController.cerrarPedido);
+router.put('/:pedido_id/cambiar-mesa', pedidosController.cambiarMesa);
 router.post('/:pedido_id/cancelar', pedidosController.cancelarPedido);
 
 module.exports = router;

@@ -57,7 +57,7 @@ const pedidosController = {
         ],
       });
 
-      // 🔌 SOCKET: Emitir mesa actualizada
+      // 📌 SOCKET: Emitir mesa actualizada
       const io = req.app.get('io');
       if (io) {
         const mesaActualizada = await Mesa.findByPk(mesa_id, { include: [{ model: Local, as: 'local' }] });
@@ -157,7 +157,7 @@ const pedidosController = {
         ],
       });
 
-      // 🔌 SOCKET: Emitir pedido actualizado
+      // 📌 SOCKET: Emitir pedido actualizado
       const io = req.app.get('io');
       if (io) {
         io.emit('pedido_actualizado', { pedido: pedidoActualizado, accion: 'item_agregado' });
@@ -214,7 +214,7 @@ const pedidosController = {
         ],
       });
 
-      // 🔌 SOCKET: Emitir pedido actualizado
+      // 📌 SOCKET: Emitir pedido actualizado
       const io = req.app.get('io');
       if (io) {
         io.emit('pedido_actualizado', { pedido: pedidoActualizado, accion: 'item_quitado' });
@@ -223,6 +223,105 @@ const pedidosController = {
       res.json(pedidoActualizado);
     } catch (error) {
       if (!t.finished) await t.rollback();
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // ⭐ NUEVO: Cambiar mesa de un pedido
+  cambiarMesa: async (req, res) => {
+    const t = await sequelize.transaction();
+    try {
+      const { pedido_id } = req.params;
+      const { nueva_mesa_id } = req.body;
+
+      // 1. Validar que el pedido exista y esté abierto
+      const pedido = await Pedido.findByPk(pedido_id, {
+        include: [{ model: Mesa, as: "mesa" }],
+      });
+
+      if (!pedido || pedido.estado !== "abierto") {
+        await t.rollback();
+        return res.status(400).json({ 
+          error: "Pedido no válido o ya cerrado" 
+        });
+      }
+
+      const mesaOrigenId = pedido.mesa_id;
+      const mesaOrigen = pedido.mesa;
+
+      // 2. Validar que la nueva mesa exista y esté disponible
+      const mesaDestino = await Mesa.findByPk(nueva_mesa_id);
+
+      if (!mesaDestino) {
+        await t.rollback();
+        return res.status(404).json({ 
+          error: "Mesa de destino no encontrada" 
+        });
+      }
+
+      if (mesaDestino.estado !== "disponible") {
+        await t.rollback();
+        return res.status(400).json({ 
+          error: "La mesa de destino no está disponible" 
+        });
+      }
+
+      // 3. Validar que estén en el mismo local
+      if (mesaOrigen.local_id !== mesaDestino.local_id) {
+        await t.rollback();
+        return res.status(400).json({ 
+          error: "No se puede cambiar a una mesa de otro local" 
+        });
+      }
+
+      // 4. Realizar el cambio
+      // Actualizar pedido con nueva mesa
+      await pedido.update({ mesa_id: nueva_mesa_id }, { transaction: t });
+
+      // Liberar mesa origen
+      await Mesa.update(
+        { estado: "disponible" },
+        { where: { id: mesaOrigenId }, transaction: t }
+      );
+
+      // Ocupar mesa destino
+      await Mesa.update(
+        { estado: "ocupada" },
+        { where: { id: nueva_mesa_id }, transaction: t }
+      );
+
+      await t.commit();
+
+      // 📌 SOCKET: Emitir cambios en ambas mesas
+      const io = req.app.get('io');
+      if (io) {
+        const mesaOrigenActualizada = await Mesa.findByPk(mesaOrigenId, { 
+          include: [{ model: Local, as: 'local' }] 
+        });
+        const mesaDestinoActualizada = await Mesa.findByPk(nueva_mesa_id, { 
+          include: [{ model: Local, as: 'local' }] 
+        });
+        
+        io.emit('mesa_actualizada', { 
+          mesa: mesaOrigenActualizada, 
+          accion: 'pedido_movido' 
+        });
+        io.emit('mesa_actualizada', { 
+          mesa: mesaDestinoActualizada, 
+          accion: 'pedido_recibido' 
+        });
+      }
+
+      res.json({
+        mensaje: "Mesa cambiada exitosamente",
+        pedido_id: pedido.id,
+        mesa_origen: mesaOrigen.numero,
+        mesa_destino: mesaDestino.numero,
+      });
+
+    } catch (error) {
+      if (!t.finished) await t.rollback();
+      console.error("Error cambiando mesa:", error);
       res.status(500).json({ error: error.message });
     }
   },
@@ -269,7 +368,7 @@ const pedidosController = {
 
       await t.commit();
 
-      // 🔌 SOCKET: Emitir mesa disponible
+      // 📌 SOCKET: Emitir mesa disponible
       const io = req.app.get('io');
       if (io && pedido.mesa_id) {
         const mesaActualizada = await Mesa.findByPk(pedido.mesa_id, { include: [{ model: Local, as: 'local' }] });
@@ -304,7 +403,7 @@ const pedidosController = {
 
       await t.commit();
 
-      // 🔌 SOCKET: Emitir mesa disponible
+      // 📌 SOCKET: Emitir mesa disponible
       const io = req.app.get('io');
       if (io && pedido.mesa_id) {
         const mesaActualizada = await Mesa.findByPk(pedido.mesa_id, { include: [{ model: Local, as: 'local' }] });

@@ -43,6 +43,7 @@ export const pedidosService = {
     });
     return response.data;
   },
+
   cancelarPedido: async (pedido_id) => {
     const response = await api.post(`/pedidos/${pedido_id}/cancelar`);
     return response.data;
@@ -51,6 +52,14 @@ export const pedidosService = {
   getPedidosAbiertos: async (local_id = null) => {
     const params = local_id ? `?local_id=${local_id}` : "";
     const response = await api.get(`/pedidos/abiertos${params}`);
+    return response.data;
+  },
+
+  // ⭐ NUEVO: Cambiar mesa de un pedido
+  cambiarMesa: async (pedido_id, nueva_mesa_id) => {
+    const response = await api.put(`/pedidos/${pedido_id}/cambiar-mesa`, {
+      nueva_mesa_id,
+    });
     return response.data;
   },
 };

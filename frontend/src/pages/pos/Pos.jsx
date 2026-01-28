@@ -5,6 +5,7 @@ import { pedidosService } from "../../services/pedidosService";
 import { turnosService } from "../../services/turnosService";
 import toast from "react-hot-toast";
 import logo from "../../assets/logo.jpeg";
+import ModalCambiarMesa from "./ModalCambiarMesa";
 
 export default function POS() {
   const navigate = useNavigate();
@@ -15,7 +16,11 @@ export default function POS() {
   const [turnoActivo, setTurnoActivo] = useState(null);
   const [localDelTurno, setLocalDelTurno] = useState(null);
   const [inicializado, setInicializado] = useState(false);
-  const [esAdmin, setEsAdmin] = useState(false); // ⭐ Nuevo estado
+  const [esAdmin, setEsAdmin] = useState(false);
+  
+  // ⭐ Estados para cambiar mesa
+  const [modalCambiarMesa, setModalCambiarMesa] = useState(null); // { mesa: {...} }
+  const [loadingCambio, setLoadingCambio] = useState(false);
 
   // ⭐ FUNCIÓN SIMPLE para cargar mesas (recibe el local directamente)
   const cargarMesas = async (localId) => {
@@ -174,6 +179,36 @@ export default function POS() {
     const localACargar = esAdmin ? null : localDelTurno;
     await cargarMesas(localACargar);
     toast.success("Actualizado", { duration: 1500 });
+  };
+
+  // ⭐ NUEVA FUNCIÓN: Cambiar mesa
+  const handleCambiarMesa = async (mesaOrigen, mesaDestino) => {
+    setLoadingCambio(true);
+    
+    try {
+      console.log(`🔄 Cambiando pedido de ${mesaOrigen.numero} → ${mesaDestino.numero}`);
+      
+      // Obtener el pedido de la mesa origen
+      const pedido = await pedidosService.getPedidoMesa(mesaOrigen.id);
+      
+      // Cambiar mesa del pedido
+      await pedidosService.cambiarMesa(pedido.id, mesaDestino.id);
+      
+      toast.success(`Pedido movido de ${mesaOrigen.numero} a ${mesaDestino.numero}`);
+      
+      // Cerrar modal
+      setModalCambiarMesa(null);
+      
+      // Recargar mesas
+      const localACargar = esAdmin ? null : localDelTurno;
+      await cargarMesas(localACargar);
+      
+    } catch (error) {
+      console.error('Error cambiando mesa:', error);
+      toast.error(error.response?.data?.error || "Error al cambiar de mesa");
+    } finally {
+      setLoadingCambio(false);
+    }
   };
 
   // Filtrar mesas (cajero ya viene filtrado del backend)
@@ -353,37 +388,55 @@ export default function POS() {
               {local.mesas.map(mesa => {
                 const esOcupada = mesa.estado === "ocupada";
                 return (
-                  <button
-                    key={mesa.id}
-                    onClick={() => handleMesaClick(mesa)}
-                    className={"group relative p-4 rounded-2xl transition-all duration-300 transform hover:scale-105 " +
-                      (esOcupada
-                        ? "bg-gradient-to-br from-red-500/20 to-red-600/10 border-2 border-red-500/50"
-                        : "bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border-2 border-emerald-500/50")}
-                  >
-                    <div className="absolute top-3 right-3">
-                      <div className={"w-3 h-3 rounded-full " + (esOcupada ? "bg-red-500" : "bg-emerald-500")}>
-                        {!esOcupada && <div className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-75"></div>}
+                  <div key={mesa.id} className="relative group">
+                    <button
+                      onClick={() => handleMesaClick(mesa)}
+                      className={"w-full p-4 rounded-2xl transition-all duration-300 transform hover:scale-105 " +
+                        (esOcupada
+                          ? "bg-gradient-to-br from-red-500/20 to-red-600/10 border-2 border-red-500/50"
+                          : "bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border-2 border-emerald-500/50")}
+                    >
+                      <div className="absolute top-3 right-3">
+                        <div className={"w-3 h-3 rounded-full " + (esOcupada ? "bg-red-500" : "bg-emerald-500")}>
+                          {!esOcupada && <div className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-75"></div>}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className={"w-12 h-12 mx-auto mb-3 rounded-xl flex items-center justify-center " + (esOcupada ? "bg-red-500/20" : "bg-emerald-500/20")}>
-                      {esOcupada ? (
-                        <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                      ) : (
-                        <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                        </svg>
-                      )}
-                    </div>
+                      <div className={"w-12 h-12 mx-auto mb-3 rounded-xl flex items-center justify-center " + (esOcupada ? "bg-red-500/20" : "bg-emerald-500/20")}>
+                        {esOcupada ? (
+                          <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                          </svg>
+                        )}
+                      </div>
 
-                    <p className="text-white font-bold text-center text-sm mb-1">{mesa.numero}</p>
-                    <p className={"text-[10px] text-center font-medium uppercase " + (esOcupada ? "text-red-400" : "text-emerald-400")}>
-                      {esOcupada ? "En servicio" : "Disponible"}
-                    </p>
-                  </button>
+                      <p className="text-white font-bold text-center text-sm mb-1">{mesa.numero}</p>
+                      <p className={"text-[10px] text-center font-medium uppercase " + (esOcupada ? "text-red-400" : "text-emerald-400")}>
+                        {esOcupada ? "En servicio" : "Disponible"}
+                      </p>
+                    </button>
+
+                    {/* ⭐ Botón de Cambiar Mesa - Solo en mesas ocupadas */}
+                    {esOcupada && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModalCambiarMesa({ mesa });
+                        }}
+                        className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[#D4B896] hover:bg-[#c4a886] text-[#0a0a0a] text-[10px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0 shadow-lg flex items-center gap-1.5"
+                        title="Cambiar de mesa"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                        Cambiar
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -408,6 +461,20 @@ export default function POS() {
           <span className="text-xs text-gray-400">Ocupada</span>
         </div>
       </div>
+
+      {/* ⭐ Modal Cambiar Mesa */}
+      {modalCambiarMesa && (
+        <ModalCambiarMesa
+          mesaOrigen={modalCambiarMesa.mesa}
+          mesasDisponibles={mesasMostrar.filter(m => 
+            m.estado === "disponible" && 
+            m.local_id === modalCambiarMesa.mesa.local_id // Solo mesas del mismo local
+          )}
+          onCambiar={handleCambiarMesa}
+          onCerrar={() => setModalCambiarMesa(null)}
+          loading={loadingCambio}
+        />
+      )}
     </div>
   );
 }
