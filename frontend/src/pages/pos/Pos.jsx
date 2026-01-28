@@ -15,26 +15,7 @@ export default function POS() {
   const [turnoActivo, setTurnoActivo] = useState(null);
   const [localDelTurno, setLocalDelTurno] = useState(null);
   const [inicializado, setInicializado] = useState(false);
-  
-  // Obtener rol del usuario
-  const userInicial = JSON.parse(localStorage.getItem('user') || '{}');
-  
-  // ⭐ DEBUG: Ver qué contiene el usuario
-  console.log('🔍 DEBUG USER COMPLETO:', userInicial);
-  
-  // ⭐ Detectar si es cajero de múltiples formas posibles
-  const esCajero = 
-    userInicial?.rol === 'cajero' || 
-    userInicial?.role === 'cajero' ||
-    userInicial?.rol?.toLowerCase() === 'cajero' ||
-    userInicial?.tipo === 'cajero';
-  
-  console.log('👤 Tipo de usuario detectado:', {
-    rol: userInicial?.rol,
-    role: userInicial?.role,
-    tipo: userInicial?.tipo,
-    esCajero: esCajero
-  });
+  const [esAdmin, setEsAdmin] = useState(false); // ⭐ Nuevo estado
 
   // ⭐ FUNCIÓN SIMPLE para cargar mesas (recibe el local directamente)
   const cargarMesas = async (localId) => {
@@ -55,115 +36,119 @@ export default function POS() {
     }
   };
 
-  // ⭐ EFECTO PRINCIPAL: Inicializar según rol
+  // ⭐ EFECTO PRINCIPAL: Detectar si tiene turno (cajero) o no (admin)
   useEffect(() => {
     const inicializar = async () => {
-      if (esCajero) {
-        // CAJERO: Primero obtener turno, luego cargar mesas de ESE local
-        try {
-          console.log('🔍 Buscando turno del cajero...');
-          const turno = await turnosService.getMiTurnoActivo();
-          
-          // ⭐ OBTENER local_id del lugar correcto (turno.local.id en vez de turno.local_id)
-          const localId = turno.local?.id || turno.local_id || turno.localId;
-          
-          console.log('🔍 DEBUG TURNO:', {
-            'turno completo': turno,
-            'turno.local': turno.local,
-            'turno.local?.id': turno.local?.id,
-            'turno.local_id': turno.local_id,
-            'localId FINAL': localId
-          });
-          
-          if (!localId) {
-            console.error('❌ ERROR: No se pudo obtener local_id del turno');
-            console.error('Estructura del turno:', JSON.stringify(turno, null, 2));
-            throw new Error('Turno sin local_id');
-          }
-          
-          console.log(`✅ Turno encontrado: ${turno.local?.nombre} (LOCAL_ID: ${localId})`);
-          
-          setTurnoActivo(turno);
-          setLocalDelTurno(localId); // ⭐ GUARDAR EL ID CORRECTO
-          
-          // Cargar mesas SOLO del local del turno
-          console.log(`📞 Llamando cargarMesas con localId: "${localId}"`);
-          await cargarMesas(localId);
-          
-        } catch (err) {
-          console.error('❌ Error obteniendo turno:', err);
-          toast.error('No tienes un turno abierto');
-          setTurnoActivo(null);
-          setLocalDelTurno(null);
-          setLoading(false);
+      try {
+        console.log('🔍 Verificando si el usuario tiene un turno activo...');
+        
+        // Intentar obtener turno activo
+        const turno = await turnosService.getMiTurnoActivo();
+        
+        // ⭐ TIENE TURNO = ES CAJERO con local asignado
+        const localId = turno.local?.id || turno.local_id || turno.localId;
+        
+        console.log('✅ USUARIO CON TURNO ACTIVO (Cajero)', {
+          local: turno.local?.nombre,
+          localId: localId
+        });
+        
+        if (!localId) {
+          console.error('❌ Turno sin local_id');
+          throw new Error('Turno sin local_id');
         }
-      } else {
-        // ADMIN: Cargar todas las mesas
-        console.log('👤 Usuario ADMIN - cargando todas las mesas');
+        
+        setTurnoActivo(turno);
+        setLocalDelTurno(localId);
+        setEsAdmin(false); // ⭐ No es admin
+        
+        // Cargar SOLO mesas de su local
+        await cargarMesas(localId);
+        
+      } catch {
+        // ⭐ NO TIENE TURNO = ES ADMIN
+        console.log('ℹ️ Usuario sin turno activo = ADMIN con acceso total');
+        
+        setTurnoActivo(null);
+        setLocalDelTurno(null);
+        setEsAdmin(true); // ⭐ Es admin
+        
+        // Cargar TODAS las mesas
         await cargarMesas(null);
       }
+      
       setInicializado(true);
     };
 
     inicializar();
-  }, [esCajero]);
+  }, []); // ⭐ Solo ejecutar una vez al montar
 
   // Refrescar periódicamente
   useEffect(() => {
     if (!inicializado) return;
-    // ⭐ CRÍTICO: Si es cajero, SOLO refrescar cuando localDelTurno esté definido
-    if (esCajero && !localDelTurno) {
-      console.log('⏸️ Refresh pausado - esperando localDelTurno');
+    
+    // Determinar qué local cargar
+    const localACargar = esAdmin ? null : localDelTurno;
+    
+    if (!esAdmin && !localDelTurno) {
+      console.log('⏸️ Refresh pausado - cajero sin localDelTurno');
       return;
     }
 
-    // ⭐ CALCULAR localAUsar DENTRO del useEffect para capturar el valor correcto
-    const localAUsar = esCajero ? localDelTurno : null;
-    console.log(`🔄 Iniciando refresh automático para local: ${localAUsar || 'TODOS'}`);
+    console.log(`🔄 Iniciando refresh automático`, {
+      esAdmin,
+      localDelTurno,
+      localACargar: localACargar || 'TODOS'
+    });
 
     const interval = setInterval(() => {
-      console.log(`⏰ Tick refresh - local: ${localAUsar || 'TODOS'}`);
-      cargarMesas(localAUsar);
+      console.log(`⏰ Tick refresh - local: ${localACargar || 'TODOS'}`);
+      cargarMesas(localACargar);
     }, 7000);
 
     return () => {
-      console.log(`🛑 Limpiando interval para local: ${localAUsar || 'TODOS'}`);
+      console.log(`🛑 Limpiando interval`);
       clearInterval(interval);
     };
-  }, [inicializado, esCajero, localDelTurno]); // ⭐ localDelTurno como dependencia
+  }, [inicializado, esAdmin, localDelTurno]);
 
   // Refrescar al volver a la pestaña
   useEffect(() => {
     if (!inicializado) return;
-    // ⭐ CRÍTICO: Si es cajero, SOLO refrescar cuando localDelTurno esté definido
-    if (esCajero && !localDelTurno) {
-      console.log('⏸️ Visibility listener pausado - esperando localDelTurno');
+    
+    const localACargar = esAdmin ? null : localDelTurno;
+    
+    if (!esAdmin && !localDelTurno) {
+      console.log('⏸️ Visibility listener pausado - cajero sin localDelTurno');
       return;
     }
 
-    // ⭐ CALCULAR localAUsar DENTRO del useEffect
-    const localAUsar = esCajero ? localDelTurno : null;
-    console.log(`👁️ Configurando visibility listener para local: ${localAUsar || 'TODOS'}`);
+    console.log(`👁️ Configurando visibility listener`, {
+      esAdmin,
+      localACargar: localACargar || 'TODOS'
+    });
 
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
-        console.log(`👁️ Pestaña visible - refrescando local: ${localAUsar || 'TODOS'}`);
-        cargarMesas(localAUsar);
+        console.log(`👁️ Pestaña visible - refrescando: ${localACargar || 'TODOS'}`);
+        cargarMesas(localACargar);
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => {
-      console.log(`🛑 Limpiando visibility listener para local: ${localAUsar || 'TODOS'}`);
+      console.log(`🛑 Limpiando visibility listener`);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [inicializado, esCajero, localDelTurno]); // ⭐ localDelTurno como dependencia
+  }, [inicializado, esAdmin, localDelTurno]);
 
   const handleMesaClick = async (mesa) => {
+    const localACargar = esAdmin ? null : localDelTurno;
+    
     try {
       if (mesa.estado === "disponible") {
         const pedido = await pedidosService.abrirPedido(mesa.id);
         toast.success("Pedido abierto en " + mesa.numero);
-        await cargarMesas(esCajero ? localDelTurno : null);
+        await cargarMesas(localACargar);
         navigate("/pos/pedido/" + pedido.id);
       } else if (mesa.estado === "ocupada") {
         try {
@@ -171,7 +156,7 @@ export default function POS() {
           navigate("/pos/pedido/" + pedido.id);
         } catch {
           toast.error("No se encontró el pedido");
-          await cargarMesas(esCajero ? localDelTurno : null);
+          await cargarMesas(localACargar);
         }
       }
     } catch (error) {
@@ -179,24 +164,25 @@ export default function POS() {
         navigate("/pos/pedido/" + error.response.data.pedido_id);
       } else {
         toast.error(error.response?.data?.error || "Error al procesar");
-        await cargarMesas(esCajero ? localDelTurno : null);
+        await cargarMesas(localACargar);
       }
     }
   };
 
   const handleRefresh = async () => {
     setLoading(true);
-    await cargarMesas(esCajero ? localDelTurno : null);
+    const localACargar = esAdmin ? null : localDelTurno;
+    await cargarMesas(localACargar);
     toast.success("Actualizado", { duration: 1500 });
   };
 
-  // Filtrar mesas para admin (cajero ya viene filtrado del backend)
-  const mesasMostrar = esCajero 
-    ? mesas 
-    : (filtroLocal ? mesas.filter(m => m.local_id === filtroLocal) : mesas);
+  // Filtrar mesas (cajero ya viene filtrado del backend)
+  const mesasMostrar = esAdmin 
+    ? (filtroLocal ? mesas.filter(m => m.local_id === filtroLocal) : mesas)
+    : mesas; // Cajero: ya vienen filtradas del backend
 
   // Locales a mostrar (cajero solo ve su local)
-  const localesMostrar = esCajero && localDelTurno
+  const localesMostrar = !esAdmin && localDelTurno
     ? locales.filter(l => l.id === localDelTurno)
     : locales;
 
@@ -219,7 +205,7 @@ export default function POS() {
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-[#D4B896] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-[#D4B896] text-lg">
-            {esCajero ? 'Verificando turno...' : 'Cargando mesas...'}
+            {inicializado ? 'Cargando mesas...' : 'Verificando acceso...'}
           </p>
         </div>
       </div>
@@ -227,7 +213,7 @@ export default function POS() {
   }
 
   // ⭐ CAJERO SIN TURNO
-  if (esCajero && !turnoActivo) {
+  if (!esAdmin && !turnoActivo) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
         <div className="bg-[#141414] border border-red-500/30 rounded-2xl p-8 max-w-md text-center">
@@ -265,7 +251,7 @@ export default function POS() {
             </button>
 
             {/* Badge local cajero */}
-            {esCajero && turnoActivo && (
+            {!esAdmin && turnoActivo && (
               <div className="hidden md:flex items-center gap-3 bg-[#141414] border border-emerald-500/30 rounded-xl px-4 py-2">
                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
                 <div>
@@ -317,7 +303,7 @@ export default function POS() {
           </div>
 
           {/* Badge móvil cajero */}
-          {esCajero && turnoActivo && (
+          {!esAdmin && turnoActivo && (
             <div className="mt-2 md:hidden bg-[#141414] border border-emerald-500/30 rounded-lg px-3 py-2 flex items-center justify-between">
               <div>
                 <p className="text-[10px] text-gray-400 uppercase">Tu Local</p>
@@ -330,7 +316,7 @@ export default function POS() {
       </header>
 
       {/* ⭐ FILTROS - SOLO ADMIN */}
-      {!esCajero && locales.length > 1 && (
+      {esAdmin && locales.length > 1 && (
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex gap-2 overflow-x-auto pb-2">
             <button
@@ -356,7 +342,7 @@ export default function POS() {
       <div className="max-w-7xl mx-auto px-4 pb-8 space-y-8">
         {mesasPorLocal.map(local => (
           <div key={local.id} className="space-y-4">
-            {!esCajero && !filtroLocal && (
+            {esAdmin && !filtroLocal && (
               <div className="flex items-center gap-4">
                 <h2 className="text-lg font-bold text-white">{local.nombre}</h2>
                 <div className="flex-1 h-px bg-[#D4B896]/30"></div>
