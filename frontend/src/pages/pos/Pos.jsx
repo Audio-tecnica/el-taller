@@ -28,33 +28,21 @@ export default function POS() {
         return;
       }
 
-      // Obtener el local asignado del usuario
-      const localId = user?.local_asignado_id;
-      
-      if (!localId) {
-        toast.error('No tienes un local asignado. Contacta al administrador.');
-        setCargandoTurno(false);
-        return;
-      }
-
-      // Obtener el turno activo del local
+      // ⭐ CAMBIO PRINCIPAL: Usar getMiTurnoActivo que busca el turno del cajero actual
+      // sin depender del local_asignado_id
       try {
-        const turno = await turnosService.getTurnoActivo(localId);
-        
-        // Verificar que el cajero del turno coincida con el usuario actual
-        const cajeroId = turno.cajero_id || turno.usuario_id;
-        if (cajeroId !== user.id) {
-          toast.error('No tienes un turno abierto. Contacta al administrador.');
-          setLocalTurno(null);
-          setTurnoActivo(null);
-          setCargandoTurno(false);
-          return;
-        }
+        const turno = await turnosService.getMiTurnoActivo();
         
         setTurnoActivo(turno);
-        setLocalTurno(localId);
+        setLocalTurno(turno.local_id); // ⭐ Usar el local DEL TURNO, no del usuario
         
-      } catch  {
+        // ⭐ Actualizar el localStorage con el local correcto del turno
+        const updatedUser = { ...user, local_asignado_id: turno.local_id };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        
+        console.log(`✅ Turno activo encontrado para local: ${turno.local?.nombre}`);
+        
+      } catch {
         // Si no hay turno activo, mostrar error
         toast.error('No tienes un turno abierto. Contacta al administrador.');
         setLocalTurno(null);

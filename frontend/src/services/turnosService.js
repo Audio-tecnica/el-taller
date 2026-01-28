@@ -11,6 +11,12 @@ export const turnosService = {
     return response.data;
   },
 
+  // ⭐ NUEVO: Obtener turno activo del cajero actual (no requiere local_id)
+  getMiTurnoActivo: async () => {
+    const response = await api.get("/turnos/mi-turno");
+    return response.data;
+  },
+
   getTurnoActivo: async (local_id) => {
     const response = await api.get(`/turnos/activo/${local_id}`);
     return response.data;

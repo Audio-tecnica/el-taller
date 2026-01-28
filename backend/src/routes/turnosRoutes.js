@@ -6,6 +6,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 router.use(authMiddleware);
 
 router.post('/abrir', turnosController.abrirTurno);
+router.get('/mi-turno', turnosController.getMiTurnoActivo); // ⭐ NUEVO: Turno del cajero actual
 router.get('/activo/:local_id', turnosController.getTurnoActivo);
 router.post('/:turno_id/cerrar', turnosController.cerrarTurno);
 router.get('/historial', turnosController.getHistorial);

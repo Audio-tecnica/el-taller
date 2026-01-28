@@ -69,16 +69,19 @@ const authController = {
       }
 
       // ⭐ VALIDACIÓN PARA CAJEROS - Solo pueden entrar si tienen turno abierto
+      let turnoActivoCajero = null;
+      
       if (usuario.rol === "cajero") {
         // Buscar turno activo DEL CAJERO (usar cajero_id)
-        const turnoActivo = await Turno.findOne({
+        turnoActivoCajero = await Turno.findOne({
           where: {
             cajero_id: usuario.id,
             estado: "abierto",
           },
+          include: [{ model: Local, as: "local" }],
         });
 
-        if (!turnoActivo) {
+        if (!turnoActivoCajero) {
           // Registrar intento bloqueado
           await IntentoAcceso.create({
             usuario_id: usuario.id,
@@ -96,6 +99,10 @@ const authController = {
         }
       }
 
+      // ⭐ Determinar el local correcto: del turno activo o del usuario
+      const localParaToken = turnoActivoCajero 
+        ? turnoActivoCajero.local_id 
+        : usuario.local_asignado_id;
 
       // Login exitoso - Generar token
       const token = jwt.sign(
@@ -103,7 +110,7 @@ const authController = {
           id: usuario.id,
           email: usuario.email,
           rol: usuario.rol,
-          local: usuario.local_asignado_id,
+          local: localParaToken, // ⭐ Usar el local del turno para cajeros
         },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRES_IN },
@@ -121,10 +128,24 @@ const authController = {
 
       const { password_hash: _, ...usuarioSinPassword } = usuario.toJSON();
 
+      // ⭐ Agregar información del turno activo para cajeros
+      const respuestaUsuario = {
+        ...usuarioSinPassword,
+        turno_activo: turnoActivoCajero ? {
+          id: turnoActivoCajero.id,
+          local_id: turnoActivoCajero.local_id,
+          local_nombre: turnoActivoCajero.local?.nombre,
+        } : null,
+        // ⭐ Sobrescribir local_asignado_id con el del turno activo para cajeros
+        local_asignado_id: turnoActivoCajero 
+          ? turnoActivoCajero.local_id 
+          : usuario.local_asignado_id,
+      };
+
       res.json({
         message: "Login exitoso",
         token,
-        user: usuarioSinPassword,
+        user: respuestaUsuario,
       });
     } catch (error) {
       console.error("Error en login:", error);
