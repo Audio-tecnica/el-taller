@@ -15,12 +15,13 @@ export default function POS() {
   const [turnoActivo, setTurnoActivo] = useState(null);
   const [localTurno, setLocalTurno] = useState(null);
   const [cargandoTurno, setCargandoTurno] = useState(true);
+  
+  // ⭐ Usuario actual (se obtiene una sola vez)
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   // ⭐ Obtener turno activo del cajero
   const obtenerTurnoActivo = useCallback(async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('user'));
-      
       // Solo cajeros tienen restricción por turno
       if (user?.rol !== 'cajero') {
         setLocalTurno(null);
@@ -81,7 +82,6 @@ export default function POS() {
   // ⭐ Cargar datos solo cuando se haya verificado el turno
   useEffect(() => {
     if (!cargandoTurno) {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
       // Si no es cajero O si es cajero y tiene turno activo
       if (user?.rol !== 'cajero' || (user?.rol === 'cajero' && localTurno)) {
         cargarDatos();
@@ -145,11 +145,19 @@ export default function POS() {
     toast.success("Actualizado", { duration: 1500 });
   };
 
-  const mesasFiltradas = filtroLocal
-    ? mesas.filter((m) => m.local_id === filtroLocal)
+  // ⭐ Para cajeros: usar localTurno como filtro. Para admin: usar filtroLocal manual
+  const filtroEfectivo = user?.rol === 'cajero' ? localTurno : filtroLocal;
+
+  const mesasFiltradas = filtroEfectivo
+    ? mesas.filter((m) => m.local_id === filtroEfectivo)
     : mesas;
 
-  const mesasPorLocal = locales
+  // ⭐ Para cajeros: solo mostrar el local asignado
+  const localesFiltrados = user?.rol === 'cajero' && localTurno
+    ? locales.filter((l) => l.id === localTurno)
+    : locales;
+
+  const mesasPorLocal = localesFiltrados
     .map((local) => ({
       ...local,
       mesas: mesasFiltradas.filter((m) => m.local_id === local.id),
@@ -176,7 +184,6 @@ export default function POS() {
   }
 
   // ⭐ Si es cajero sin turno, mostrar mensaje
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
   if (user?.rol === 'cajero' && !turnoActivo) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
