@@ -18,7 +18,23 @@ export default function POS() {
   
   // Obtener rol del usuario
   const userInicial = JSON.parse(localStorage.getItem('user') || '{}');
-  const esCajero = userInicial?.rol === 'cajero';
+  
+  // ⭐ DEBUG: Ver qué contiene el usuario
+  console.log('🔍 DEBUG USER COMPLETO:', userInicial);
+  
+  // ⭐ Detectar si es cajero de múltiples formas posibles
+  const esCajero = 
+    userInicial?.rol === 'cajero' || 
+    userInicial?.role === 'cajero' ||
+    userInicial?.rol?.toLowerCase() === 'cajero' ||
+    userInicial?.tipo === 'cajero';
+  
+  console.log('👤 Tipo de usuario detectado:', {
+    rol: userInicial?.rol,
+    role: userInicial?.role,
+    tipo: userInicial?.tipo,
+    esCajero: esCajero
+  });
 
   // ⭐ FUNCIÓN SIMPLE para cargar mesas (recibe el local directamente)
   const cargarMesas = async (localId) => {
