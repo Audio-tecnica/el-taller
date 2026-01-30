@@ -2,6 +2,8 @@ const { DataTypes } = require('sequelize');
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
+    console.log('📋 Creando tabla clientes_b2b...');
+    
     // 1. Crear tabla clientes_b2b
     await queryInterface.createTable('clientes_b2b', {
       id: {
@@ -16,8 +18,7 @@ module.exports = {
       },
       numero_documento: {
         type: DataTypes.STRING(50),
-        allowNull: false,
-        unique: true
+        allowNull: false
       },
       razon_social: {
         type: DataTypes.STRING(200),
@@ -154,11 +155,26 @@ module.exports = {
       }
     });
 
+    console.log('✓ Tabla clientes_b2b creada');
+    console.log('📋 Agregando índices a clientes_b2b...');
+
     // Índices para clientes_b2b
-    await queryInterface.addIndex('clientes_b2b', ['numero_documento'], { unique: true });
-    await queryInterface.addIndex('clientes_b2b', ['razon_social']);
-    await queryInterface.addIndex('clientes_b2b', ['estado']);
-    await queryInterface.addIndex('clientes_b2b', ['email']);
+    await queryInterface.addIndex('clientes_b2b', ['numero_documento'], { 
+      unique: true,
+      name: 'clientes_b2b_numero_documento_unique'
+    });
+    await queryInterface.addIndex('clientes_b2b', ['razon_social'], {
+      name: 'clientes_b2b_razon_social_idx'
+    });
+    await queryInterface.addIndex('clientes_b2b', ['estado'], {
+      name: 'clientes_b2b_estado_idx'
+    });
+    await queryInterface.addIndex('clientes_b2b', ['email'], {
+      name: 'clientes_b2b_email_idx'
+    });
+
+    console.log('✓ Índices de clientes_b2b agregados');
+    console.log('📋 Creando tabla ventas_b2b...');
 
     // 2. Crear tabla ventas_b2b
     await queryInterface.createTable('ventas_b2b', {
@@ -169,8 +185,7 @@ module.exports = {
       },
       numero_factura: {
         type: DataTypes.STRING(50),
-        allowNull: false,
-        unique: true
+        allowNull: false
       },
       cliente_b2b_id: {
         type: DataTypes.UUID,
@@ -292,13 +307,32 @@ module.exports = {
       }
     });
 
+    console.log('✓ Tabla ventas_b2b creada');
+    console.log('📋 Agregando índices a ventas_b2b...');
+
     // Índices para ventas_b2b
-    await queryInterface.addIndex('ventas_b2b', ['numero_factura'], { unique: true });
-    await queryInterface.addIndex('ventas_b2b', ['cliente_b2b_id']);
-    await queryInterface.addIndex('ventas_b2b', ['estado_pago']);
-    await queryInterface.addIndex('ventas_b2b', ['fecha_venta']);
-    await queryInterface.addIndex('ventas_b2b', ['fecha_vencimiento']);
-    await queryInterface.addIndex('ventas_b2b', ['local_id']);
+    await queryInterface.addIndex('ventas_b2b', ['numero_factura'], { 
+      unique: true,
+      name: 'ventas_b2b_numero_factura_unique'
+    });
+    await queryInterface.addIndex('ventas_b2b', ['cliente_b2b_id'], {
+      name: 'ventas_b2b_cliente_b2b_id_idx'
+    });
+    await queryInterface.addIndex('ventas_b2b', ['estado_pago'], {
+      name: 'ventas_b2b_estado_pago_idx'
+    });
+    await queryInterface.addIndex('ventas_b2b', ['fecha_venta'], {
+      name: 'ventas_b2b_fecha_venta_idx'
+    });
+    await queryInterface.addIndex('ventas_b2b', ['fecha_vencimiento'], {
+      name: 'ventas_b2b_fecha_vencimiento_idx'
+    });
+    await queryInterface.addIndex('ventas_b2b', ['local_id'], {
+      name: 'ventas_b2b_local_id_idx'
+    });
+
+    console.log('✓ Índices de ventas_b2b agregados');
+    console.log('📋 Creando tabla items_venta_b2b...');
 
     // 3. Crear tabla items_venta_b2b
     await queryInterface.createTable('items_venta_b2b', {
@@ -364,9 +398,19 @@ module.exports = {
       }
     });
 
+    console.log('✓ Tabla items_venta_b2b creada');
+    console.log('📋 Agregando índices a items_venta_b2b...');
+
     // Índices para items_venta_b2b
-    await queryInterface.addIndex('items_venta_b2b', ['venta_b2b_id']);
-    await queryInterface.addIndex('items_venta_b2b', ['producto_id']);
+    await queryInterface.addIndex('items_venta_b2b', ['venta_b2b_id'], {
+      name: 'items_venta_b2b_venta_b2b_id_idx'
+    });
+    await queryInterface.addIndex('items_venta_b2b', ['producto_id'], {
+      name: 'items_venta_b2b_producto_id_idx'
+    });
+
+    console.log('✓ Índices de items_venta_b2b agregados');
+    console.log('📋 Creando tabla pagos_b2b...');
 
     // 4. Crear tabla pagos_b2b
     await queryInterface.createTable('pagos_b2b', {
@@ -377,8 +421,7 @@ module.exports = {
       },
       numero_recibo: {
         type: DataTypes.STRING(50),
-        allowNull: false,
-        unique: true
+        allowNull: false
       },
       venta_b2b_id: {
         type: DataTypes.UUID,
@@ -470,12 +513,29 @@ module.exports = {
       }
     });
 
+    console.log('✓ Tabla pagos_b2b creada');
+    console.log('📋 Agregando índices a pagos_b2b...');
+
     // Índices para pagos_b2b
-    await queryInterface.addIndex('pagos_b2b', ['numero_recibo'], { unique: true });
-    await queryInterface.addIndex('pagos_b2b', ['venta_b2b_id']);
-    await queryInterface.addIndex('pagos_b2b', ['cliente_b2b_id']);
-    await queryInterface.addIndex('pagos_b2b', ['fecha_pago']);
-    await queryInterface.addIndex('pagos_b2b', ['estado']);
+    await queryInterface.addIndex('pagos_b2b', ['numero_recibo'], { 
+      unique: true,
+      name: 'pagos_b2b_numero_recibo_unique'
+    });
+    await queryInterface.addIndex('pagos_b2b', ['venta_b2b_id'], {
+      name: 'pagos_b2b_venta_b2b_id_idx'
+    });
+    await queryInterface.addIndex('pagos_b2b', ['cliente_b2b_id'], {
+      name: 'pagos_b2b_cliente_b2b_id_idx'
+    });
+    await queryInterface.addIndex('pagos_b2b', ['fecha_pago'], {
+      name: 'pagos_b2b_fecha_pago_idx'
+    });
+    await queryInterface.addIndex('pagos_b2b', ['estado'], {
+      name: 'pagos_b2b_estado_idx'
+    });
+
+    console.log('✓ Índices de pagos_b2b agregados');
+    console.log('✅ Módulo B2B completado');
   },
 
   down: async (queryInterface, Sequelize) => {
