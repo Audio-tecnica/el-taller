@@ -82,6 +82,11 @@ const inventarioKardexRoutes = require('./routes/inventarioKardexRoutes');
 const proveedorRoutes = require('./routes/proveedorRoutes');
 const reportesPremiumRoutes = require('./routes/reportesPremiumRoutes');
 
+// ⭐ RUTAS B2B
+const clientesB2BRoutes = require('./routes/clientesB2BRoutes');
+const ventasB2BRoutes = require('./routes/ventasB2BRoutes');
+const pagosB2BRoutes = require('./routes/pagosB2BRoutes');
+
 app.use('/api/reportes', reportesRoutes);
 app.use("/api/turnos", turnosRoutes);
 app.use("/api/cortesias", cortesiasRoutes);
@@ -96,6 +101,9 @@ app.use('/api/inventario', inventarioRoutes); // Rutas originales
 app.use('/api/inventario-kardex', inventarioKardexRoutes); // Rutas nuevas en otra ruta
 app.use('/api/proveedores', proveedorRoutes); // ⭐ Nuevo
 app.use('/api/reportes-premium', reportesPremiumRoutes); // ⭐ Nuevo
+app.use('/api/clientes-b2b', clientesB2BRoutes); // ⭐ Módulo B2B
+app.use('/api/ventas-b2b', ventasB2BRoutes); // ⭐ Módulo B2B
+app.use('/api/pagos-b2b', pagosB2BRoutes); // ⭐ Módulo B2B
 
 // Socket.IO - Manejo de conexiones
 io.on('connection', (socket) => {

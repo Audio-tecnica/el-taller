@@ -26,6 +26,14 @@ const Compra = require('./Compra');
 const IntentoAcceso = require('./IntentoAcceso');
 
 // ==========================================
+// IMPORTAR MODELOS B2B
+// ==========================================
+const ClienteB2B = require('./ClienteB2B');
+const VentaB2B = require('./VentaB2B');
+const ItemVentaB2B = require('./ItemVentaB2B');
+const PagoB2B = require('./PagoB2B');
+
+// ==========================================
 // RELACIONES EXISTENTES
 // ==========================================
 
@@ -136,6 +144,56 @@ Compra.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
 Usuario.hasMany(Compra, { foreignKey: 'usuario_id', as: 'compras_realizadas' });
 
 // ==========================================
+// RELACIONES B2B
+// ==========================================
+
+// ClienteB2B - Usuario (creado/actualizado por)
+ClienteB2B.belongsTo(Usuario, { foreignKey: 'creado_por', as: 'creador' });
+ClienteB2B.belongsTo(Usuario, { foreignKey: 'actualizado_por', as: 'actualizador' });
+
+// VentaB2B - ClienteB2B
+VentaB2B.belongsTo(ClienteB2B, { foreignKey: 'cliente_b2b_id', as: 'cliente' });
+ClienteB2B.hasMany(VentaB2B, { foreignKey: 'cliente_b2b_id', as: 'ventas' });
+
+// VentaB2B - Local
+VentaB2B.belongsTo(Local, { foreignKey: 'local_id', as: 'local' });
+Local.hasMany(VentaB2B, { foreignKey: 'local_id', as: 'ventas_b2b' });
+
+// VentaB2B - Pedido
+VentaB2B.belongsTo(Pedido, { foreignKey: 'pedido_id', as: 'pedido' });
+Pedido.hasOne(VentaB2B, { foreignKey: 'pedido_id', as: 'venta_b2b' });
+
+// VentaB2B - Usuario (vendedor/anulado por)
+VentaB2B.belongsTo(Usuario, { foreignKey: 'vendedor_id', as: 'vendedor' });
+Usuario.hasMany(VentaB2B, { foreignKey: 'vendedor_id', as: 'ventas_b2b' });
+VentaB2B.belongsTo(Usuario, { foreignKey: 'anulado_por', as: 'anulador' });
+
+// ItemVentaB2B - VentaB2B
+ItemVentaB2B.belongsTo(VentaB2B, { foreignKey: 'venta_b2b_id', as: 'venta' });
+VentaB2B.hasMany(ItemVentaB2B, { foreignKey: 'venta_b2b_id', as: 'items' });
+
+// ItemVentaB2B - Producto
+ItemVentaB2B.belongsTo(Producto, { foreignKey: 'producto_id', as: 'producto' });
+Producto.hasMany(ItemVentaB2B, { foreignKey: 'producto_id', as: 'items_venta_b2b' });
+
+// PagoB2B - VentaB2B
+PagoB2B.belongsTo(VentaB2B, { foreignKey: 'venta_b2b_id', as: 'venta' });
+VentaB2B.hasMany(PagoB2B, { foreignKey: 'venta_b2b_id', as: 'pagos' });
+
+// PagoB2B - ClienteB2B
+PagoB2B.belongsTo(ClienteB2B, { foreignKey: 'cliente_b2b_id', as: 'cliente' });
+ClienteB2B.hasMany(PagoB2B, { foreignKey: 'cliente_b2b_id', as: 'pagos' });
+
+// PagoB2B - Usuario (recibido/anulado por)
+PagoB2B.belongsTo(Usuario, { foreignKey: 'recibido_por', as: 'receptor' });
+Usuario.hasMany(PagoB2B, { foreignKey: 'recibido_por', as: 'pagos_b2b_recibidos' });
+PagoB2B.belongsTo(Usuario, { foreignKey: 'anulado_por', as: 'anulador' });
+
+// PagoB2B - Turno
+PagoB2B.belongsTo(Turno, { foreignKey: 'turno_id', as: 'turno' });
+Turno.hasMany(PagoB2B, { foreignKey: 'turno_id', as: 'pagos_b2b' });
+
+// ==========================================
 // EXPORTAR MODELOS
 // ==========================================
 module.exports = {
@@ -158,5 +216,11 @@ module.exports = {
   Compra,
   
   // ⭐ Modelo de intentos de acceso
-  IntentoAcceso
+  IntentoAcceso,
+  
+  // Modelos B2B
+  ClienteB2B,
+  VentaB2B,
+  ItemVentaB2B,
+  PagoB2B
 };
