@@ -222,29 +222,29 @@ const authController = {
   },
 
   // Obtener usuario actual
-  me: async (req, res) => {
-    try {
-      const usuario = await Usuario.findByPk(req.usuario.id, {
-        attributes: { exclude: ["password_hash"] },
-      });
+me: async (req, res) => {
+  try {
+    const usuario = await Usuario.findByPk(req.user.id, {  // ⭐ Cambiar req.usuario a req.user
+      attributes: { exclude: ["password_hash"] },
+    });
 
-      if (!usuario) {
-        return res.status(404).json({ error: "Usuario no encontrado" });
-      }
-
-      res.json({ user: usuario });
-    } catch (error) {
-      console.error("Error en me:", error);
-      res.status(500).json({ error: "Error en el servidor" });
+    if (!usuario) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
     }
-  },
 
-  // Refresh token
-  refresh: async (req, res) => {
-    try {
-      const usuario = await Usuario.findByPk(req.usuario.id, {
-        attributes: { exclude: ["password_hash"] },
-      });
+    res.json({ user: usuario });
+  } catch (error) {
+    console.error("Error en me:", error);
+    res.status(500).json({ error: "Error en el servidor" });
+  }
+},
+
+// Línea 245 - función refresh
+refresh: async (req, res) => {
+  try {
+    const usuario = await Usuario.findByPk(req.user.id, {  // ⭐ Cambiar req.usuario a req.user
+      attributes: { exclude: ["password_hash"] },
+    });
 
       if (!usuario) {
         return res.status(404).json({ error: "Usuario no encontrado" });
@@ -277,11 +277,11 @@ const authController = {
   },
 
   // Cambiar contraseña
-  cambiarPassword: async (req, res) => {
-    try {
-      const { passwordActual, passwordNueva } = req.body;
+cambiarPassword: async (req, res) => {
+  try {
+    const { passwordActual, passwordNueva } = req.body;
 
-      const usuario = await Usuario.findByPk(req.usuario.id);
+    const usuario = await Usuario.findByPk(req.user.id); 
 
       if (!usuario) {
         return res.status(404).json({ error: "Usuario no encontrado" });
@@ -417,16 +417,16 @@ const authController = {
   },
 
   // Eliminar usuario (solo admin)
-  eliminarUsuario: async (req, res) => {
-    try {
-      const { id } = req.params;
+ eliminarUsuario: async (req, res) => {
+  try {
+    const { id } = req.params;
 
-      // No permitir eliminar al usuario actual
-      if (id === req.usuario.id) {
-        return res
-          .status(400)
-          .json({ error: "No puedes eliminar tu propio usuario" });
-      }
+    // No permitir eliminar al usuario actual
+    if (id === req.user.id) {  // ⭐ Cambiar req.usuario a req.user
+      return res
+        .status(400)
+        .json({ error: "No puedes eliminar tu propio usuario" });
+    }
 
       const usuario = await Usuario.findByPk(id);
 

@@ -9,6 +9,7 @@ import Pedido from "./pages/pos/Pedido";
 import Caja from "./pages/caja/Caja";
 import Reportes from "./pages/reportes/Reportes";
 import { AuthProvider } from "./context/AuthContext";
+import ClientesB2B from './pages/clientesB2B/ClientesB2B';
 
 // ⭐ NUEVAS RUTAS KARDEX - Ajustar paths
 import Proveedores from "./pages/proveedores/Proveedores";
@@ -38,6 +39,7 @@ function AppContent() {
         <Route path="/reportes" element={<Reportes />} />
         <Route path="/admin/intentos-acceso" element={<IntentosAcceso />} />
         <Route path="/admin/usuarios" element={<GestionUsuarios />} />
+        <Route path="/clientes-b2b" element={<ClientesB2B />} />
         
         {/* ⭐ Rutas Kardex Premium */}
         <Route path="/proveedores" element={<Proveedores />} />
