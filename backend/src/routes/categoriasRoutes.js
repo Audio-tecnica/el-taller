@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const categoriasController = require('../controllers/categoriasController');
-const authMiddleware = require('../middleware/authMiddleware');
+const { authMiddleware } = require('../middleware/authMiddleware');  // ⭐ Agregar llaves
 
 router.use(authMiddleware);
 

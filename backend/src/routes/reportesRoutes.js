@@ -1,10 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const reportesController = require('../controllers/reportesController');
-const authMiddleware = require('../middleware/authMiddleware');
+const { authMiddleware } = require('../middleware/authMiddleware');  // ⭐ Agregar llaves
 
 router.use(authMiddleware);
-
 // Dashboard resumen
 router.get('/dashboard', reportesController.getDashboard);
 

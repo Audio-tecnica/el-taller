@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const inventarioKardexController = require("../controllers/inventarioKardexController");
-const authMiddleware = require("../middleware/authMiddleware");
+const { authMiddleware } = require("../middleware/authMiddleware");  // ⭐ Agregar llaves
 
 // Todas protegidas
 router.use(authMiddleware);
@@ -39,6 +39,5 @@ router.post(
   "/transferir",
   inventarioKardexController.transferirEntreLocales
 );
-
 
 module.exports = router;

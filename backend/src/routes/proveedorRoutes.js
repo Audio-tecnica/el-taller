@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Proveedor, Compra, MovimientoInventario } = require('../models');
 const { Op } = require('sequelize');
-const authMiddleware = require('../middleware/authMiddleware');
+const { authMiddleware } = require('../middleware/authMiddleware');  // ⭐ Agregar llaves
 
 router.use(authMiddleware);
 
