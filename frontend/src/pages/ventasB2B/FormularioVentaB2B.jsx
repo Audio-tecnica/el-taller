@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import clientesB2BService from '../../services/clientesB2BService';
-import productosService from '../../services/productosService';
+import { productosService } from '../../services/productosService';
 import ventasB2BService from '../../services/ventasB2BService';
 import { authService } from '../../services/authService';
 

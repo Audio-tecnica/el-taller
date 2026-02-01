@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react'; 
 import ventasB2BService from '../../services/ventasB2BService';
 import FormularioVentaB2B from './FormularioVentaB2B';
 import DetalleVentaB2B from './DetalleVentaB2B';
@@ -24,25 +24,26 @@ export default function VentasB2B() {
     limite: 20
   });
 
-  useEffect(() => {
-    cargarDatos();
-  }, [filtros]);
 
-  const cargarDatos = async () => {
-    try {
-      setCargando(true);
-      const [ventasData, resumenData] = await Promise.all([
-        ventasB2BService.obtenerVentas(filtros),
-        ventasB2BService.obtenerResumenVentas()
-      ]);
-      setVentas(ventasData.ventas || []);
-      setResumen(resumenData);
-    } catch (error) {
-      console.error('Error al cargar ventas:', error);
-    } finally {
-      setCargando(false);
-    }
-  };
+const cargarDatos = useCallback(async () => {
+  try {
+    setCargando(true);
+    const [ventasData, resumenData] = await Promise.all([
+      ventasB2BService.obtenerVentas(filtros),
+      ventasB2BService.obtenerResumenVentas()
+    ]);
+    setVentas(ventasData.ventas || []);
+    setResumen(resumenData);
+  } catch (error) {
+    console.error('Error al cargar ventas:', error);
+  } finally {
+    setCargando(false);
+  }
+}, [filtros]);
+
+useEffect(() => {
+  cargarDatos();
+}, [cargarDatos]);
 
   const handleVerDetalle = async (venta) => {
     try {
