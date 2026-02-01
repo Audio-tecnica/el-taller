@@ -4,7 +4,7 @@ const clientesB2BController = require('../controllers/clientesB2BController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { adminMiddleware } = require('../middleware/adminMiddleware');
 
-// Todas las rutas requieren autenticación
+// ⭐ IMPORTANTE: authMiddleware debe estar PRIMERO
 router.use(authMiddleware);
 
 // Rutas públicas (para usuarios autenticados)
