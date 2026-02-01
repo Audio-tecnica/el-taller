@@ -524,10 +524,7 @@ export default function Dashboard() {
             </div>
           </div>
         )}
-        <Link to="/ventas-b2b" className="menu-item">
-          <span>📄</span>
-          <span>Ventas B2B</span>
-        </Link>
+     
         {/* ⭐ Módulo de Seguridad - SOLO ADMINISTRADORES */}
         {usuario?.rol === "administrador" && (
           <div className="mb-8">
