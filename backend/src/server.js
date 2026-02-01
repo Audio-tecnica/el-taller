@@ -11,11 +11,13 @@ const server = http.createServer(app);
 // Configurar Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: [
-      "http://localhost:5173",
-      "https://el-taller-phi.vercel.app",
-      "https://el-taller-7i0j0i5yw-carloss-projects-0af99df2.vercel.app", // ⭐ Agregar este
-    ],
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (origin.includes('.vercel.app') || origin === 'http://localhost:5173') {
+        return callback(null, true);
+      }
+      callback(new Error("Not allowed by CORS"));
+    },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true
   },
@@ -23,17 +25,23 @@ const io = new Server(server, {
   pingInterval: 25000
 });
 
+
 // Middleware - CORS primero
 const allowedOrigins = [
   "http://localhost:5173",
   "https://el-taller-phi.vercel.app",
-  "https://el-taller-7i0j0i5yw-carloss-projects-0af99df2.vercel.app", // ⭐ Agregar este
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
+      
+      // ⭐ Permitir cualquier URL de Vercel
+      if (origin.includes('.vercel.app')) {
+        return callback(null, true);
+      }
+      
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       } else {
