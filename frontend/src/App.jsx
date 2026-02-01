@@ -19,6 +19,7 @@ import { Navigate } from "react-router-dom";
 import IntentosAcceso from "./pages/admin/IntentosAcceso";
 import GestionUsuarios from "./pages/admin/GestionUsuarios";
 import { useSocket } from './hooks/useSocket';
+import VentasB2B from './pages/ventasB2B/VentasB2B';
 
 // ⭐ Componente interno que usa useSocket dentro del Router
 function AppContent() {
@@ -40,6 +41,7 @@ function AppContent() {
         <Route path="/admin/intentos-acceso" element={<IntentosAcceso />} />
         <Route path="/admin/usuarios" element={<GestionUsuarios />} />
         <Route path="/clientes-b2b" element={<ClientesB2B />} />
+        <Route path="/ventas-b2b" element={<VentasB2B />} />
         
         {/* ⭐ Rutas Kardex Premium */}
         <Route path="/proveedores" element={<Proveedores />} />
