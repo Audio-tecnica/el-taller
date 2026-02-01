@@ -1,28 +1,28 @@
-import { useState, useEffect } from 'react';
-import clientesB2BService from '../../services/clientesB2BService';
+import { useState, useEffect } from "react";
+import clientesB2BService from "../../services/clientesB2BService";
 
 export default function FormularioCliente({ cliente, onClose, onGuardar }) {
   const [formData, setFormData] = useState({
-    tipo_documento: 'NIT',
-    numero_documento: '',
-    razon_social: '',
-    nombre_comercial: '',
-    email: '',
-    telefono: '',
-    telefono_secundario: '',
-    nombre_contacto: '',
-    cargo_contacto: '',
-    direccion: '',
-    ciudad: 'Montería',
-    departamento: 'Córdoba',
-    codigo_postal: '',
+    tipo_documento: "NIT",
+    numero_documento: "",
+    razon_social: "",
+    nombre_comercial: "",
+    email: "",
+    telefono: "",
+    telefono_secundario: "",
+    nombre_contacto: "",
+    cargo_contacto: "",
+    direccion: "",
+    ciudad: "Montería",
+    departamento: "Córdoba",
+    codigo_postal: "",
     limite_credito: 0,
     dias_credito: 30,
     descuento_porcentaje: 0,
-    banco: '',
-    tipo_cuenta: '',
-    numero_cuenta: '',
-    notas: ''
+    banco: "",
+    tipo_cuenta: "",
+    numero_cuenta: "",
+    notas: "",
   });
 
   const [guardando, setGuardando] = useState(false);
@@ -30,58 +30,77 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
   useEffect(() => {
     if (cliente) {
       setFormData({
-        tipo_documento: cliente.tipo_documento || 'NIT',
-        numero_documento: cliente.numero_documento || '',
-        razon_social: cliente.razon_social || '',
-        nombre_comercial: cliente.nombre_comercial || '',
-        email: cliente.email || '',
-        telefono: cliente.telefono || '',
-        telefono_secundario: cliente.telefono_secundario || '',
-        nombre_contacto: cliente.nombre_contacto || '',
-        cargo_contacto: cliente.cargo_contacto || '',
-        direccion: cliente.direccion || '',
-        ciudad: cliente.ciudad || 'Montería',
-        departamento: cliente.departamento || 'Córdoba',
-        codigo_postal: cliente.codigo_postal || '',
+        tipo_documento: cliente.tipo_documento || "NIT",
+        numero_documento: cliente.numero_documento || "",
+        razon_social: cliente.razon_social || "",
+        nombre_comercial: cliente.nombre_comercial || "",
+        email: cliente.email || "",
+        telefono: cliente.telefono || "",
+        telefono_secundario: cliente.telefono_secundario || "",
+        nombre_contacto: cliente.nombre_contacto || "",
+        cargo_contacto: cliente.cargo_contacto || "",
+        direccion: cliente.direccion || "",
+        ciudad: cliente.ciudad || "Montería",
+        departamento: cliente.departamento || "Córdoba",
+        codigo_postal: cliente.codigo_postal || "",
         limite_credito: cliente.limite_credito || 0,
         dias_credito: cliente.dias_credito || 30,
         descuento_porcentaje: cliente.descuento_porcentaje || 0,
-        banco: cliente.banco || '',
-        tipo_cuenta: cliente.tipo_cuenta || '',
-        numero_cuenta: cliente.numero_cuenta || '',
-        notas: cliente.notas || ''
+        banco: cliente.banco || "",
+        tipo_cuenta: cliente.tipo_cuenta || "",
+        numero_cuenta: cliente.numero_cuenta || "",
+        notas: cliente.notas || "",
       });
     }
   }, [cliente]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validaciones
-    if (!formData.razon_social || !formData.numero_documento || !formData.email || !formData.telefono || !formData.nombre_contacto) {
-      alert('Por favor complete todos los campos obligatorios (*)');
+    if (
+      !formData.razon_social ||
+      !formData.numero_documento ||
+      !formData.email ||
+      !formData.telefono ||
+      !formData.nombre_contacto
+    ) {
+      alert("Por favor complete todos los campos obligatorios (*)");
       return;
     }
 
     try {
       setGuardando(true);
-      
+
+      // ⭐ Limpiar campos vacíos antes de enviar
+      const dataToSend = {
+        ...formData,
+        tipo_cuenta: formData.tipo_cuenta || null, // Convertir string vacío a null
+        banco: formData.banco || null,
+        numero_cuenta: formData.numero_cuenta || null,
+        codigo_postal: formData.codigo_postal || null,
+        nombre_comercial: formData.nombre_comercial || null,
+        cargo_contacto: formData.cargo_contacto || null,
+        telefono_secundario: formData.telefono_secundario || null,
+        notas: formData.notas || null,
+      };
+
       if (cliente) {
-        await clientesB2BService.actualizarCliente(cliente.id, formData);
+        await clientesB2BService.actualizarCliente(cliente.id, dataToSend);
       } else {
-        await clientesB2BService.crearCliente(formData);
+        await clientesB2BService.crearCliente(dataToSend);
       }
-      
+
       onGuardar();
       onClose();
     } catch (error) {
-      console.error('Error al guardar cliente:', error);
-      alert(error.response?.data?.error || 'Error al guardar cliente');
+      console.error("Error al guardar cliente:", error);
+      alert(error.response?.data?.error || "Error al guardar cliente");
     } finally {
       setGuardando(false);
     }
@@ -93,19 +112,19 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
       style={{ zIndex: 9999 }}
       onClick={onClose}
     >
-      <div 
+      <div
         className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
         onClick={handleModalClick}
       >
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
           <h2 className="text-2xl font-bold text-gray-800">
-            {cliente ? 'Editar Cliente B2B' : 'Nuevo Cliente B2B'}
+            {cliente ? "Editar Cliente B2B" : "Nuevo Cliente B2B"}
           </h2>
           <button
             type="button"
@@ -119,7 +138,9 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Información de Identificación */}
           <section>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Información de Identificación</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              Información de Identificación
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -157,7 +178,9 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
 
           {/* Información de la Empresa */}
           <section>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Información de la Empresa</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              Información de la Empresa
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -191,7 +214,9 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
 
           {/* Información de Contacto */}
           <section>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Información de Contacto</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              Información de Contacto
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -266,7 +291,9 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
 
           {/* Dirección */}
           <section>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Dirección</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              Dirección
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-3">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -324,7 +351,9 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
 
           {/* Información Comercial */}
           <section>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Información Comercial</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              Información Comercial
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -373,7 +402,9 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
 
           {/* Información Bancaria */}
           <section>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Información Bancaria (Opcional)</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              Información Bancaria (Opcional)
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -449,7 +480,11 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
               disabled={guardando}
               className="px-6 py-2 bg-[#D4B896] text-black font-semibold rounded-lg hover:bg-[#c4a886] transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {guardando ? 'Guardando...' : cliente ? 'Actualizar' : 'Crear Cliente'}
+              {guardando
+                ? "Guardando..."
+                : cliente
+                  ? "Actualizar"
+                  : "Crear Cliente"}
             </button>
           </div>
         </form>

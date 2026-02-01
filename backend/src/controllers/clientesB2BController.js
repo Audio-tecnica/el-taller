@@ -1,20 +1,20 @@
-const { ClienteB2B, VentaB2B, PagoB2B, Usuario } = require('../models');
-const { Op } = require('sequelize');
+const { ClienteB2B, VentaB2B, PagoB2B, Usuario } = require("../models");
+const { Op } = require("sequelize");
 
 // Obtener todos los clientes con filtros
 exports.obtenerClientes = async (req, res) => {
   try {
-    const { 
-      estado, 
-      buscar, 
-      ordenar = 'razon_social',
-      direccion = 'ASC',
+    const {
+      estado,
+      buscar,
+      ordenar = "razon_social",
+      direccion = "ASC",
       limite = 50,
-      pagina = 1
+      pagina = 1,
     } = req.query;
 
     const where = {};
-    
+
     // Filtro por estado
     if (estado) {
       where.estado = estado;
@@ -27,7 +27,7 @@ exports.obtenerClientes = async (req, res) => {
         { nombre_comercial: { [Op.iLike]: `%${buscar}%` } },
         { numero_documento: { [Op.iLike]: `%${buscar}%` } },
         { email: { [Op.iLike]: `%${buscar}%` } },
-        { telefono: { [Op.iLike]: `%${buscar}%` } }
+        { telefono: { [Op.iLike]: `%${buscar}%` } },
       ];
     }
 
@@ -38,24 +38,24 @@ exports.obtenerClientes = async (req, res) => {
       include: [
         {
           model: Usuario,
-          as: 'creador',
-          attributes: ['id', 'nombre', 'email']
-        }
+          as: "creador",
+          attributes: ["id", "nombre", "email"],
+        },
       ],
       order: [[ordenar, direccion]],
       limit: parseInt(limite),
-      offset
+      offset,
     });
 
     res.json({
       clientes,
       total: count,
       pagina: parseInt(pagina),
-      totalPaginas: Math.ceil(count / parseInt(limite))
+      totalPaginas: Math.ceil(count / parseInt(limite)),
     });
   } catch (error) {
-    console.error('Error al obtener clientes:', error);
-    res.status(500).json({ error: 'Error al obtener clientes' });
+    console.error("Error al obtener clientes:", error);
+    res.status(500).json({ error: "Error al obtener clientes" });
   }
 };
 
@@ -68,46 +68,47 @@ exports.obtenerClientePorId = async (req, res) => {
       include: [
         {
           model: Usuario,
-          as: 'creador',
-          attributes: ['id', 'nombre', 'email']
+          as: "creador",
+          attributes: ["id", "nombre", "email"],
         },
         {
           model: Usuario,
-          as: 'actualizador',
-          attributes: ['id', 'nombre', 'email']
-        }
-      ]
+          as: "actualizador",
+          attributes: ["id", "nombre", "email"],
+        },
+      ],
     });
 
     if (!cliente) {
-      return res.status(404).json({ error: 'Cliente no encontrado' });
+      return res.status(404).json({ error: "Cliente no encontrado" });
     }
 
     // Obtener estadísticas adicionales
-    const ventasPendientes = await VentaB2B.sum('saldo_pendiente', {
-      where: {
-        cliente_b2b_id: id,
-        estado_pago: ['Pendiente', 'Parcial', 'Vencido']
-      }
-    }) || 0;
+    const ventasPendientes =
+      (await VentaB2B.sum("saldo_pendiente", {
+        where: {
+          cliente_b2b_id: id,
+          estado_pago: ["Pendiente", "Parcial", "Vencido"],
+        },
+      })) || 0;
 
     const facturasVencidas = await VentaB2B.count({
       where: {
         cliente_b2b_id: id,
-        estado_pago: 'Vencido'
-      }
+        estado_pago: "Vencido",
+      },
     });
 
     res.json({
       ...cliente.toJSON(),
       estadisticas: {
         ventasPendientes: parseFloat(ventasPendientes),
-        facturasVencidas
-      }
+        facturasVencidas,
+      },
     });
   } catch (error) {
-    console.error('Error al obtener cliente:', error);
-    res.status(500).json({ error: 'Error al obtener cliente' });
+    console.error("Error al obtener cliente:", error);
+    res.status(500).json({ error: "Error al obtener cliente" });
   }
 };
 
@@ -134,34 +135,35 @@ exports.crearCliente = async (req, res) => {
       banco,
       tipo_cuenta,
       numero_cuenta,
-      notas
+      notas,
     } = req.body;
 
     // Validar que no exista el documento
     const clienteExistente = await ClienteB2B.findOne({
-      where: { numero_documento }
+      where: { numero_documento },
     });
 
     if (clienteExistente) {
-      return res.status(400).json({ 
-        error: 'Ya existe un cliente con ese número de documento' 
+      return res.status(400).json({
+        error: "Ya existe un cliente con ese número de documento",
       });
     }
 
     // Validar email
     const emailExistente = await ClienteB2B.findOne({
-      where: { email }
+      where: { email },
     });
 
     if (emailExistente) {
-      return res.status(400).json({ 
-        error: 'Ya existe un cliente con ese email' 
+      return res.status(400).json({
+        error: "Ya existe un cliente con ese email",
       });
     }
 
     // Crear cliente
+    // Crear cliente
     const credito = parseFloat(limite_credito) || 0;
-    
+
     const nuevoCliente = await ClienteB2B.create({
       tipo_documento,
       numero_documento,
@@ -173,35 +175,35 @@ exports.crearCliente = async (req, res) => {
       telefono,
       telefono_secundario,
       direccion,
-      ciudad: ciudad || 'Montería',
-      departamento: departamento || 'Córdoba',
+      ciudad: ciudad || "Montería",
+      departamento: departamento || "Córdoba",
       codigo_postal,
       limite_credito: credito,
       credito_disponible: credito,
       dias_credito: parseInt(dias_credito) || 30,
       descuento_porcentaje: parseFloat(descuento_porcentaje) || 0,
       banco,
-      tipo_cuenta,
+      tipo_cuenta: tipo_cuenta || null, // ⭐ CAMBIAR: Convertir string vacío a null
       numero_cuenta,
       notas,
-      estado: 'Activo',
-      creado_por: req.usuario?.id || null  // ⭐ CORREGIDO
+      estado: "Activo",
+      creado_por: req.usuario?.id || null,
     });
 
     const cliente = await ClienteB2B.findByPk(nuevoCliente.id, {
       include: [
         {
           model: Usuario,
-          as: 'creador',
-          attributes: ['id', 'nombre', 'email']
-        }
-      ]
+          as: "creador",
+          attributes: ["id", "nombre", "email"],
+        },
+      ],
     });
 
     res.status(201).json(cliente);
   } catch (error) {
-    console.error('Error al crear cliente:', error);
-    res.status(500).json({ error: 'Error al crear cliente' });
+    console.error("Error al crear cliente:", error);
+    res.status(500).json({ error: "Error al crear cliente" });
   }
 };
 
@@ -230,27 +232,27 @@ exports.actualizarCliente = async (req, res) => {
       tipo_cuenta,
       numero_cuenta,
       estado,
-      notas
+      notas,
     } = req.body;
 
     const cliente = await ClienteB2B.findByPk(id);
 
     if (!cliente) {
-      return res.status(404).json({ error: 'Cliente no encontrado' });
+      return res.status(404).json({ error: "Cliente no encontrado" });
     }
 
     // Validar documento único si se está cambiando
     if (numero_documento && numero_documento !== cliente.numero_documento) {
       const documentoExistente = await ClienteB2B.findOne({
-        where: { 
+        where: {
           numero_documento,
-          id: { [Op.ne]: id }
-        }
+          id: { [Op.ne]: id },
+        },
       });
 
       if (documentoExistente) {
-        return res.status(400).json({ 
-          error: 'Ya existe otro cliente con ese número de documento' 
+        return res.status(400).json({
+          error: "Ya existe otro cliente con ese número de documento",
         });
       }
     }
@@ -258,29 +260,31 @@ exports.actualizarCliente = async (req, res) => {
     // Validar email único si se está cambiando
     if (email && email !== cliente.email) {
       const emailExistente = await ClienteB2B.findOne({
-        where: { 
+        where: {
           email,
-          id: { [Op.ne]: id }
-        }
+          id: { [Op.ne]: id },
+        },
       });
 
       if (emailExistente) {
-        return res.status(400).json({ 
-          error: 'Ya existe otro cliente con ese email' 
+        return res.status(400).json({
+          error: "Ya existe otro cliente con ese email",
         });
       }
     }
 
     // Si se actualiza el límite de crédito, recalcular el disponible
     if (limite_credito !== undefined) {
-      const ventasPendientes = await VentaB2B.sum('saldo_pendiente', {
-        where: {
-          cliente_b2b_id: id,
-          estado_pago: ['Pendiente', 'Parcial']
-        }
-      }) || 0;
+      const ventasPendientes =
+        (await VentaB2B.sum("saldo_pendiente", {
+          where: {
+            cliente_b2b_id: id,
+            estado_pago: ["Pendiente", "Parcial"],
+          },
+        })) || 0;
 
-      cliente.credito_disponible = parseFloat(limite_credito) - parseFloat(ventasPendientes);
+      cliente.credito_disponible =
+        parseFloat(limite_credito) - parseFloat(ventasPendientes);
     }
 
     // Actualizar campos
@@ -298,36 +302,41 @@ exports.actualizarCliente = async (req, res) => {
       ciudad: ciudad || cliente.ciudad,
       departamento: departamento || cliente.departamento,
       codigo_postal,
-      limite_credito: limite_credito !== undefined ? limite_credito : cliente.limite_credito,
-      dias_credito: dias_credito !== undefined ? dias_credito : cliente.dias_credito,
-      descuento_porcentaje: descuento_porcentaje !== undefined ? descuento_porcentaje : cliente.descuento_porcentaje,
+      limite_credito:
+        limite_credito !== undefined ? limite_credito : cliente.limite_credito,
+      dias_credito:
+        dias_credito !== undefined ? dias_credito : cliente.dias_credito,
+      descuento_porcentaje:
+        descuento_porcentaje !== undefined
+          ? descuento_porcentaje
+          : cliente.descuento_porcentaje,
       banco,
       tipo_cuenta,
       numero_cuenta,
       estado: estado || cliente.estado,
       notas,
-      actualizado_por: req.usuario?.id || null  // ⭐ CORREGIDO
+      actualizado_por: req.usuario?.id || null, // ⭐ CORREGIDO
     });
 
     const clienteActualizado = await ClienteB2B.findByPk(id, {
       include: [
         {
           model: Usuario,
-          as: 'creador',
-          attributes: ['id', 'nombre', 'email']
+          as: "creador",
+          attributes: ["id", "nombre", "email"],
         },
         {
           model: Usuario,
-          as: 'actualizador',
-          attributes: ['id', 'nombre', 'email']
-        }
-      ]
+          as: "actualizador",
+          attributes: ["id", "nombre", "email"],
+        },
+      ],
     });
 
     res.json(clienteActualizado);
   } catch (error) {
-    console.error('Error al actualizar cliente:', error);
-    res.status(500).json({ error: 'Error al actualizar cliente' });
+    console.error("Error al actualizar cliente:", error);
+    res.status(500).json({ error: "Error al actualizar cliente" });
   }
 };
 
@@ -337,26 +346,31 @@ exports.cambiarEstado = async (req, res) => {
     const { id } = req.params;
     const { estado, motivo } = req.body;
 
-    if (!['Activo', 'Inactivo', 'Suspendido', 'Bloqueado'].includes(estado)) {
-      return res.status(400).json({ error: 'Estado no válido' });
+    if (!["Activo", "Inactivo", "Suspendido", "Bloqueado"].includes(estado)) {
+      return res.status(400).json({ error: "Estado no válido" });
     }
 
     const cliente = await ClienteB2B.findByPk(id);
 
     if (!cliente) {
-      return res.status(404).json({ error: 'Cliente no encontrado' });
+      return res.status(404).json({ error: "Cliente no encontrado" });
     }
 
     await cliente.update({
       estado,
-      notas: motivo ? `${cliente.notas || ''}\n[${new Date().toISOString()}] Cambio de estado a ${estado}: ${motivo}` : cliente.notas,
-      actualizado_por: req.usuario?.id || null  // ⭐ CORREGIDO
+      notas: motivo
+        ? `${cliente.notas || ""}\n[${new Date().toISOString()}] Cambio de estado a ${estado}: ${motivo}`
+        : cliente.notas,
+      actualizado_por: req.usuario?.id || null, // ⭐ CORREGIDO
     });
 
-    res.json({ mensaje: `Cliente ${estado.toLowerCase()} exitosamente`, cliente });
+    res.json({
+      mensaje: `Cliente ${estado.toLowerCase()} exitosamente`,
+      cliente,
+    });
   } catch (error) {
-    console.error('Error al cambiar estado:', error);
-    res.status(500).json({ error: 'Error al cambiar estado del cliente' });
+    console.error("Error al cambiar estado:", error);
+    res.status(500).json({ error: "Error al cambiar estado del cliente" });
   }
 };
 
@@ -369,7 +383,7 @@ exports.obtenerHistorialVentas = async (req, res) => {
     const cliente = await ClienteB2B.findByPk(id);
 
     if (!cliente) {
-      return res.status(404).json({ error: 'Cliente no encontrado' });
+      return res.status(404).json({ error: "Cliente no encontrado" });
     }
 
     const offset = (parseInt(pagina) - 1) * parseInt(limite);
@@ -379,24 +393,24 @@ exports.obtenerHistorialVentas = async (req, res) => {
       include: [
         {
           model: Usuario,
-          as: 'vendedor',
-          attributes: ['id', 'nombre']
-        }
+          as: "vendedor",
+          attributes: ["id", "nombre"],
+        },
       ],
-      order: [['fecha_venta', 'DESC']],
+      order: [["fecha_venta", "DESC"]],
       limit: parseInt(limite),
-      offset
+      offset,
     });
 
     res.json({
       ventas,
       total: count,
       pagina: parseInt(pagina),
-      totalPaginas: Math.ceil(count / parseInt(limite))
+      totalPaginas: Math.ceil(count / parseInt(limite)),
     });
   } catch (error) {
-    console.error('Error al obtener historial:', error);
-    res.status(500).json({ error: 'Error al obtener historial de ventas' });
+    console.error("Error al obtener historial:", error);
+    res.status(500).json({ error: "Error al obtener historial de ventas" });
   }
 };
 
@@ -408,48 +422,48 @@ exports.obtenerEstadoCuenta = async (req, res) => {
     const cliente = await ClienteB2B.findByPk(id);
 
     if (!cliente) {
-      return res.status(404).json({ error: 'Cliente no encontrado' });
+      return res.status(404).json({ error: "Cliente no encontrado" });
     }
 
     // Facturas pendientes
     const facturasPendientes = await VentaB2B.findAll({
       where: {
         cliente_b2b_id: id,
-        estado_pago: ['Pendiente', 'Parcial', 'Vencido']
+        estado_pago: ["Pendiente", "Parcial", "Vencido"],
       },
-      order: [['fecha_vencimiento', 'ASC']]
+      order: [["fecha_vencimiento", "ASC"]],
     });
 
     // Pagos recientes
     const pagosRecientes = await PagoB2B.findAll({
       where: {
         cliente_b2b_id: id,
-        estado: 'Aplicado'
+        estado: "Aplicado",
       },
       include: [
         {
           model: VentaB2B,
-          as: 'venta',
-          attributes: ['numero_factura']
-        }
+          as: "venta",
+          attributes: ["numero_factura"],
+        },
       ],
-      order: [['fecha_pago', 'DESC']],
-      limit: 10
+      order: [["fecha_pago", "DESC"]],
+      limit: 10,
     });
 
     // Calcular totales
     const totalPendiente = facturasPendientes.reduce(
-      (sum, factura) => sum + parseFloat(factura.saldo_pendiente), 
-      0
+      (sum, factura) => sum + parseFloat(factura.saldo_pendiente),
+      0,
     );
 
     const facturasVencidas = facturasPendientes.filter(
-      f => f.estado_pago === 'Vencido'
+      (f) => f.estado_pago === "Vencido",
     );
 
     const totalVencido = facturasVencidas.reduce(
-      (sum, factura) => sum + parseFloat(factura.saldo_pendiente), 
-      0
+      (sum, factura) => sum + parseFloat(factura.saldo_pendiente),
+      0,
     );
 
     res.json({
@@ -458,20 +472,20 @@ exports.obtenerEstadoCuenta = async (req, res) => {
         razon_social: cliente.razon_social,
         limite_credito: cliente.limite_credito,
         credito_disponible: cliente.credito_disponible,
-        dias_credito: cliente.dias_credito
+        dias_credito: cliente.dias_credito,
       },
       resumen: {
         totalPendiente,
         totalVencido,
         facturasPendientes: facturasPendientes.length,
-        facturasVencidas: facturasVencidas.length
+        facturasVencidas: facturasVencidas.length,
       },
       facturasPendientes,
-      pagosRecientes
+      pagosRecientes,
     });
   } catch (error) {
-    console.error('Error al obtener estado de cuenta:', error);
-    res.status(500).json({ error: 'Error al obtener estado de cuenta' });
+    console.error("Error al obtener estado de cuenta:", error);
+    res.status(500).json({ error: "Error al obtener estado de cuenta" });
   }
 };
 
@@ -483,19 +497,19 @@ exports.recalcularCredito = async (req, res) => {
     const cliente = await ClienteB2B.findByPk(id);
 
     if (!cliente) {
-      return res.status(404).json({ error: 'Cliente no encontrado' });
+      return res.status(404).json({ error: "Cliente no encontrado" });
     }
 
     const creditoDisponible = await cliente.calcularCreditoDisponible();
 
     res.json({
-      mensaje: 'Crédito recalculado exitosamente',
+      mensaje: "Crédito recalculado exitosamente",
       limite_credito: cliente.limite_credito,
-      credito_disponible: creditoDisponible
+      credito_disponible: creditoDisponible,
     });
   } catch (error) {
-    console.error('Error al recalcular crédito:', error);
-    res.status(500).json({ error: 'Error al recalcular crédito' });
+    console.error("Error al recalcular crédito:", error);
+    res.status(500).json({ error: "Error al recalcular crédito" });
   }
 };
 
@@ -503,26 +517,32 @@ exports.recalcularCredito = async (req, res) => {
 exports.obtenerResumenGeneral = async (req, res) => {
   try {
     const totalClientes = await ClienteB2B.count();
-    const clientesActivos = await ClienteB2B.count({ where: { estado: 'Activo' } });
-    const clientesBloqueados = await ClienteB2B.count({ where: { bloqueado_por_mora: true } });
+    const clientesActivos = await ClienteB2B.count({
+      where: { estado: "Activo" },
+    });
+    const clientesBloqueados = await ClienteB2B.count({
+      where: { bloqueado_por_mora: true },
+    });
 
-    const totalCartera = await VentaB2B.sum('saldo_pendiente', {
-      where: { estado_pago: ['Pendiente', 'Parcial', 'Vencido'] }
-    }) || 0;
+    const totalCartera =
+      (await VentaB2B.sum("saldo_pendiente", {
+        where: { estado_pago: ["Pendiente", "Parcial", "Vencido"] },
+      })) || 0;
 
-    const carteraVencida = await VentaB2B.sum('saldo_pendiente', {
-      where: { estado_pago: 'Vencido' }
-    }) || 0;
+    const carteraVencida =
+      (await VentaB2B.sum("saldo_pendiente", {
+        where: { estado_pago: "Vencido" },
+      })) || 0;
 
     res.json({
       totalClientes,
       clientesActivos,
       clientesBloqueados,
       totalCartera: parseFloat(totalCartera),
-      carteraVencida: parseFloat(carteraVencida)
+      carteraVencida: parseFloat(carteraVencida),
     });
   } catch (error) {
-    console.error('Error al obtener resumen:', error);
-    res.status(500).json({ error: 'Error al obtener resumen general' });
+    console.error("Error al obtener resumen:", error);
+    res.status(500).json({ error: "Error al obtener resumen general" });
   }
 };
