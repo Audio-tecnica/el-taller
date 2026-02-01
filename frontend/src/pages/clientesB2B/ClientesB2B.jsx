@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import clientesB2BService from "../../services/clientesB2BService";
-import FormularioCliente from "./FormularioCliente";
-import DetalleCliente from "./DetalleCliente";
+import { useState, useEffect } from 'react';
+import clientesB2BService from '../../services/clientesB2BService';
+import FormularioCliente from './FormularioCliente';
+import DetalleCliente from './DetalleCliente';
 
 export default function ClientesB2B() {
   const [clientes, setClientes] = useState([]);
@@ -9,13 +9,13 @@ export default function ClientesB2B() {
   const [modalFormulario, setModalFormulario] = useState(false);
   const [modalDetalle, setModalDetalle] = useState(false);
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
-  const [buscar, setBuscar] = useState("");
-  const [filtroEstado, setFiltroEstado] = useState("");
+  const [buscar, setBuscar] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('');
   const [resumen, setResumen] = useState(null);
   const [paginacion, setPaginacion] = useState({
     pagina: 1,
     totalPaginas: 1,
-    total: 0,
+    total: 0
   });
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function ClientesB2B() {
         pagina: paginacion.pagina,
         limite: 20,
         ...(buscar && { buscar }),
-        ...(filtroEstado && { estado: filtroEstado }),
+        ...(filtroEstado && { estado: filtroEstado })
       };
 
       const data = await clientesB2BService.obtenerClientes(params);
@@ -38,11 +38,11 @@ export default function ClientesB2B() {
       setPaginacion({
         pagina: data.pagina,
         totalPaginas: data.totalPaginas,
-        total: data.total,
+        total: data.total
       });
     } catch (error) {
-      console.error("Error al cargar clientes:", error);
-      alert("Error al cargar clientes");
+      console.error('Error al cargar clientes:', error);
+      alert('Error al cargar clientes');
     } finally {
       setLoading(false);
     }
@@ -53,7 +53,7 @@ export default function ClientesB2B() {
       const data = await clientesB2BService.obtenerResumenGeneral();
       setResumen(data);
     } catch (error) {
-      console.error("Error al cargar resumen:", error);
+      console.error('Error al cargar resumen:', error);
     }
   };
 
@@ -86,35 +86,33 @@ export default function ClientesB2B() {
       await clientesB2BService.cambiarEstado(cliente.id, nuevoEstado, motivo);
       await cargarClientes();
       await cargarResumen();
-      alert("Estado actualizado correctamente");
+      alert('Estado actualizado correctamente');
     } catch (error) {
-      console.error("Error al cambiar estado:", error);
-      alert("Error al cambiar estado");
+      console.error('Error al cambiar estado:', error);
+      alert('Error al cambiar estado');
     }
   };
 
   const getEstadoBadge = (estado) => {
     const colores = {
-      Activo: "bg-green-100 text-green-800",
-      Inactivo: "bg-gray-100 text-gray-800",
-      Suspendido: "bg-yellow-100 text-yellow-800",
-      Bloqueado: "bg-red-100 text-red-800",
+      'Activo': 'bg-green-100 text-green-800',
+      'Inactivo': 'bg-gray-100 text-gray-800',
+      'Suspendido': 'bg-yellow-100 text-yellow-800',
+      'Bloqueado': 'bg-red-100 text-red-800'
     };
 
     return (
-      <span
-        className={`px-2 py-1 text-xs font-semibold rounded-full ${colores[estado]}`}
-      >
+      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${colores[estado]}`}>
         {estado}
       </span>
     );
   };
 
   const formatearMoneda = (valor) => {
-    return new Intl.NumberFormat("es-CO", {
-      style: "currency",
-      currency: "COP",
-      minimumFractionDigits: 0,
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0
     }).format(valor);
   };
 
@@ -131,9 +129,7 @@ export default function ClientesB2B() {
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Clientes B2B</h1>
-        <p className="text-gray-600">
-          Gestión de clientes corporativos y cartera
-        </p>
+        <p className="text-gray-600">Gestión de clientes corporativos y cartera</p>
       </div>
 
       {/* Resumen */}
@@ -141,12 +137,8 @@ export default function ClientesB2B() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="text-sm text-gray-600 mb-1">Total Clientes</div>
-            <div className="text-2xl font-bold text-gray-800">
-              {resumen.totalClientes}
-            </div>
-            <div className="text-xs text-green-600">
-              {resumen.clientesActivos} activos
-            </div>
+            <div className="text-2xl font-bold text-gray-800">{resumen.totalClientes}</div>
+            <div className="text-xs text-green-600">{resumen.clientesActivos} activos</div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="text-sm text-gray-600 mb-1">Cartera Total</div>
@@ -162,9 +154,7 @@ export default function ClientesB2B() {
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="text-sm text-gray-600 mb-1">Bloqueados</div>
-            <div className="text-2xl font-bold text-orange-600">
-              {resumen.clientesBloqueados}
-            </div>
+            <div className="text-2xl font-bold text-orange-600">{resumen.clientesBloqueados}</div>
           </div>
         </div>
       )}
@@ -205,10 +195,6 @@ export default function ClientesB2B() {
             >
               + Nuevo Cliente
             </button>
-            <Link to="/ventas-b2b" className="menu-item">
-              <span>📄</span>
-              <span>Ventas B2B</span>
-            </Link>
           </div>
         </div>
       </div>
@@ -241,25 +227,15 @@ export default function ClientesB2B() {
                 <tr key={cliente.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div>
-                      <div className="font-semibold text-gray-800">
-                        {cliente.razon_social}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {cliente.tipo_documento}: {cliente.numero_documento}
-                      </div>
+                      <div className="font-semibold text-gray-800">{cliente.razon_social}</div>
+                      <div className="text-sm text-gray-600">{cliente.tipo_documento}: {cliente.numero_documento}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <div>
-                      <div className="text-sm text-gray-800">
-                        {cliente.nombre_contacto}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {cliente.email}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {cliente.telefono}
-                      </div>
+                      <div className="text-sm text-gray-800">{cliente.nombre_contacto}</div>
+                      <div className="text-sm text-gray-600">{cliente.email}</div>
+                      <div className="text-sm text-gray-600">{cliente.telefono}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -268,12 +244,9 @@ export default function ClientesB2B() {
                         Límite: {formatearMoneda(cliente.limite_credito)}
                       </div>
                       <div className="text-sm text-green-600">
-                        Disponible:{" "}
-                        {formatearMoneda(cliente.credito_disponible)}
+                        Disponible: {formatearMoneda(cliente.credito_disponible)}
                       </div>
-                      <div className="text-xs text-gray-500">
-                        {cliente.dias_credito} días
-                      </div>
+                      <div className="text-xs text-gray-500">{cliente.dias_credito} días</div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -301,9 +274,7 @@ export default function ClientesB2B() {
                         Editar
                       </button>
                       <button
-                        onClick={() =>
-                          handleCambiarEstado(cliente, "Bloqueado")
-                        }
+                        onClick={() => handleCambiarEstado(cliente, 'Bloqueado')}
                         className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition"
                       >
                         Cambiar Estado
@@ -324,12 +295,7 @@ export default function ClientesB2B() {
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() =>
-                  setPaginacion({
-                    ...paginacion,
-                    pagina: paginacion.pagina - 1,
-                  })
-                }
+                onClick={() => setPaginacion({ ...paginacion, pagina: paginacion.pagina - 1 })}
                 disabled={paginacion.pagina === 1}
                 className="px-4 py-2 bg-white border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
               >
@@ -339,12 +305,7 @@ export default function ClientesB2B() {
                 Página {paginacion.pagina} de {paginacion.totalPaginas}
               </span>
               <button
-                onClick={() =>
-                  setPaginacion({
-                    ...paginacion,
-                    pagina: paginacion.pagina + 1,
-                  })
-                }
+                onClick={() => setPaginacion({ ...paginacion, pagina: paginacion.pagina + 1 })}
                 disabled={paginacion.pagina === paginacion.totalPaginas}
                 className="px-4 py-2 bg-white border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
               >
