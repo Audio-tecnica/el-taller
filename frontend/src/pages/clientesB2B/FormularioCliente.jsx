@@ -56,7 +56,6 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    console.log('Campo cambiado:', name, value); // ⭐ Debug
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -88,7 +87,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
     }
   };
 
-  // ⭐ Prevenir cierre al hacer clic dentro del modal
+  // Prevenir cierre al hacer clic dentro del modal
   const handleModalClick = (e) => {
     e.stopPropagation();
   };
@@ -96,12 +95,12 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
-      style={{ zIndex: 9999 }} // ⭐ Z-index muy alto
+      style={{ zIndex: 9999 }}
       onClick={onClose}
     >
       <div 
         className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-        onClick={handleModalClick} // ⭐ Prevenir cierre
+        onClick={handleModalClick}
       >
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
@@ -131,7 +130,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   value={formData.tipo_documento}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white"
                 >
                   <option value="NIT">NIT</option>
                   <option value="CC">Cédula</option>
@@ -150,7 +149,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   onChange={handleChange}
                   required
                   placeholder="Ej: 900123456-7"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
             </div>
@@ -171,7 +170,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   onChange={handleChange}
                   required
                   placeholder="Nombre legal de la empresa"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
               <div>
@@ -184,7 +183,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   value={formData.nombre_comercial}
                   onChange={handleChange}
                   placeholder="Nombre comercial"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
             </div>
@@ -205,7 +204,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   onChange={handleChange}
                   required
                   placeholder="Nombre del contacto principal"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
               <div>
@@ -218,7 +217,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   value={formData.cargo_contacto}
                   onChange={handleChange}
                   placeholder="Ej: Gerente de Compras"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
               <div>
@@ -232,7 +231,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   onChange={handleChange}
                   required
                   placeholder="email@empresa.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
               <div>
@@ -246,7 +245,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   onChange={handleChange}
                   required
                   placeholder="3001234567"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
               <div>
@@ -259,7 +258,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   value={formData.telefono_secundario}
                   onChange={handleChange}
                   placeholder="Opcional"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
             </div>
@@ -280,7 +279,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   onChange={handleChange}
                   required
                   placeholder="Calle, número, barrio"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
               <div>
@@ -292,7 +291,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   name="ciudad"
                   value={formData.ciudad}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
               <div>
@@ -304,7 +303,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   name="departamento"
                   value={formData.departamento}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
               <div>
@@ -317,7 +316,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   value={formData.codigo_postal}
                   onChange={handleChange}
                   placeholder="Opcional"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
             </div>
@@ -338,7 +337,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   onChange={handleChange}
                   min="0"
                   step="10000"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white"
                 />
               </div>
               <div>
@@ -351,7 +350,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   value={formData.dias_credito}
                   onChange={handleChange}
                   min="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white"
                 />
               </div>
               <div>
@@ -366,7 +365,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   min="0"
                   max="100"
                   step="0.5"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white"
                 />
               </div>
             </div>
@@ -386,7 +385,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   value={formData.banco}
                   onChange={handleChange}
                   placeholder="Nombre del banco"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
               <div>
@@ -397,7 +396,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   name="tipo_cuenta"
                   value={formData.tipo_cuenta}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white"
                 >
                   <option value="">Seleccione...</option>
                   <option value="Ahorros">Ahorros</option>
@@ -414,7 +413,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   value={formData.numero_cuenta}
                   onChange={handleChange}
                   placeholder="Número de cuenta"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
             </div>
@@ -431,7 +430,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
               onChange={handleChange}
               rows="3"
               placeholder="Información adicional sobre el cliente..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent resize-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white placeholder-gray-400 resize-none"
             />
           </section>
 
