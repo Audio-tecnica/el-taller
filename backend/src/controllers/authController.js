@@ -70,7 +70,7 @@ const authController = {
 
       // ⭐ VALIDACIÓN PARA CAJEROS - Solo pueden entrar si tienen turno abierto
       let turnoActivoCajero = null;
-      
+
       if (usuario.rol === "cajero") {
         // Buscar turno activo DEL CAJERO (usar cajero_id)
         turnoActivoCajero = await Turno.findOne({
@@ -93,15 +93,16 @@ const authController = {
           });
 
           return res.status(403).json({
-            error: "No tienes un turno abierto. Espera a que el administrador te asigne un turno.",
+            error:
+              "No tienes un turno abierto. Espera a que el administrador te asigne un turno.",
             codigo: "SIN_TURNO_ABIERTO",
           });
         }
       }
 
       // ⭐ Determinar el local correcto: del turno activo o del usuario
-      const localParaToken = turnoActivoCajero 
-        ? turnoActivoCajero.local_id 
+      const localParaToken = turnoActivoCajero
+        ? turnoActivoCajero.local_id
         : usuario.local_asignado_id;
 
       // Login exitoso - Generar token
@@ -131,14 +132,16 @@ const authController = {
       // ⭐ Agregar información del turno activo para cajeros
       const respuestaUsuario = {
         ...usuarioSinPassword,
-        turno_activo: turnoActivoCajero ? {
-          id: turnoActivoCajero.id,
-          local_id: turnoActivoCajero.local_id,
-          local_nombre: turnoActivoCajero.local?.nombre,
-        } : null,
+        turno_activo: turnoActivoCajero
+          ? {
+              id: turnoActivoCajero.id,
+              local_id: turnoActivoCajero.local_id,
+              local_nombre: turnoActivoCajero.local?.nombre,
+            }
+          : null,
         // ⭐ Sobrescribir local_asignado_id con el del turno activo para cajeros
-        local_asignado_id: turnoActivoCajero 
-          ? turnoActivoCajero.local_id 
+        local_asignado_id: turnoActivoCajero
+          ? turnoActivoCajero.local_id
           : usuario.local_asignado_id,
       };
 
@@ -222,29 +225,31 @@ const authController = {
   },
 
   // Obtener usuario actual
-me: async (req, res) => {
-  try {
-    const usuario = await Usuario.findByPk(req.user.id, {  // ⭐ Cambiar req.usuario a req.user
-      attributes: { exclude: ["password_hash"] },
-    });
+  me: async (req, res) => {
+    try {
+      const usuario = await Usuario.findByPk(req.usuario.id, {
+        // ⭐ req.usuario
+        attributes: { exclude: ["password_hash"] },
+      });
 
-    if (!usuario) {
-      return res.status(404).json({ error: "Usuario no encontrado" });
+      if (!usuario) {
+        return res.status(404).json({ error: "Usuario no encontrado" });
+      }
+
+      res.json({ user: usuario });
+    } catch (error) {
+      console.error("Error en me:", error);
+      res.status(500).json({ error: "Error en el servidor" });
     }
+  },
 
-    res.json({ user: usuario });
-  } catch (error) {
-    console.error("Error en me:", error);
-    res.status(500).json({ error: "Error en el servidor" });
-  }
-},
-
-// Línea 245 - función refresh
-refresh: async (req, res) => {
-  try {
-    const usuario = await Usuario.findByPk(req.user.id, {  // ⭐ Cambiar req.usuario a req.user
-      attributes: { exclude: ["password_hash"] },
-    });
+  // Línea 245 - función refresh
+  refresh: async (req, res) => {
+    try {
+      const usuario = await Usuario.findByPk(req.usuario.id, {
+        // ⭐ req.usuario
+        attributes: { exclude: ["password_hash"] },
+      });
 
       if (!usuario) {
         return res.status(404).json({ error: "Usuario no encontrado" });
@@ -277,11 +282,11 @@ refresh: async (req, res) => {
   },
 
   // Cambiar contraseña
-cambiarPassword: async (req, res) => {
-  try {
-    const { passwordActual, passwordNueva } = req.body;
+  cambiarPassword: async (req, res) => {
+    try {
+      const { passwordActual, passwordNueva } = req.body;
 
-    const usuario = await Usuario.findByPk(req.user.id); 
+      const usuario = await Usuario.findByPk(req.usuario.id); // ⭐ req.usuario
 
       if (!usuario) {
         return res.status(404).json({ error: "Usuario no encontrado" });
@@ -417,16 +422,17 @@ cambiarPassword: async (req, res) => {
   },
 
   // Eliminar usuario (solo admin)
- eliminarUsuario: async (req, res) => {
-  try {
-    const { id } = req.params;
+  eliminarUsuario: async (req, res) => {
+    try {
+      const { id } = req.params;
 
-    // No permitir eliminar al usuario actual
-    if (id === req.user.id) {  // ⭐ Cambiar req.usuario a req.user
-      return res
-        .status(400)
-        .json({ error: "No puedes eliminar tu propio usuario" });
-    }
+      // No permitir eliminar al usuario actual
+      if (id === req.usuario.id) {
+        // ⭐ req.usuario
+        return res
+          .status(400)
+          .json({ error: "No puedes eliminar tu propio usuario" });
+      }
 
       const usuario = await Usuario.findByPk(id);
 
@@ -441,7 +447,7 @@ cambiarPassword: async (req, res) => {
       console.error("Error eliminando usuario:", error);
       res.status(500).json({ error: error.message });
     }
-  }, // ⭐ CERRAR la función eliminarUsuario aquí
+  },
 
   // ⭐ NUEVO: Obtener cajeros activos
   getCajeros: async (req, res) => {
