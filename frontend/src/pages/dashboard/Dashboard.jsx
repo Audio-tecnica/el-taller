@@ -22,47 +22,47 @@ export default function Dashboard() {
 
   const cargarTurnoActivo = async () => {
     try {
-      console.log('🔍 Buscando turno para cajero:', usuario.id, usuario.nombre);
-      
+      console.log("🔍 Buscando turno para cajero:", usuario.id, usuario.nombre);
+
       // Buscar turno del cajero en TODOS los locales
       const { mesasService } = await import("../../services/mesasService");
       const localesData = await mesasService.getLocales();
-      
-      console.log('📍 Locales encontrados:', localesData.length);
-      
+
+      console.log("📍 Locales encontrados:", localesData.length);
+
       let turnoEncontrado = null;
-      
+
       for (const local of localesData) {
         try {
           console.log(`🔎 Buscando turno en ${local.nombre} (${local.id})`);
           const turno = await turnosService.getTurnoActivo(local.id);
-          
+
           console.log(`✅ Turno encontrado en ${local.nombre}:`, turno);
           console.log(`   - cajero_id: ${turno.cajero_id}`);
           console.log(`   - usuario_id: ${turno.usuario_id}`);
           console.log(`   - mi id: ${usuario.id}`);
-          
+
           // Verificar si este turno es del cajero actual
           const cajeroId = turno.cajero_id || turno.usuario_id;
           if (cajeroId === usuario.id) {
-            console.log('🎯 ¡TURNO ENCONTRADO! Este es mi turno');
+            console.log("🎯 ¡TURNO ENCONTRADO! Este es mi turno");
             turnoEncontrado = turno;
             break;
           } else {
-            console.log('❌ Este turno NO es mío (es de otro cajero)');
+            console.log("❌ Este turno NO es mío (es de otro cajero)");
           }
-        } catch  {
+        } catch {
           console.log(`⚠️ No hay turno en ${local.nombre}`);
           continue; // No hay turno en este local
         }
       }
-      
+
       if (turnoEncontrado) {
-        console.log('✅ TURNO FINAL ASIGNADO:', turnoEncontrado.local?.nombre);
+        console.log("✅ TURNO FINAL ASIGNADO:", turnoEncontrado.local?.nombre);
       } else {
-        console.log('❌ NO SE ENCONTRÓ TURNO PARA ESTE CAJERO');
+        console.log("❌ NO SE ENCONTRÓ TURNO PARA ESTE CAJERO");
       }
-      
+
       setTurnoActivo(turnoEncontrado);
     } catch (error) {
       console.error("❌ Error al cargar turno:", error);
@@ -236,7 +236,8 @@ export default function Dashboard() {
               Bienvenido, {usuario?.nombre}
             </h2>
             <p className="text-[#D4B896]">
-              Punto de Venta - {turnoActivo?.local?.nombre || 'Sin turno asignado'}
+              Punto de Venta -{" "}
+              {turnoActivo?.local?.nombre || "Sin turno asignado"}
             </p>
           </div>
 
@@ -260,7 +261,9 @@ export default function Dashboard() {
                   Punto de Venta
                 </h3>
                 <p className="text-emerald-100 font-medium">
-                  {turnoActivo ? "¡Tomar pedidos aquí!" : "Requiere turno activo"}
+                  {turnoActivo
+                    ? "¡Tomar pedidos aquí!"
+                    : "Requiere turno activo"}
                 </p>
               </button>
             </div>
@@ -279,13 +282,13 @@ export default function Dashboard() {
                       Turno Activo
                     </span>
                   </div>
-                  
+
                   <div className="space-y-4">
                     {/* Local */}
                     <div>
                       <p className="text-gray-500 text-xs mb-1">Local</p>
                       <p className="text-white font-medium">
-                        🏪 {turnoActivo.local?.nombre || 'Sin local asignado'}
+                        🏪 {turnoActivo.local?.nombre || "Sin local asignado"}
                       </p>
                     </div>
 
@@ -299,7 +302,9 @@ export default function Dashboard() {
 
                     {/* Efectivo inicial */}
                     <div>
-                      <p className="text-gray-500 text-xs mb-1">Efectivo Inicial</p>
+                      <p className="text-gray-500 text-xs mb-1">
+                        Efectivo Inicial
+                      </p>
                       <p className="text-2xl font-bold text-[#D4B896]">
                         {formatMoney(turnoActivo.efectivo_inicial)}
                       </p>
@@ -330,7 +335,8 @@ export default function Dashboard() {
                       Sin turno activo
                     </h3>
                     <p className="text-red-300/80 text-sm">
-                      Contacta al administrador para que abra tu turno de trabajo.
+                      Contacta al administrador para que abra tu turno de
+                      trabajo.
                     </p>
                   </div>
                 </div>
@@ -347,8 +353,8 @@ export default function Dashboard() {
                   ¿Necesitas ayuda?
                 </p>
                 <p className="text-xs text-gray-500">
-                  El administrador debe abrir un turno para ti desde el módulo de Caja.
-                  Una vez abierto, podrás acceder al Punto de Venta.
+                  El administrador debe abrir un turno para ti desde el módulo
+                  de Caja. Una vez abierto, podrás acceder al Punto de Venta.
                 </p>
               </div>
             </div>
@@ -518,7 +524,10 @@ export default function Dashboard() {
             </div>
           </div>
         )}
-
+        <Link to="/ventas-b2b" className="menu-item">
+          <span>📄</span>
+          <span>Ventas B2B</span>
+        </Link>
         {/* ⭐ Módulo de Seguridad - SOLO ADMINISTRADORES */}
         {usuario?.rol === "administrador" && (
           <div className="mb-8">
