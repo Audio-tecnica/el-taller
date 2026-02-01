@@ -7,11 +7,11 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
     numero_documento: '',
     razon_social: '',
     nombre_comercial: '',
-    nombre_contacto: '',
-    cargo_contacto: '',
     email: '',
     telefono: '',
     telefono_secundario: '',
+    nombre_contacto: '',
+    cargo_contacto: '',
     direccion: '',
     ciudad: 'Montería',
     departamento: 'Córdoba',
@@ -34,11 +34,11 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
         numero_documento: cliente.numero_documento || '',
         razon_social: cliente.razon_social || '',
         nombre_comercial: cliente.nombre_comercial || '',
-        nombre_contacto: cliente.nombre_contacto || '',
-        cargo_contacto: cliente.cargo_contacto || '',
         email: cliente.email || '',
         telefono: cliente.telefono || '',
         telefono_secundario: cliente.telefono_secundario || '',
+        nombre_contacto: cliente.nombre_contacto || '',
+        cargo_contacto: cliente.cargo_contacto || '',
         direccion: cliente.direccion || '',
         ciudad: cliente.ciudad || 'Montería',
         departamento: cliente.departamento || 'Córdoba',
@@ -56,15 +56,16 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    console.log('Campo cambiado:', name, value); // ⭐ Debug
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validaciones básicas
-    if (!formData.razon_social || !formData.numero_documento || !formData.email || !formData.telefono) {
-      alert('Por favor complete los campos obligatorios');
+    // Validaciones
+    if (!formData.razon_social || !formData.numero_documento || !formData.email || !formData.telefono || !formData.nombre_contacto) {
+      alert('Por favor complete todos los campos obligatorios (*)');
       return;
     }
 
@@ -78,6 +79,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
       }
       
       onGuardar();
+      onClose();
     } catch (error) {
       console.error('Error al guardar cliente:', error);
       alert(error.response?.data?.error || 'Error al guardar cliente');
@@ -86,26 +88,40 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
     }
   };
 
+  // ⭐ Prevenir cierre al hacer clic dentro del modal
+  const handleModalClick = (e) => {
+    e.stopPropagation();
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+      style={{ zIndex: 9999 }} // ⭐ Z-index muy alto
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+        onClick={handleModalClick} // ⭐ Prevenir cierre
+      >
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
           <h2 className="text-2xl font-bold text-gray-800">
             {cliente ? 'Editar Cliente B2B' : 'Nuevo Cliente B2B'}
           </h2>
           <button
+            type="button"
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-2xl"
+            className="text-gray-500 hover:text-gray-700 text-3xl font-bold leading-none"
           >
             ×
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6">
-          {/* Información de identificación */}
-          <div className="mb-6">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Información de Identificación */}
+          <section>
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Información de Identificación</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Tipo Documento *
@@ -133,15 +149,15 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   value={formData.numero_documento}
                   onChange={handleChange}
                   required
+                  placeholder="Ej: 900123456-7"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
                 />
               </div>
-              <div className="md:col-span-1"></div>
             </div>
-          </div>
+          </section>
 
-          {/* Información de la empresa */}
-          <div className="mb-6">
+          {/* Información de la Empresa */}
+          <section>
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Información de la Empresa</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -154,6 +170,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   value={formData.razon_social}
                   onChange={handleChange}
                   required
+                  placeholder="Nombre legal de la empresa"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
                 />
               </div>
@@ -166,14 +183,15 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   name="nombre_comercial"
                   value={formData.nombre_comercial}
                   onChange={handleChange}
+                  placeholder="Nombre comercial"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
                 />
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* Información de contacto */}
-          <div className="mb-6">
+          {/* Información de Contacto */}
+          <section>
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Información de Contacto</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -186,6 +204,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   value={formData.nombre_contacto}
                   onChange={handleChange}
                   required
+                  placeholder="Nombre del contacto principal"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
                 />
               </div>
@@ -198,6 +217,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   name="cargo_contacto"
                   value={formData.cargo_contacto}
                   onChange={handleChange}
+                  placeholder="Ej: Gerente de Compras"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
                 />
               </div>
@@ -211,6 +231,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   value={formData.email}
                   onChange={handleChange}
                   required
+                  placeholder="email@empresa.com"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
                 />
               </div>
@@ -224,6 +245,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   value={formData.telefono}
                   onChange={handleChange}
                   required
+                  placeholder="3001234567"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
                 />
               </div>
@@ -236,17 +258,18 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   name="telefono_secundario"
                   value={formData.telefono_secundario}
                   onChange={handleChange}
+                  placeholder="Opcional"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
                 />
               </div>
             </div>
-          </div>
+          </section>
 
           {/* Dirección */}
-          <div className="mb-6">
+          <section>
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Dirección</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-3">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Dirección *
                 </label>
@@ -256,6 +279,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   value={formData.direccion}
                   onChange={handleChange}
                   required
+                  placeholder="Calle, número, barrio"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
                 />
               </div>
@@ -283,11 +307,24 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Código Postal
+                </label>
+                <input
+                  type="text"
+                  name="codigo_postal"
+                  value={formData.codigo_postal}
+                  onChange={handleChange}
+                  placeholder="Opcional"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                />
+              </div>
             </div>
-          </div>
+          </section>
 
-          {/* Información comercial */}
-          <div className="mb-6">
+          {/* Información Comercial */}
+          <section>
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Información Comercial</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
@@ -300,7 +337,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   value={formData.limite_credito}
                   onChange={handleChange}
                   min="0"
-                  step="1000"
+                  step="10000"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
                 />
               </div>
@@ -328,15 +365,15 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   onChange={handleChange}
                   min="0"
                   max="100"
-                  step="0.1"
+                  step="0.5"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
                 />
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* Información bancaria */}
-          <div className="mb-6">
+          {/* Información Bancaria */}
+          <section>
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Información Bancaria (Opcional)</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
@@ -348,6 +385,7 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   name="banco"
                   value={formData.banco}
                   onChange={handleChange}
+                  placeholder="Nombre del banco"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
                 />
               </div>
@@ -375,14 +413,15 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                   name="numero_cuenta"
                   value={formData.numero_cuenta}
                   onChange={handleChange}
+                  placeholder="Número de cuenta"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
                 />
               </div>
             </div>
-          </div>
+          </section>
 
           {/* Notas */}
-          <div className="mb-6">
+          <section>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Notas / Observaciones
             </label>
@@ -391,25 +430,27 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
               value={formData.notas}
               onChange={handleChange}
               rows="3"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
-            ></textarea>
-          </div>
+              placeholder="Información adicional sobre el cliente..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent resize-none"
+            />
+          </section>
 
           {/* Botones */}
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+              disabled={guardando}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={guardando}
-              className="px-6 py-2 bg-[#D4B896] text-black font-semibold rounded-lg hover:bg-[#c4a886] transition disabled:opacity-50"
+              className="px-6 py-2 bg-[#D4B896] text-black font-semibold rounded-lg hover:bg-[#c4a886] transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {guardando ? 'Guardando...' : cliente ? 'Actualizar Cliente' : 'Crear Cliente'}
+              {guardando ? 'Guardando...' : cliente ? 'Actualizar' : 'Crear Cliente'}
             </button>
           </div>
         </form>
