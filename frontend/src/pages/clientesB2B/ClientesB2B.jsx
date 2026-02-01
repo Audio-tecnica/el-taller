@@ -273,6 +273,12 @@ export default function ClientesB2B() {
                       >
                         Editar
                       </button>
+                      <button
+                        onClick={() => handleCambiarEstado(cliente, 'Bloqueado')}
+                        className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition"
+                      >
+                        Cambiar Estado
+                      </button>
                     </div>
                   </td>
                 </tr>
