@@ -177,7 +177,7 @@ exports.crearCliente = async (req, res) => {
       departamento: departamento || 'Córdoba',
       codigo_postal,
       limite_credito: credito,
-      credito_disponible: credito, // Al inicio el crédito disponible es igual al límite
+      credito_disponible: credito,
       dias_credito: parseInt(dias_credito) || 30,
       descuento_porcentaje: parseFloat(descuento_porcentaje) || 0,
       banco,
@@ -185,7 +185,7 @@ exports.crearCliente = async (req, res) => {
       numero_cuenta,
       notas,
       estado: 'Activo',
-      creado_por: req.user.id
+      creado_por: req.usuario?.id || null  // ⭐ CORREGIDO
     });
 
     const cliente = await ClienteB2B.findByPk(nuevoCliente.id, {
@@ -306,7 +306,7 @@ exports.actualizarCliente = async (req, res) => {
       numero_cuenta,
       estado: estado || cliente.estado,
       notas,
-      actualizado_por: req.user.id
+      actualizado_por: req.usuario?.id || null  // ⭐ CORREGIDO
     });
 
     const clienteActualizado = await ClienteB2B.findByPk(id, {
@@ -350,7 +350,7 @@ exports.cambiarEstado = async (req, res) => {
     await cliente.update({
       estado,
       notas: motivo ? `${cliente.notas || ''}\n[${new Date().toISOString()}] Cambio de estado a ${estado}: ${motivo}` : cliente.notas,
-      actualizado_por: req.user.id
+      actualizado_por: req.usuario?.id || null  // ⭐ CORREGIDO
     });
 
     res.json({ mensaje: `Cliente ${estado.toLowerCase()} exitosamente`, cliente });

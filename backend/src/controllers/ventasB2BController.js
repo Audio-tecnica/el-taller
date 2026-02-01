@@ -117,7 +117,7 @@ exports.crearVenta = async (req, res) => {
       fecha_pago_completo: metodo_pago === 'Credito' ? null : new Date(),
       metodo_pago,
       notas,
-      vendedor_id: req.user.id
+      vendedor_id: req.usuario?.id || null  // ⭐ CORREGIDO
     }, { transaction });
 
     // Crear items de venta
@@ -135,7 +135,7 @@ exports.crearVenta = async (req, res) => {
         cantidad: -item.cantidad,
         costo_unitario: 0,
         precio_venta: item.precio_unitario,
-        usuario_id: req.user.id,
+        usuario_id: req.usuario?.id || null,  // ⭐ CORREGIDO
         numero_documento: numeroFactura,
         observaciones: `Venta B2B a ${cliente.razon_social}`
       }, { transaction });
@@ -349,7 +349,7 @@ exports.anularVenta = async (req, res) => {
         cantidad: item.cantidad,
         costo_unitario: 0,
         precio_venta: item.precio_unitario,
-        usuario_id: req.user.id,
+        usuario_id: req.usuario?.id || null,  // ⭐ CORREGIDO
         numero_documento: venta.numero_factura,
         observaciones: `Anulación de venta B2B: ${motivo}`
       }, { transaction });
@@ -359,7 +359,7 @@ exports.anularVenta = async (req, res) => {
     await venta.update({
       estado_pago: 'Anulado',
       observaciones_anulacion: motivo,
-      anulado_por: req.user.id,
+      anulado_por: req.usuario?.id || null,  // ⭐ CORREGIDO
       fecha_anulacion: new Date()
     }, { transaction });
 

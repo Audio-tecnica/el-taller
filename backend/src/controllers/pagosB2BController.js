@@ -80,7 +80,7 @@ exports.registrarPago = async (req, res) => {
       referencia_pago,
       banco,
       notas,
-      recibido_por: req.user.id,
+      recibido_por: req.usuario?.id || null,  // ⭐ CORREGIDO
       turno_id
     }, { transaction });
 
@@ -283,7 +283,7 @@ exports.anularPago = async (req, res) => {
     // Actualizar pago
     await pago.update({
       estado: 'Anulado',
-      anulado_por: req.user.id,
+      anulado_por: req.usuario?.id || null,  // ⭐ CORREGIDO
       fecha_anulacion: new Date(),
       motivo_anulacion: motivo
     }, { transaction });
