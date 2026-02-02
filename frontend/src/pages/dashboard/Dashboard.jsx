@@ -406,6 +406,27 @@ export default function Dashboard() {
           <p className="text-[#D4B896]">Sistema de gestión El Taller</p>
         </div>
 
+        {/* ⭐ Stats - UNO DEBAJO DEL OTRO */}
+        <div className="grid grid-cols-1 gap-4 mb-8">
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5">
+            <p className="text-gray-500 text-sm mb-1">Ventas Hoy</p>
+            <p className="text-3xl font-bold text-[#D4B896]">$0</p>
+          </div>
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5">
+            <p className="text-gray-500 text-sm mb-1">Mesas Activas</p>
+            <p className="text-3xl font-bold text-emerald-500">0</p>
+          </div>
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5">
+            <p className="text-gray-500 text-sm mb-1">Productos</p>
+            <p className="text-3xl font-bold text-white">1</p>
+          </div>
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5">
+            <p className="text-gray-500 text-sm mb-1">Stock Bajo</p>
+            <p className="text-3xl font-bold text-red-500">0</p>
+          </div>
+        </div>
+
+
         {/* Módulos Principales */}
         <div className="mb-8">
           <h3 className="text-lg font-bold text-white mb-4">
@@ -694,26 +715,6 @@ export default function Dashboard() {
             </div>
           </div>
         )}
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5">
-            <p className="text-gray-500 text-sm mb-1">Ventas Hoy</p>
-            <p className="text-3xl font-bold text-[#D4B896]">$0</p>
-          </div>
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5">
-            <p className="text-gray-500 text-sm mb-1">Mesas Activas</p>
-            <p className="text-3xl font-bold text-emerald-500">0</p>
-          </div>
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5">
-            <p className="text-gray-500 text-sm mb-1">Productos</p>
-            <p className="text-3xl font-bold text-white">1</p>
-          </div>
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5">
-            <p className="text-gray-500 text-sm mb-1">Stock Bajo</p>
-            <p className="text-3xl font-bold text-red-500">0</p>
-          </div>
-        </div>
       </main>
     </div>
   );
