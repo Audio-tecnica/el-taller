@@ -406,76 +406,82 @@ export default function Dashboard() {
           <p className="text-[#D4B896]">Sistema de gestión El Taller</p>
         </div>
 
-        {/* ⭐ Stats - UNO DEBAJO DEL OTRO */}
-        <div className="grid grid-cols-1 gap-4 mb-8">
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5">
-            <p className="text-gray-500 text-sm mb-1">Ventas Hoy</p>
-            <p className="text-3xl font-bold text-[#D4B896]">$0</p>
-          </div>
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5">
-            <p className="text-gray-500 text-sm mb-1">Mesas Activas</p>
-            <p className="text-3xl font-bold text-emerald-500">0</p>
-          </div>
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5">
-            <p className="text-gray-500 text-sm mb-1">Productos</p>
-            <p className="text-3xl font-bold text-white">1</p>
-          </div>
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5">
-            <p className="text-gray-500 text-sm mb-1">Stock Bajo</p>
-            <p className="text-3xl font-bold text-red-500">0</p>
-          </div>
-        </div>
-
-
         {/* Módulos Principales */}
-        <div className="mb-8">
-          <h3 className="text-lg font-bold text-white mb-4">
-            Módulos Principales
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {modulos.map((modulo) => (
-              <button
-                key={modulo.nombre}
-                onClick={() => navigate(modulo.ruta)}
-                className={`${
-                  modulo.destacado
-                    ? "bg-emerald-600 hover:bg-emerald-500 border-2 border-emerald-400"
-                    : "bg-[#141414] hover:bg-[#1a1a1a] border border-[#2a2a2a] hover:border-[#D4B896]"
-                } rounded-xl p-5 text-center transition-all duration-200 group`}
-              >
-                <div
-                  className={`${modulo.destacado ? "w-16 h-16" : "w-12 h-12"} ${
+        {/* Grid: Módulos Principales + Stats */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Columna Izquierda: Módulos Principales (2/3 del espacio) */}
+          <div className="lg:col-span-2">
+            <h3 className="text-lg font-bold text-white mb-4">
+              Módulos Principales
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {modulos.map((modulo) => (
+                <button
+                  key={modulo.nombre}
+                  onClick={() => navigate(modulo.ruta)}
+                  className={`${
                     modulo.destacado
-                      ? "bg-emerald-700"
-                      : "bg-[#1a1a1a] group-hover:bg-[#D4B896]/10"
-                  } rounded-xl flex items-center justify-center mx-auto mb-3 transition-colors`}
+                      ? "bg-emerald-600 hover:bg-emerald-500 border-2 border-emerald-400"
+                      : "bg-[#141414] hover:bg-[#1a1a1a] border border-[#2a2a2a] hover:border-[#D4B896]"
+                  } rounded-xl p-5 text-center transition-all duration-200 group`}
                 >
-                  <span
-                    className={`${modulo.destacado ? "text-4xl" : "text-2xl"}`}
+                  <div
+                    className={`${modulo.destacado ? "w-16 h-16" : "w-12 h-12"} ${
+                      modulo.destacado
+                        ? "bg-emerald-700"
+                        : "bg-[#1a1a1a] group-hover:bg-[#D4B896]/10"
+                    } rounded-xl flex items-center justify-center mx-auto mb-3 transition-colors`}
                   >
-                    {modulo.icono}
-                  </span>
-                </div>
-                <p
-                  className={`${
-                    modulo.destacado
-                      ? "text-base font-bold"
-                      : "text-sm font-medium"
-                  } text-white`}
-                >
-                  {modulo.nombre}
-                </p>
-                <p
-                  className={`${
-                    modulo.destacado
-                      ? "text-sm text-emerald-100 font-medium"
-                      : "text-xs text-gray-600"
-                  } mt-1`}
-                >
-                  {modulo.desc}
-                </p>
-              </button>
-            ))}
+                    <span
+                      className={`${modulo.destacado ? "text-4xl" : "text-2xl"}`}
+                    >
+                      {modulo.icono}
+                    </span>
+                  </div>
+                  <p
+                    className={`${
+                      modulo.destacado
+                        ? "text-base font-bold"
+                        : "text-sm font-medium"
+                    } text-white`}
+                  >
+                    {modulo.nombre}
+                  </p>
+                  <p
+                    className={`${
+                      modulo.destacado
+                        ? "text-sm text-emerald-100 font-medium"
+                        : "text-xs text-gray-600"
+                    } mt-1`}
+                  >
+                    {modulo.desc}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Columna Derecha: Stats (1/3 del espacio) */}
+          <div className="lg:col-span-1">
+            <h3 className="text-lg font-bold text-white mb-4">Estadísticas</h3>
+            <div className="space-y-4">
+              <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5">
+                <p className="text-gray-500 text-sm mb-1">Ventas Hoy</p>
+                <p className="text-3xl font-bold text-[#D4B896]">$0</p>
+              </div>
+              <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5">
+                <p className="text-gray-500 text-sm mb-1">Mesas Activas</p>
+                <p className="text-3xl font-bold text-emerald-500">0</p>
+              </div>
+              <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5">
+                <p className="text-gray-500 text-sm mb-1">Productos</p>
+                <p className="text-3xl font-bold text-white">1</p>
+              </div>
+              <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5">
+                <p className="text-gray-500 text-sm mb-1">Stock Bajo</p>
+                <p className="text-3xl font-bold text-red-500">0</p>
+              </div>
+            </div>
           </div>
         </div>
 
