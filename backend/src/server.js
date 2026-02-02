@@ -4,9 +4,15 @@ const morgan = require("morgan");
 const http = require("http");
 const { Server } = require("socket.io");
 require("dotenv").config();
+require('./utils/keepAlive');
 
 const app = express();
 const server = http.createServer(app);
+
+// Y agrega un endpoint de health check
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // Configurar Socket.IO
 const io = new Server(server, {
