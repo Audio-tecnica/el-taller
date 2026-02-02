@@ -10,12 +10,26 @@ export default function Dashboard() {
   const usuario = authService.getCurrentUser();
   const [turnoActivo, setTurnoActivo] = useState(null);
   const [loadingTurno, setLoadingTurno] = useState(true);
+  
+  // ⭐ NUEVOS ESTADOS PARA ESTADÍSTICAS
+  const [stats, setStats] = useState({
+    ventasHoy: 0,
+    mesasActivas: 0,
+    totalProductos: 0,
+    stockBajo: 0
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
     if (usuario?.rol === "cajero") {
       cargarTurnoActivo();
     } else {
       setLoadingTurno(false);
+    }
+    
+    // ⭐ CARGAR ESTADÍSTICAS
+    if (usuario?.rol === "administrador") {
+      cargarEstadisticas();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -69,6 +83,76 @@ export default function Dashboard() {
       setTurnoActivo(null);
     } finally {
       setLoadingTurno(false);
+    }
+  };
+
+  // ⭐ FUNCIÓN PARA CARGAR ESTADÍSTICAS
+  const cargarEstadisticas = async () => {
+    try {
+      setLoadingStats(true);
+      
+      // Importar servicios dinámicamente
+      const { mesasService } = await import("../../services/mesasService");
+      const { productosService } = await import("../../services/productosService");
+      
+      // 1. Ventas de hoy (desde turnos activos)
+      let ventasHoy = 0;
+      try {
+        const localesData = await mesasService.getLocales();
+        for (const local of localesData) {
+          try {
+            const turno = await turnosService.getTurnoActivo(local.id);
+            ventasHoy += parseFloat(turno.resumen?.total_ventas || 0);
+          } catch {
+            continue;
+          }
+        }
+      } catch (error) {
+        console.error('Error al cargar ventas:', error);
+      }
+
+      // 2. Mesas activas (con pedidos)
+      let mesasActivas = 0;
+      try {
+        const localesData = await mesasService.getLocales();
+        for (const local of localesData) {
+          const mesasData = await mesasService.getMesasPorLocal(local.id);
+          mesasActivas += mesasData.filter(m => m.estado === 'Ocupada').length;
+        }
+      } catch (error) {
+        console.error('Error al cargar mesas:', error);
+      }
+
+      // 3. Total de productos
+      let totalProductos = 0;
+      try {
+        const productosData = await productosService.obtenerProductos({ limite: 1 });
+        totalProductos = productosData.total || 0;
+      } catch (error) {
+        console.error('Error al cargar productos:', error);
+      }
+
+      // 4. Stock bajo (productos con stock <= stock_minimo)
+      let stockBajo = 0;
+      try {
+        const productosData = await productosService.obtenerProductos({ limite: 1000 });
+        stockBajo = productosData.productos?.filter(p => 
+          p.stock_minimo && p.stock_minimo > 0 && p.stock <= p.stock_minimo
+        ).length || 0;
+      } catch (error) {
+        console.error('Error al cargar stock bajo:', error);
+      }
+
+      setStats({
+        ventasHoy,
+        mesasActivas,
+        totalProductos,
+        stockBajo
+      });
+    } catch (error) {
+      console.error('Error al cargar estadísticas:', error);
+    } finally {
+      setLoadingStats(false);
     }
   };
 
@@ -406,7 +490,6 @@ export default function Dashboard() {
           <p className="text-[#D4B896]">Sistema de gestión El Taller</p>
         </div>
 
-        {/* Módulos Principales */}
         {/* Grid: Módulos Principales + Stats */}
         <div className="mb-8">
           <h3 className="text-lg font-bold text-white mb-4">
@@ -459,22 +542,38 @@ export default function Dashboard() {
 
             {/* Stats como UN SOLO CUADRO */}
             <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4 flex flex-col justify-between gap-3">
-              <div>
-                <p className="text-gray-500 text-xs mb-1">Ventas Hoy</p>
-                <p className="text-xl font-bold text-[#D4B896]">$0</p>
-              </div>
-              <div>
-                <p className="text-gray-500 text-xs mb-1">Mesas Activas</p>
-                <p className="text-xl font-bold text-emerald-500">0</p>
-              </div>
-              <div>
-                <p className="text-gray-500 text-xs mb-1">Productos</p>
-                <p className="text-xl font-bold text-white">1</p>
-              </div>
-              <div>
-                <p className="text-gray-500 text-xs mb-1">Stock Bajo</p>
-                <p className="text-xl font-bold text-red-500">0</p>
-              </div>
+              {loadingStats ? (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-gray-500 text-xs">Cargando...</p>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <p className="text-gray-500 text-xs mb-1">Ventas Hoy</p>
+                    <p className="text-xl font-bold text-[#D4B896]">
+                      {formatMoney(stats.ventasHoy)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-xs mb-1">Mesas Activas</p>
+                    <p className="text-xl font-bold text-emerald-500">
+                      {stats.mesasActivas}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-xs mb-1">Productos</p>
+                    <p className="text-xl font-bold text-white">
+                      {stats.totalProductos}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-xs mb-1">Stock Bajo</p>
+                    <p className="text-xl font-bold text-red-500">
+                      {stats.stockBajo}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
