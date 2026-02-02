@@ -128,118 +128,6 @@ export default function Dashboard() {
     },
   ];
 
-  {
-    /* ⭐ MÓDULO B2B - Ventas Corporativas */
-  }
-  <div className="mb-8">
-    <div className="flex items-center justify-between mb-4">
-      <h3 className="text-lg font-bold text-white">Ventas Corporativas B2B</h3>
-      <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-bold rounded-full">
-        CORPORATIVO
-      </span>
-    </div>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* Clientes B2B */}
-      <button
-        onClick={() => navigate("/clientes-b2b")}
-        className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/30 hover:border-blue-500 rounded-2xl p-6 text-left transition-all duration-200 group hover:scale-[1.02]"
-      >
-        <div className="flex items-start justify-between mb-4">
-          <div className="w-14 h-14 bg-[#0a0a0a] rounded-xl flex items-center justify-center">
-            <span className="text-3xl">🏢</span>
-          </div>
-          <svg
-            className="w-5 h-5 text-gray-600 group-hover:text-white transition"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
-        </div>
-        <h4 className="text-lg font-bold text-white mb-1">Clientes B2B</h4>
-        <p className="text-sm text-blue-400">
-          Gestión de clientes corporativos
-        </p>
-      </button>
-
-      {/* Ventas B2B */}
-      <button
-        onClick={() => navigate("/ventas-b2b")}
-        className="bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30 hover:border-emerald-500 rounded-2xl p-6 text-left transition-all duration-200 group hover:scale-[1.02]"
-      >
-        <div className="flex items-start justify-between mb-4">
-          <div className="w-14 h-14 bg-[#0a0a0a] rounded-xl flex items-center justify-center">
-            <span className="text-3xl">📄</span>
-          </div>
-          <svg
-            className="w-5 h-5 text-gray-600 group-hover:text-white transition"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
-        </div>
-        <h4 className="text-lg font-bold text-white mb-1">Ventas B2B</h4>
-        <p className="text-sm text-emerald-400">
-          Facturas y créditos corporativos
-        </p>
-      </button>
-
-      {/* Pagos B2B */}
-      <button
-        onClick={() => navigate("/pagos-b2b")}
-        className="bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30 hover:border-purple-500 rounded-2xl p-6 text-left transition-all duration-200 group hover:scale-[1.02]"
-      >
-        <div className="flex items-start justify-between mb-4">
-          <div className="w-14 h-14 bg-[#0a0a0a] rounded-xl flex items-center justify-center">
-            <span className="text-3xl">💰</span>
-          </div>
-          <svg
-            className="w-5 h-5 text-gray-600 group-hover:text-white transition"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
-        </div>
-        <h4 className="text-lg font-bold text-white mb-1">Pagos B2B</h4>
-        <p className="text-sm text-purple-400">Registro de pagos y cartera</p>
-      </button>
-    </div>
-
-    {/* Info adicional B2B */}
-    <div className="mt-4 bg-[#141414] border border-[#2a2a2a] rounded-xl p-4 flex items-start gap-3">
-      <span className="text-2xl">💼</span>
-      <div className="flex-1">
-        <p className="text-sm text-white font-medium mb-1">
-          Gestión Comercial Corporativa
-        </p>
-        <p className="text-xs text-gray-500">
-          Sistema completo para ventas mayoristas: gestión de clientes,
-          facturación con crédito, control de cartera y pagos.
-        </p>
-      </div>
-    </div>
-  </div>;
-
   // ⭐ NUEVOS MÓDULOS KARDEX PREMIUM (Solo Admin)
   const modulosKardex = [
     {
@@ -567,6 +455,122 @@ export default function Dashboard() {
                 </p>
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* ⭐ MÓDULO B2B - Ventas Corporativas */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-white">
+              Ventas Corporativas B2B
+            </h3>
+            <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-bold rounded-full">
+              CORPORATIVO
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Clientes B2B */}
+            <button
+              onClick={() => navigate("/clientes-b2b")}
+              className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/30 hover:border-blue-500 rounded-2xl p-6 text-left transition-all duration-200 group hover:scale-[1.02]"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-14 h-14 bg-[#0a0a0a] rounded-xl flex items-center justify-center">
+                  <span className="text-3xl">🏢</span>
+                </div>
+                <svg
+                  className="w-5 h-5 text-gray-600 group-hover:text-white transition"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </div>
+              <h4 className="text-lg font-bold text-white mb-1">
+                Clientes B2B
+              </h4>
+              <p className="text-sm text-blue-400">
+                Gestión de clientes corporativos
+              </p>
+            </button>
+
+            {/* Ventas B2B */}
+            <button
+              onClick={() => navigate("/ventas-b2b")}
+              className="bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30 hover:border-emerald-500 rounded-2xl p-6 text-left transition-all duration-200 group hover:scale-[1.02]"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-14 h-14 bg-[#0a0a0a] rounded-xl flex items-center justify-center">
+                  <span className="text-3xl">📄</span>
+                </div>
+                <svg
+                  className="w-5 h-5 text-gray-600 group-hover:text-white transition"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </div>
+              <h4 className="text-lg font-bold text-white mb-1">Ventas B2B</h4>
+              <p className="text-sm text-emerald-400">
+                Facturas y créditos corporativos
+              </p>
+            </button>
+
+            {/* Pagos B2B */}
+            <button
+              onClick={() => navigate("/pagos-b2b")}
+              className="bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30 hover:border-purple-500 rounded-2xl p-6 text-left transition-all duration-200 group hover:scale-[1.02]"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-14 h-14 bg-[#0a0a0a] rounded-xl flex items-center justify-center">
+                  <span className="text-3xl">💰</span>
+                </div>
+                <svg
+                  className="w-5 h-5 text-gray-600 group-hover:text-white transition"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </div>
+              <h4 className="text-lg font-bold text-white mb-1">Pagos B2B</h4>
+              <p className="text-sm text-purple-400">
+                Registro de pagos y cartera
+              </p>
+            </button>
+          </div>
+
+          {/* Info adicional B2B */}
+          <div className="mt-4 bg-[#141414] border border-[#2a2a2a] rounded-xl p-4 flex items-start gap-3">
+            <span className="text-2xl">💼</span>
+            <div className="flex-1">
+              <p className="text-sm text-white font-medium mb-1">
+                Gestión Comercial Corporativa
+              </p>
+              <p className="text-xs text-gray-500">
+                Sistema completo para ventas mayoristas: gestión de clientes,
+                facturación con crédito, control de cartera y pagos.
+              </p>
+            </div>
           </div>
         </div>
 
