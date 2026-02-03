@@ -13,3 +13,18 @@
 body {
   @apply bg-[#0a0a0a] text-white antialiased;
 }
+
+/* ── Fix: selects y options en fondos claros ── */
+/* El body tiene text-white global. Los <select> dentro de modales
+   con bg-white heredan ese color y el texto se vuelve invisible.
+   Este fix fuerza color oscuro en cualquier select con bg-white. */
+select.bg-white,
+select[class*="bg-white"] {
+  color: #1f2937; /* gray-800 */
+}
+
+select.bg-white option,
+select[class*="bg-white"] option {
+  color: #1f2937;
+  background-color: #ffffff;
+}
