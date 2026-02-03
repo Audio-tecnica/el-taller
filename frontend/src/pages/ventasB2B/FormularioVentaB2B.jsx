@@ -30,6 +30,12 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
   const [buscandoProducto, setBuscandoProducto] = useState('');
   const [categoriaFiltro, setCategoriaFiltro] = useState('');
 
+  // ⭐ Estados de carga y error
+  const [loadingClientes, setLoadingClientes] = useState(true);
+  const [loadingProductos, setLoadingProductos] = useState(true);
+  const [errorClientes, setErrorClientes] = useState(null);
+  const [errorProductos, setErrorProductos] = useState(null);
+
   const [formData, setFormData] = useState({
     cliente_b2b_id: '',
     metodo_pago: 'Credito',
@@ -47,6 +53,8 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
 
   const cargarClientes = async () => {
     try {
+      setLoadingClientes(true);
+      setErrorClientes(null);
       const response = await clientesB2BService.obtenerClientes({
         estado: 'Activo',
         limite: 100
@@ -54,17 +62,25 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
       setClientes(response.clientes || []);
     } catch (error) {
       console.error('Error al cargar clientes:', error);
+      setErrorClientes('No se pudo conectar al servidor. Intenta recargar.');
+    } finally {
+      setLoadingClientes(false);
     }
   };
 
   const cargarProductos = async () => {
     try {
+      setLoadingProductos(true);
+      setErrorProductos(null);
       const response = await productosService.getProductos();
       const lista = Array.isArray(response) ? response : (response.productos || []);
       // Solo productos habilitados para B2B
       setProductos(lista.filter(p => p.disponible_b2b));
     } catch (error) {
       console.error('Error al cargar productos:', error);
+      setErrorProductos('No se pudo conectar al servidor. Intenta recargar.');
+    } finally {
+      setLoadingProductos(false);
     }
   };
 
@@ -237,6 +253,33 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
     return item ? item.cantidad : 0;
   };
 
+  // ── Componente reutilizable: estado carga/error ──────────────
+  const renderEstadoCarga = (loading, error, onReintentar, texto) => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center gap-2 py-6">
+          <div className="w-5 h-5 border-2 border-[#D4B896] border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-sm text-gray-500">{texto || 'Conectando con el servidor...'}</span>
+        </div>
+      );
+    }
+    if (error) {
+      return (
+        <div className="flex flex-col items-center gap-2 py-5 bg-red-50 border border-red-200 rounded-lg">
+          <span className="text-sm text-red-600 font-medium">⚠️ {error}</span>
+          <button
+            type="button"
+            onClick={onReintentar}
+            className="text-xs text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded-md transition font-medium"
+          >
+            🔄 Reintentar
+          </button>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
@@ -268,19 +311,25 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">Cliente *</label>
-                <select
-                  value={formData.cliente_b2b_id}
-                  onChange={handleClienteChange}
-                  required
-                  className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent bg-white transition"
-                >
-                  <option value="">Seleccione un cliente</option>
-                  {clientes.map(cliente => (
-                    <option key={cliente.id} value={cliente.id}>
-                      {cliente.razon_social} — {cliente.numero_documento}
-                    </option>
-                  ))}
-                </select>
+
+                {/* ⭐ Si carga o falla → mostrar estado, sino el select */}
+                {(loadingClientes || errorClientes) ? (
+                  renderEstadoCarga(loadingClientes, errorClientes, cargarClientes, 'Cargando clientes...')
+                ) : (
+                  <select
+                    value={formData.cliente_b2b_id}
+                    onChange={handleClienteChange}
+                    required
+                    className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent bg-white transition"
+                  >
+                    <option value="">Seleccione un cliente</option>
+                    {clientes.map(cliente => (
+                      <option key={cliente.id} value={cliente.id}>
+                        {cliente.razon_social} — {cliente.numero_documento}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">Método de Pago *</label>
@@ -328,115 +377,124 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
               Productos
             </h3>
 
-            {/* Buscador + filtro categoría */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-4">
-              <div className="flex-1 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  value={buscandoProducto}
-                  onChange={(e) => setBuscandoProducto(e.target.value)}
-                  placeholder="Buscar producto, presentación o categoría..."
-                  className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent transition"
-                />
-              </div>
-
-              {/* Filtro categoría */}
-              {categorias.length > 0 && (
-                <select
-                  value={categoriaFiltro}
-                  onChange={(e) => setCategoriaFiltro(e.target.value)}
-                  className="px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent bg-white transition min-w-[180px]"
-                >
-                  <option value="">📦 Todas las categorías</option>
-                  {categorias.map(cat => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.icono || '📦'} {cat.nombre}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            {/* Grid de productos */}
-            <div className="border-2 border-gray-200 rounded-xl overflow-hidden mb-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-gray-200 max-h-72 overflow-y-auto">
-                {productosFiltrados.length === 0 ? (
-                  <div className="col-span-3 bg-white py-8 text-center text-gray-400">
-                    No hay productos que coincidan con la búsqueda
+            {/* ⭐ Si productos carga o falla → mostrar estado completo */}
+            {(loadingProductos || errorProductos) ? (
+              renderEstadoCarga(loadingProductos, errorProductos, cargarProductos, 'Cargando productos...')
+            ) : (
+              <>
+                {/* Buscador + filtro categoría */}
+                <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                  <div className="flex-1 relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <input
+                      type="text"
+                      value={buscandoProducto}
+                      onChange={(e) => setBuscandoProducto(e.target.value)}
+                      placeholder="Buscar producto, presentación o categoría..."
+                      className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent transition"
+                    />
                   </div>
-                ) : (
-                  productosFiltrados.map(producto => {
-                    const stock = getStock(producto);
-                    const enCarrito = cantEnCarrito(producto);
-                    const sinStock = stock === 0;
 
-                    return (
-                      <button
-                        key={producto.id}
-                        type="button"
-                        onClick={() => !sinStock && handleAgregarProducto(producto)}
-                        disabled={sinStock}
-                        className={`bg-white p-3 text-left transition-all duration-150 ${
-                          sinStock
-                            ? 'opacity-45 cursor-not-allowed'
-                            : 'hover:bg-[#FFF8EC] hover:shadow-inner cursor-pointer'
-                        }`}
-                      >
-                        {/* Fila superior: nombre + badge cantidad en carrito */}
-                        <div className="flex items-start justify-between gap-2 mb-1.5">
-                          <div>
-                            <div className="text-sm font-bold text-gray-800 leading-snug">{producto.nombre}</div>
-                            {producto.categoria && (
-                              <span className="text-xs text-gray-500">
-                                {producto.categoria.icono || '📦'} {producto.categoria.nombre}
+                  {/* Filtro categoría */}
+                  {categorias.length > 0 && (
+                    <select
+                      value={categoriaFiltro}
+                      onChange={(e) => setCategoriaFiltro(e.target.value)}
+                      className="px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent bg-white transition min-w-[180px]"
+                    >
+                      <option value="">📦 Todas las categorías</option>
+                      {categorias.map(cat => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.icono || '📦'} {cat.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* Grid de productos */}
+                <div className="border-2 border-gray-200 rounded-xl overflow-hidden mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-gray-200 max-h-72 overflow-y-auto">
+                    {productosFiltrados.length === 0 ? (
+                      <div className="col-span-3 bg-white py-8 text-center text-gray-400">
+                        {productos.length === 0
+                          ? 'No hay productos habilitados para B2B aún.'
+                          : 'No hay productos que coincidan con la búsqueda'}
+                      </div>
+                    ) : (
+                      productosFiltrados.map(producto => {
+                        const stock = getStock(producto);
+                        const enCarrito = cantEnCarrito(producto);
+                        const sinStock = stock === 0;
+
+                        return (
+                          <button
+                            key={producto.id}
+                            type="button"
+                            onClick={() => !sinStock && handleAgregarProducto(producto)}
+                            disabled={sinStock}
+                            className={`bg-white p-3 text-left transition-all duration-150 ${
+                              sinStock
+                                ? 'opacity-45 cursor-not-allowed'
+                                : 'hover:bg-[#FFF8EC] hover:shadow-inner cursor-pointer'
+                            }`}
+                          >
+                            {/* Fila superior: nombre + badge cantidad en carrito */}
+                            <div className="flex items-start justify-between gap-2 mb-1.5">
+                              <div>
+                                <div className="text-sm font-bold text-gray-800 leading-snug">{producto.nombre}</div>
+                                {producto.categoria && (
+                                  <span className="text-xs text-gray-500">
+                                    {producto.categoria.icono || '📦'} {producto.categoria.nombre}
+                                  </span>
+                                )}
+                              </div>
+                              {enCarrito > 0 && (
+                                <span className="inline-flex items-center justify-center w-5 h-5 bg-[#D4B896] text-gray-900 text-xs font-bold rounded-full shrink-0">
+                                  {enCarrito}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Badges: presentación + stock */}
+                            <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                              {getPresentacionBadge(producto.presentacion)}
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                sinStock
+                                  ? 'bg-red-100 text-red-700'
+                                  : stock <= 5
+                                    ? 'bg-amber-100 text-amber-700'
+                                    : 'bg-emerald-100 text-emerald-700'
+                              }`}>
+                                {sinStock ? '❌ Sin stock' : `📦 ${stock}`}
                               </span>
-                            )}
-                          </div>
-                          {enCarrito > 0 && (
-                            <span className="inline-flex items-center justify-center w-5 h-5 bg-[#D4B896] text-gray-900 text-xs font-bold rounded-full shrink-0">
-                              {enCarrito}
-                            </span>
-                          )}
-                        </div>
+                            </div>
 
-                        {/* Badges: presentación + stock */}
-                        <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                          {getPresentacionBadge(producto.presentacion)}
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                            sinStock
-                              ? 'bg-red-100 text-red-700'
-                              : stock <= 5
-                                ? 'bg-amber-100 text-amber-700'
-                                : 'bg-emerald-100 text-emerald-700'
-                          }`}>
-                            {sinStock ? '❌ Sin stock' : `📦 ${stock}`}
-                          </span>
-                        </div>
+                            {/* Precio: mayorista vs venta */}
+                            <div className="flex items-center justify-between">
+                              <div className="text-sm font-bold text-emerald-700">
+                                {formatearMoneda(getPrecioB2B(producto))}
+                              </div>
+                              {producto.precio_mayorista && Number(producto.precio_mayorista) !== Number(producto.precio_venta) && (
+                                <span className="text-xs text-gray-400 line-through">
+                                  {formatearMoneda(producto.precio_venta)}
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
 
-                        {/* Precio: mayorista vs venta */}
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm font-bold text-emerald-700">
-                            {formatearMoneda(getPrecioB2B(producto))}
-                          </div>
-                          {producto.precio_mayorista && Number(producto.precio_mayorista) !== Number(producto.precio_venta) && (
-                            <span className="text-xs text-gray-400 line-through">
-                              {formatearMoneda(producto.precio_venta)}
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* Tabla de items en carrito */}
+            {/* Tabla de items en carrito — siempre visible si hay items */}
             {items.length > 0 && (
               <div className="border-2 border-gray-200 rounded-xl overflow-hidden">
                 <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
