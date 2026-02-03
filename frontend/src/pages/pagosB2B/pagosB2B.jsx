@@ -32,7 +32,7 @@ export default function PagosB2B() {
       setCargando(true);
       const [pagosData, resumenData] = await Promise.all([
         pagosB2BService.obtenerPagos(filtros),
-        pagosB2BService.obtenerResumen()
+        pagosB2BService.obtenerResumenPagos()
       ]);
       setPagos(pagosData.pagos || []);
       setResumen(resumenData);
