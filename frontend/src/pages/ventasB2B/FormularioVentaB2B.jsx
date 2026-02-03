@@ -1,14 +1,34 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import clientesB2BService from '../../services/clientesB2BService';
 import { productosService } from '../../services/productosService';
 import ventasB2BService from '../../services/ventasB2BService';
 import { authService } from '../../services/authService';
+
+// ── Badges de presentación ────────────────────────────────────
+const getPresentacionBadge = (presentacion) => {
+  if (!presentacion) return null;
+  const configs = {
+    'Barril':   { bg: 'bg-amber-100',  text: 'text-amber-800',  icon: '🛢️' },
+    'Botella':  { bg: 'bg-blue-100',   text: 'text-blue-800',   icon: '🍶' },
+    'Caja':     { bg: 'bg-purple-100', text: 'text-purple-800', icon: '📦' },
+    'Paquete':  { bg: 'bg-pink-100',   text: 'text-pink-800',   icon: '📬' },
+    'Unidad':   { bg: 'bg-gray-100',   text: 'text-gray-800',   icon: '1️⃣'  },
+  };
+  const c = configs[presentacion] || { bg: 'bg-gray-100', text: 'text-gray-700', icon: '📦' };
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full ${c.bg} ${c.text}`}>
+      <span>{c.icon}</span>
+      <span>{presentacion}</span>
+    </span>
+  );
+};
 
 export default function FormularioVentaB2B({ onClose, onGuardar }) {
   const [clientes, setClientes] = useState([]);
   const [productos, setProductos] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [buscandoProducto, setBuscandoProducto] = useState('');
+  const [categoriaFiltro, setCategoriaFiltro] = useState('');
 
   const [formData, setFormData] = useState({
     cliente_b2b_id: '',
@@ -27,9 +47,9 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
 
   const cargarClientes = async () => {
     try {
-      const response = await clientesB2BService.obtenerClientes({ 
+      const response = await clientesB2BService.obtenerClientes({
         estado: 'Activo',
-        limite: 100 
+        limite: 100
       });
       setClientes(response.clientes || []);
     } catch (error) {
@@ -40,16 +60,53 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
   const cargarProductos = async () => {
     try {
       const response = await productosService.getProductos();
-      setProductos(Array.isArray(response) ? response : response.productos || []);
+      const lista = Array.isArray(response) ? response : (response.productos || []);
+      // Solo productos habilitados para B2B
+      setProductos(lista.filter(p => p.disponible_b2b));
     } catch (error) {
       console.error('Error al cargar productos:', error);
     }
   };
 
+  // ── Categorías únicas sacadas de los productos ──────────────
+  const categorias = useMemo(() => {
+    const map = {};
+    productos.forEach(p => {
+      if (p.categoria && !map[p.categoria.id]) {
+        map[p.categoria.id] = p.categoria;
+      }
+    });
+    return Object.values(map);
+  }, [productos]);
+
+  // ── Productos filtrados por búsqueda + categoría ────────────
+  const productosFiltrados = useMemo(() => {
+    return productos
+      .filter(p => {
+        const matchBuscar =
+          !buscandoProducto ||
+          p.nombre.toLowerCase().includes(buscandoProducto.toLowerCase()) ||
+          (p.presentacion && p.presentacion.toLowerCase().includes(buscandoProducto.toLowerCase())) ||
+          (p.categoria?.nombre && p.categoria.nombre.toLowerCase().includes(buscandoProducto.toLowerCase()));
+        const matchCategoria = !categoriaFiltro || p.categoria?.id === categoriaFiltro;
+        return matchBuscar && matchCategoria;
+      })
+      .slice(0, 12);
+  }, [productos, buscandoProducto, categoriaFiltro]);
+
+  // ── precio a usar: mayorista si existe, sino venta ──────────
+  const getPrecioB2B = (producto) =>
+    producto.precio_mayorista ? Number(producto.precio_mayorista) : Number(producto.precio_venta);
+
+  // ── Stock total ──────────────────────────────────────────────
+  const getStock = (producto) =>
+    producto.stock_total != null
+      ? producto.stock_total
+      : (Number(producto.stock_local1 || 0) + Number(producto.stock_local2 || 0));
+
   const handleClienteChange = async (e) => {
     const clienteId = e.target.value;
     setFormData({ ...formData, cliente_b2b_id: clienteId });
-
     if (clienteId) {
       try {
         const cliente = await clientesB2BService.obtenerClientePorId(clienteId);
@@ -63,8 +120,15 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
   };
 
   const handleAgregarProducto = (producto) => {
+    const stock = getStock(producto);
     const itemExistente = items.find(item => item.producto_id === producto.id);
-    
+    const cantActual = itemExistente ? itemExistente.cantidad : 0;
+
+    if (stock > 0 && cantActual >= stock) {
+      alert(`Stock máximo alcanzado para ${producto.nombre} (${stock} unidades)`);
+      return;
+    }
+
     if (itemExistente) {
       setItems(items.map(item =>
         item.producto_id === producto.id
@@ -75,12 +139,13 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
       setItems([...items, {
         producto_id: producto.id,
         nombre_producto: producto.nombre,
-        precio_unitario: producto.precio,
+        presentacion: producto.presentacion,
+        precio_unitario: getPrecioB2B(producto),
         cantidad: 1,
-        descuento_porcentaje: 0
+        descuento_porcentaje: 0,
+        stock: stock
       }]);
     }
-    setBuscandoProducto('');
   };
 
   const handleCantidadChange = (productoId, nuevaCantidad) => {
@@ -118,43 +183,27 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
   const calcularTotales = () => {
     let subtotal = 0;
     let descuentoTotal = 0;
-
     items.forEach(item => {
       const itemSubtotal = item.cantidad * item.precio_unitario;
-      const descuentoPorcentaje = item.descuento_porcentaje || 
-        (formData.aplicar_descuento_cliente && clienteSeleccionado?.descuento_porcentaje 
-          ? clienteSeleccionado.descuento_porcentaje 
+      const descuentoPorcentaje = item.descuento_porcentaje ||
+        (formData.aplicar_descuento_cliente && clienteSeleccionado?.descuento_porcentaje
+          ? clienteSeleccionado.descuento_porcentaje
           : 0);
-      const itemDescuento = itemSubtotal * (descuentoPorcentaje / 100);
-      
       subtotal += itemSubtotal;
-      descuentoTotal += itemDescuento;
+      descuentoTotal += itemSubtotal * (descuentoPorcentaje / 100);
     });
-
-    const total = subtotal - descuentoTotal;
-
-    return { subtotal, descuentoTotal, total };
+    return { subtotal, descuentoTotal, total: subtotal - descuentoTotal };
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!formData.cliente_b2b_id) {
-      alert('Por favor seleccione un cliente');
-      return;
-    }
-
-    if (items.length === 0) {
-      alert('Por favor agregue al menos un producto');
-      return;
-    }
+    if (!formData.cliente_b2b_id) { alert('Por favor seleccione un cliente'); return; }
+    if (items.length === 0) { alert('Por favor agregue al menos un producto'); return; }
 
     try {
       setGuardando(true);
-      
       const user = authService.getCurrentUser();
-      
-      const ventaData = {
+      await ventasB2BService.crearVenta({
         cliente_b2b_id: formData.cliente_b2b_id,
         local_id: user?.local_asignado_id || null,
         metodo_pago: formData.metodo_pago,
@@ -166,9 +215,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
           precio_unitario: item.precio_unitario,
           descuento_porcentaje: item.descuento_porcentaje
         }))
-      };
-
-      await ventasB2BService.crearVenta(ventaData);
+      });
       onGuardar();
       onClose();
     } catch (error) {
@@ -181,316 +228,373 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
 
   const { subtotal, descuentoTotal, total } = calcularTotales();
 
-  const formatearMoneda = (valor) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0
-    }).format(valor);
+  const formatearMoneda = (valor) =>
+    new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(valor || 0);
+
+  // ── Producto ya en carrito? ──────────────────────────────────
+  const cantEnCarrito = (producto) => {
+    const item = items.find(i => i.producto_id === producto.id);
+    return item ? item.cantidad : 0;
   };
 
-  const productosFiltrados = productos.filter(p =>
-    p.nombre.toLowerCase().includes(buscandoProducto.toLowerCase()) ||
-    p.codigo?.toLowerCase().includes(buscandoProducto.toLowerCase())
-  ).slice(0, 10);
-
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
-      <div 
-        className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto"
+      <div
+        className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[92vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
-          <h2 className="text-2xl font-bold text-gray-800">Nueva Factura B2B</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-3xl font-bold"
-          >
-            ×
-          </button>
+        {/* Header modal */}
+        <div className="sticky top-0 bg-gradient-to-r from-gray-800 to-gray-900 text-white px-6 py-5 flex items-center justify-between z-10 rounded-t-xl">
+          <div className="flex items-center gap-3">
+            <svg className="w-7 h-7 text-[#D4B896]" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M4 4a2 2 0 00-2 2v1h12V6a2 2 0 00-2-2H4zM2 9v5a2 2 0 002 2h8a2 2 0 002-2V9H2zm7 2a1 1 0 100 2 1 1 0 000-2z" />
+            </svg>
+            <h2 className="text-xl font-bold">Nueva Factura B2B</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-300 hover:text-white text-2xl font-bold transition">×</button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Selección de Cliente */}
+
+          {/* ── Cliente + Método ────────────────────────────────── */}
           <section>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Cliente</h3>
+            <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <span className="w-6 h-6 bg-[#D4B896] text-gray-900 rounded-full flex items-center justify-center text-xs font-bold">1</span>
+              Cliente
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Cliente *
-                </label>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Cliente *</label>
                 <select
                   value={formData.cliente_b2b_id}
                   onChange={handleClienteChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white"
+                  className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent bg-white transition"
                 >
                   <option value="">Seleccione un cliente</option>
                   {clientes.map(cliente => (
                     <option key={cliente.id} value={cliente.id}>
-                      {cliente.razon_social} - {cliente.numero_documento}
+                      {cliente.razon_social} — {cliente.numero_documento}
                     </option>
                   ))}
                 </select>
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Método de Pago *
-                </label>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Método de Pago *</label>
                 <select
                   value={formData.metodo_pago}
                   onChange={(e) => setFormData({ ...formData, metodo_pago: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white"
+                  className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent bg-white transition"
                 >
-                  <option value="Credito">Crédito</option>
-                  <option value="Contado">Contado</option>
+                  <option value="Credito">💳 Crédito</option>
+                  <option value="Contado">💵 Contado</option>
                 </select>
               </div>
             </div>
 
-            {/* Info del Cliente */}
+            {/* Info cliente */}
             {clienteSeleccionado && (
-              <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="mt-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                   <div>
-                    <span className="text-gray-600">Límite de Crédito:</span>
-                    <div className="font-semibold text-gray-900">
-                      {formatearMoneda(clienteSeleccionado.limite_credito)}
-                    </div>
+                    <div className="text-gray-500">Límite Crédito</div>
+                    <div className="font-bold text-gray-800">{formatearMoneda(clienteSeleccionado.limite_credito)}</div>
                   </div>
                   <div>
-                    <span className="text-gray-600">Crédito Disponible:</span>
-                    <div className="font-semibold text-green-600">
-                      {formatearMoneda(clienteSeleccionado.credito_disponible)}
-                    </div>
+                    <div className="text-gray-500">Disponible</div>
+                    <div className="font-bold text-green-600">{formatearMoneda(clienteSeleccionado.credito_disponible)}</div>
                   </div>
                   <div>
-                    <span className="text-gray-600">Días de Crédito:</span>
-                    <div className="font-semibold text-gray-900">
-                      {clienteSeleccionado.dias_credito} días
-                    </div>
+                    <div className="text-gray-500">Días Crédito</div>
+                    <div className="font-bold text-gray-800">{clienteSeleccionado.dias_credito} días</div>
                   </div>
                   <div>
-                    <span className="text-gray-600">Descuento:</span>
-                    <div className="font-semibold text-gray-900">
-                      {clienteSeleccionado.descuento_porcentaje}%
-                    </div>
+                    <div className="text-gray-500">Descuento</div>
+                    <div className="font-bold text-amber-600">{clienteSeleccionado.descuento_porcentaje}%</div>
                   </div>
                 </div>
               </div>
             )}
           </section>
 
-          {/* Productos */}
+          {/* ── Productos ─────────────────────────────────────────── */}
           <section>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Productos</h3>
-            
-            {/* Buscador de Productos */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Buscar Producto
-              </label>
-              <input
-                type="text"
-                value={buscandoProducto}
-                onChange={(e) => setBuscandoProducto(e.target.value)}
-                placeholder="Buscar por nombre o código..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white"
-              />
-              
-              {/* Lista de productos filtrados */}
-              {buscandoProducto && productosFiltrados.length > 0 && (
-                <div className="mt-2 border border-gray-300 rounded-lg max-h-48 overflow-y-auto bg-white">
-                  {productosFiltrados.map(producto => (
-                    <button
-                      key={producto.id}
-                      type="button"
-                      onClick={() => handleAgregarProducto(producto)}
-                      className="w-full px-4 py-2 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-                    >
-                      <div className="font-medium text-gray-900">{producto.nombre}</div>
-                      <div className="text-sm text-gray-500">
-                        {producto.codigo} - {formatearMoneda(producto.precio)}
-                      </div>
-                    </button>
-                  ))}
+            <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <span className="w-6 h-6 bg-[#D4B896] text-gray-900 rounded-full flex items-center justify-center text-xs font-bold">2</span>
+              Productos
+            </h3>
+
+            {/* Buscador + filtro categoría */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
+              <div className="flex-1 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
                 </div>
+                <input
+                  type="text"
+                  value={buscandoProducto}
+                  onChange={(e) => setBuscandoProducto(e.target.value)}
+                  placeholder="Buscar producto, presentación o categoría..."
+                  className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent transition"
+                />
+              </div>
+
+              {/* Filtro categoría */}
+              {categorias.length > 0 && (
+                <select
+                  value={categoriaFiltro}
+                  onChange={(e) => setCategoriaFiltro(e.target.value)}
+                  className="px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent bg-white transition min-w-[180px]"
+                >
+                  <option value="">📦 Todas las categorías</option>
+                  {categorias.map(cat => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.icono || '📦'} {cat.nombre}
+                    </option>
+                  ))}
+                </select>
               )}
             </div>
 
-            {/* Tabla de Items */}
-            <div className="border border-gray-300 rounded-lg overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Producto
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Precio
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Cantidad
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Desc %
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Subtotal
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {items.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
-                        No hay productos agregados
-                      </td>
-                    </tr>
-                  ) : (
-                    items.map(item => {
-                      const itemSubtotal = item.cantidad * item.precio_unitario;
-                      const descuento = item.descuento_porcentaje || 
-                        (formData.aplicar_descuento_cliente && clienteSeleccionado?.descuento_porcentaje 
-                          ? clienteSeleccionado.descuento_porcentaje 
-                          : 0);
-                      const itemTotal = itemSubtotal - (itemSubtotal * descuento / 100);
+            {/* Grid de productos */}
+            <div className="border-2 border-gray-200 rounded-xl overflow-hidden mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-gray-200 max-h-72 overflow-y-auto">
+                {productosFiltrados.length === 0 ? (
+                  <div className="col-span-3 bg-white py-8 text-center text-gray-400">
+                    No hay productos que coincidan con la búsqueda
+                  </div>
+                ) : (
+                  productosFiltrados.map(producto => {
+                    const stock = getStock(producto);
+                    const enCarrito = cantEnCarrito(producto);
+                    const sinStock = stock === 0;
 
-                      return (
-                        <tr key={item.producto_id}>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            {item.nombre_producto}
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="number"
-                              value={item.precio_unitario}
-                              onChange={(e) => handlePrecioChange(item.producto_id, e.target.value)}
-                              min="0"
-                              step="100"
-                              className="w-24 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900 bg-white"
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="number"
-                              value={item.cantidad}
-                              onChange={(e) => handleCantidadChange(item.producto_id, e.target.value)}
-                              min="1"
-                              className="w-20 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900 bg-white"
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="number"
-                              value={item.descuento_porcentaje}
-                              onChange={(e) => handleDescuentoChange(item.producto_id, e.target.value)}
-                              min="0"
-                              max="100"
-                              step="0.5"
-                              className="w-16 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900 bg-white"
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                            {formatearMoneda(itemTotal)}
-                          </td>
-                          <td className="px-4 py-3">
-                            <button
-                              type="button"
-                              onClick={() => handleEliminarItem(item.producto_id)}
-                              className="text-red-600 hover:text-red-800"
-                            >
-                              ✕
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                    return (
+                      <button
+                        key={producto.id}
+                        type="button"
+                        onClick={() => !sinStock && handleAgregarProducto(producto)}
+                        disabled={sinStock}
+                        className={`bg-white p-3 text-left transition-all duration-150 ${
+                          sinStock
+                            ? 'opacity-45 cursor-not-allowed'
+                            : 'hover:bg-[#FFF8EC] hover:shadow-inner cursor-pointer'
+                        }`}
+                      >
+                        {/* Fila superior: nombre + badge cantidad en carrito */}
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <div>
+                            <div className="text-sm font-bold text-gray-800 leading-snug">{producto.nombre}</div>
+                            {producto.categoria && (
+                              <span className="text-xs text-gray-500">
+                                {producto.categoria.icono || '📦'} {producto.categoria.nombre}
+                              </span>
+                            )}
+                          </div>
+                          {enCarrito > 0 && (
+                            <span className="inline-flex items-center justify-center w-5 h-5 bg-[#D4B896] text-gray-900 text-xs font-bold rounded-full shrink-0">
+                              {enCarrito}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Badges: presentación + stock */}
+                        <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                          {getPresentacionBadge(producto.presentacion)}
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                            sinStock
+                              ? 'bg-red-100 text-red-700'
+                              : stock <= 5
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {sinStock ? '❌ Sin stock' : `📦 ${stock}`}
+                          </span>
+                        </div>
+
+                        {/* Precio: mayorista vs venta */}
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm font-bold text-emerald-700">
+                            {formatearMoneda(getPrecioB2B(producto))}
+                          </div>
+                          {producto.precio_mayorista && Number(producto.precio_mayorista) !== Number(producto.precio_venta) && (
+                            <span className="text-xs text-gray-400 line-through">
+                              {formatearMoneda(producto.precio_venta)}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
             </div>
 
-            {/* Checkbox Descuento */}
+            {/* Tabla de items en carrito */}
+            {items.length > 0 && (
+              <div className="border-2 border-gray-200 rounded-xl overflow-hidden">
+                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                  <span className="text-sm font-bold text-gray-700">🛒 Carrito ({items.length} producto{items.length > 1 ? 's' : ''})</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-600 uppercase">Producto</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-600 uppercase">Precio</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-600 uppercase">Cantidad</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-600 uppercase">Desc %</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-600 uppercase">Total</th>
+                        <th className="px-4 py-2.5 text-center text-xs font-bold text-gray-600 uppercase w-10"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {items.map(item => {
+                        const itemSubtotal = item.cantidad * item.precio_unitario;
+                        const desc = item.descuento_porcentaje ||
+                          (formData.aplicar_descuento_cliente && clienteSeleccionado?.descuento_porcentaje
+                            ? clienteSeleccionado.descuento_porcentaje : 0);
+                        const itemTotal = itemSubtotal - (itemSubtotal * desc / 100);
+
+                        return (
+                          <tr key={item.producto_id} className="bg-white hover:bg-gray-50">
+                            <td className="px-4 py-2.5">
+                              <div className="text-sm font-semibold text-gray-800">{item.nombre_producto}</div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                {getPresentacionBadge(item.presentacion)}
+                              </div>
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <input
+                                type="number"
+                                value={item.precio_unitario}
+                                onChange={(e) => handlePrecioChange(item.producto_id, e.target.value)}
+                                min="0"
+                                step="100"
+                                className="w-28 px-2 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                              />
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleCantidadChange(item.producto_id, item.cantidad - 1)}
+                                  className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center font-bold transition"
+                                >−</button>
+                                <span className="w-8 text-center text-sm font-bold text-gray-800">{item.cantidad}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCantidadChange(item.producto_id, item.cantidad + 1)}
+                                  className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center font-bold transition"
+                                >+</button>
+                              </div>
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <input
+                                type="number"
+                                value={item.descuento_porcentaje}
+                                onChange={(e) => handleDescuentoChange(item.producto_id, e.target.value)}
+                                min="0"
+                                max="100"
+                                step="0.5"
+                                className="w-16 px-2 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                              />
+                            </td>
+                            <td className="px-4 py-2.5 text-sm font-bold text-gray-800">
+                              {formatearMoneda(itemTotal)}
+                            </td>
+                            <td className="px-4 py-2.5 text-center">
+                              <button
+                                type="button"
+                                onClick={() => handleEliminarItem(item.producto_id)}
+                                className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 flex items-center justify-center transition"
+                              >✕</button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Checkbox descuento cliente */}
             {clienteSeleccionado?.descuento_porcentaje > 0 && (
-              <div className="mt-4">
-                <label className="flex items-center">
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={formData.aplicar_descuento_cliente}
                     onChange={(e) => setFormData({ ...formData, aplicar_descuento_cliente: e.target.checked })}
-                    className="mr-2"
+                    className="w-4 h-4 accent-[#D4B896]"
                   />
-                  <span className="text-sm text-gray-700">
-                    Aplicar descuento del cliente ({clienteSeleccionado.descuento_porcentaje}%)
+                  <span className="text-sm text-gray-700 font-medium">
+                    Aplicar descuento del cliente <span className="text-amber-700 font-bold">({clienteSeleccionado.descuento_porcentaje}%)</span>
                   </span>
                 </label>
               </div>
             )}
           </section>
 
-          {/* Totales */}
-          <section className="border-t border-gray-200 pt-4">
+          {/* ── Totales ──────────────────────────────────────────── */}
+          <section className="bg-gray-50 border-2 border-gray-200 rounded-xl p-5">
+            <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <span className="w-6 h-6 bg-[#D4B896] text-gray-900 rounded-full flex items-center justify-center text-xs font-bold">3</span>
+              Resumen
+            </h3>
             <div className="flex justify-end">
-              <div className="w-64 space-y-2">
-                <div className="flex justify-between text-gray-700">
-                  <span>Subtotal:</span>
-                  <span className="font-semibold">{formatearMoneda(subtotal)}</span>
+              <div className="w-72 space-y-2">
+                <div className="flex justify-between text-gray-600">
+                  <span>Subtotal</span>
+                  <span className="font-semibold text-gray-800">{formatearMoneda(subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-gray-700">
-                  <span>Descuento:</span>
-                  <span className="font-semibold text-orange-600">
-                    -{formatearMoneda(descuentoTotal)}
-                  </span>
+                <div className="flex justify-between text-gray-600">
+                  <span>Descuento</span>
+                  <span className="font-semibold text-orange-600">−{formatearMoneda(descuentoTotal)}</span>
                 </div>
-                <div className="flex justify-between text-xl font-bold text-gray-900 border-t border-gray-300 pt-2">
-                  <span>Total:</span>
-                  <span>{formatearMoneda(total)}</span>
+                <div className="border-t-2 border-gray-300 pt-2 flex justify-between text-xl font-bold text-gray-900">
+                  <span>Total</span>
+                  <span className="text-emerald-700">{formatearMoneda(total)}</span>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* Notas */}
+          {/* ── Notas ────────────────────────────────────────────── */}
           <section>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notas / Observaciones
-            </label>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Notas / Observaciones</label>
             <textarea
               value={formData.notas}
               onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
-              rows="3"
-              placeholder="Notas adicionales..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white resize-none"
+              rows="2"
+              placeholder="Información adicional..."
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent resize-none transition"
             />
           </section>
 
-          {/* Botones */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+          {/* ── Botones ──────────────────────────────────────────── */}
+          <div className="flex justify-end gap-3 pt-2 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
               disabled={guardando}
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+              className="px-6 py-2.5 border-2 border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50 font-medium"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={guardando || items.length === 0}
-              className="px-6 py-2 bg-[#D4B896] text-black font-semibold rounded-lg hover:bg-[#c4a886] transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2.5 bg-gradient-to-r from-[#D4B896] to-[#c4a886] text-gray-900 font-bold rounded-lg hover:shadow-md transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
             >
-              {guardando ? 'Guardando...' : 'Crear Factura'}
+              {guardando ? 'Guardando...' : '📄 Crear Factura'}
             </button>
           </div>
         </form>
