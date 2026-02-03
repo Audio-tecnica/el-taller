@@ -39,8 +39,8 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
 
   const cargarProductos = async () => {
     try {
-      const response = await productosService.obtenerProductos({ limite: 1000 });
-      setProductos(response.productos || []);
+      const response = await productosService.getProductos();
+      setProductos(Array.isArray(response) ? response : response.productos || []);
     } catch (error) {
       console.error('Error al cargar productos:', error);
     }

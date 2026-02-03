@@ -126,8 +126,8 @@ export default function Dashboard() {
       // 3. Total de productos
       let totalProductos = 0;
       try {
-        const productosData = await productosService.obtenerProductos({ limite: 1 });
-        totalProductos = productosData.total || 0;
+        const productosData = await productosService.getProductos();
+        totalProductos = Array.isArray(productosData) ? productosData.length : (productosData.total || 0);
       } catch (error) {
         console.error('Error al cargar productos:', error);
       }
@@ -135,8 +135,9 @@ export default function Dashboard() {
       // 4. Stock bajo (productos con stock <= stock_minimo)
       let stockBajo = 0;
       try {
-        const productosData = await productosService.obtenerProductos({ limite: 1000 });
-        stockBajo = productosData.productos?.filter(p => 
+        const productosData = await productosService.getProductos();
+        const lista = Array.isArray(productosData) ? productosData : (productosData.productos || []);
+        stockBajo = lista.filter(p => 
           p.stock_minimo && p.stock_minimo > 0 && p.stock <= p.stock_minimo
         ).length || 0;
       } catch (error) {
