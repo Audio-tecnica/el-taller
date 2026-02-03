@@ -116,7 +116,7 @@ export default function Dashboard() {
       try {
         const localesData = await mesasService.getLocales();
         for (const local of localesData) {
-          const mesasData = await mesasService.getMesasPorLocal(local.id);
+          const mesasData = await mesasService.getMesas(local.id);
           mesasActivas += mesasData.filter(m => m.estado === 'Ocupada').length;
         }
       } catch (error) {
