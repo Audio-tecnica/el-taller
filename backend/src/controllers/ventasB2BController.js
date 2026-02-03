@@ -43,7 +43,7 @@ exports.crearVenta = async (req, res) => {
       }
 
       const cantidad = parseInt(item.cantidad);
-      const precioUnitario = parseFloat(item.precio_unitario || producto.precio);
+      const precioUnitario = parseFloat(item.precio_unitario || producto.precio_mayorista || producto.precio_venta);
       const itemSubtotal = cantidad * precioUnitario;
       
       // Aplicar descuento del producto o descuento general del cliente
