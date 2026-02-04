@@ -331,6 +331,28 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
       return;
     }
 
+    // 🔴 VALIDAR CRÉDITO DISPONIBLE EN EL FRONTEND
+    if (formData.metodo_pago === "Credito" && clienteSeleccionado) {
+      const creditoDisponible = parseFloat(clienteSeleccionado.credito_disponible || 0);
+      if (total > creditoDisponible) {
+        const confirmar = window.confirm(
+          `⚠️ CRÉDITO INSUFICIENTE\n\n` +
+          `Total de la factura: ${formatearMoneda(total)}\n` +
+          `Crédito disponible: ${formatearMoneda(creditoDisponible)}\n` +
+          `Faltante: ${formatearMoneda(total - creditoDisponible)}\n\n` +
+          `¿Desea cambiar a método de pago EFECTIVO para continuar?`
+        );
+        
+        if (confirmar) {
+          setFormData({ ...formData, metodo_pago: "Efectivo" });
+          alert("⚠️ Por favor envíe nuevamente. El método de pago se cambió a EFECTIVO.");
+          return;
+        } else {
+          return;
+        }
+      }
+    }
+
     try {
       setGuardando(true);
 
@@ -349,6 +371,11 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
       };
 
       console.log("📤 Enviando venta:", ventaData);
+      console.log("💳 Método de pago:", formData.metodo_pago);
+      console.log("💰 Total:", formatearMoneda(total));
+      if (clienteSeleccionado) {
+        console.log("💳 Crédito disponible cliente:", formatearMoneda(clienteSeleccionado.credito_disponible));
+      }
 
       await ventasB2BService.crearVenta(ventaData);
 
@@ -358,9 +385,19 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
     } catch (error) {
       console.error("❌ Error al crear venta:", error);
       console.error("📋 Respuesta del servidor:", error.response?.data);
-      alert(
-        `Error al crear factura: ${error.response?.data?.error || error.message}`
-      );
+      
+      let mensajeError = error.response?.data?.error || error.message;
+      
+      // Agregar contexto adicional al error
+      if (mensajeError.includes("Crédito insuficiente") || mensajeError.includes("crédito")) {
+        mensajeError = `${mensajeError}\n\n` +
+          `💡 Sugerencia: Cambie el método de pago a "Efectivo" si la venta no es a crédito.\n\n` +
+          `Método actual: ${formData.metodo_pago}\n` +
+          `Total factura: ${formatearMoneda(total)}\n` +
+          `Crédito disponible: ${formatearMoneda(clienteSeleccionado?.credito_disponible || 0)}`;
+      }
+      
+      alert(`Error al crear factura: ${mensajeError}`);
     } finally {
       setGuardando(false);
     }
@@ -519,6 +556,34 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                   <option value="Credito">💳 Crédito</option>
                   <option value="Efectivo">💵 Efectivo</option>
                 </select>
+                
+                {/* Advertencia de crédito insuficiente */}
+                {formData.metodo_pago === "Credito" && 
+                 clienteSeleccionado && 
+                 total > parseFloat(clienteSeleccionado.credito_disponible || 0) && 
+                 items.length > 0 && (
+                  <div className="mt-2 p-2 bg-red-50 border border-red-300 rounded-lg">
+                    <p className="text-xs text-red-700 font-bold flex items-center gap-1">
+                      ⚠️ CRÉDITO INSUFICIENTE
+                    </p>
+                    <p className="text-xs text-red-600 mt-1">
+                      Total: {formatearMoneda(total)} | 
+                      Disponible: {formatearMoneda(clienteSeleccionado.credito_disponible)}
+                    </p>
+                    <p className="text-xs text-red-600 mt-1">
+                      💡 Cambie a "Efectivo" para continuar
+                    </p>
+                  </div>
+                )}
+                
+                {/* Confirmación de método efectivo */}
+                {formData.metodo_pago === "Efectivo" && items.length > 0 && (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-300 rounded-lg">
+                    <p className="text-xs text-green-700 font-semibold">
+                      ✅ Venta en efectivo - No requiere crédito
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -975,7 +1040,13 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
             </button>
             <button
               type="submit"
-              disabled={guardando || items.length === 0}
+              disabled={
+                guardando || 
+                items.length === 0 || 
+                (formData.metodo_pago === "Credito" && 
+                 clienteSeleccionado && 
+                 total > parseFloat(clienteSeleccionado.credito_disponible || 0))
+              }
               className="px-6 py-2.5 bg-gradient-to-r from-[#D4B896] to-[#c4a886] text-gray-900 font-bold rounded-lg hover:shadow-md transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
             >
               {guardando ? "Guardando..." : "📄 Crear Factura"}
