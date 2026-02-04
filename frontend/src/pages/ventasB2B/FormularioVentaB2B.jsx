@@ -119,10 +119,11 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
     return Object.values(map);
   }, [productos]);
 
-  // Productos filtrados por búsqueda + categoría
+  // 🔴 FILTRAR PRODUCTOS POR LOCAL SELECCIONADO
   const productosFiltrados = useMemo(() => {
     return productos
       .filter((p) => {
+        // Filtrar por búsqueda y categoría
         const matchBuscar =
           !buscandoProducto ||
           p.nombre.toLowerCase().includes(buscandoProducto.toLowerCase()) ||
@@ -131,10 +132,27 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
           (p.categoria?.nombre &&
             p.categoria.nombre.toLowerCase().includes(buscandoProducto.toLowerCase()));
         const matchCategoria = !categoriaFiltro || p.categoria?.id === categoriaFiltro;
-        return matchBuscar && matchCategoria;
+        
+        // 🔴 FILTRAR POR STOCK DEL LOCAL SELECCIONADO
+        let tieneStock = true;
+        if (formData.local_id) {
+          // Identificar qué local es (local1 o local2)
+          const localNombre = locales.find(l => l.id === formData.local_id)?.nombre || '';
+          
+          if (localNombre.toLowerCase().includes('castellana')) {
+            tieneStock = (p.stock_local1 || 0) > 0;
+          } else if (localNombre.toLowerCase().includes('avenida') || localNombre.toLowerCase().includes('1ra')) {
+            tieneStock = (p.stock_local2 || 0) > 0;
+          } else {
+            // Si no coincide con ninguno, usar stock total
+            tieneStock = ((p.stock_local1 || 0) + (p.stock_local2 || 0)) > 0;
+          }
+        }
+        
+        return matchBuscar && matchCategoria && tieneStock;
       })
       .slice(0, 12);
-  }, [productos, buscandoProducto, categoriaFiltro]);
+  }, [productos, buscandoProducto, categoriaFiltro, formData.local_id, locales]);
 
   // Precio a usar para B2B: SIEMPRE precio_barril para barriles
   const getPrecioB2B = (producto) => {
@@ -144,13 +162,23 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
     return parseFloat(producto.precio_mayorista || producto.precio_venta);
   };
 
-  // Stock total
-  const getStock = (producto) => {
-    const stockTotal =
-      producto.stock_total != null
-        ? producto.stock_total
-        : Number(producto.stock_local1 || 0) + Number(producto.stock_local2 || 0);
-    return stockTotal;
+  // 🔴 OBTENER STOCK DEL LOCAL SELECCIONADO
+  const getStockLocal = (producto) => {
+    if (!formData.local_id) {
+      // Si no hay local seleccionado, mostrar stock total
+      return (producto.stock_local1 || 0) + (producto.stock_local2 || 0);
+    }
+    
+    const localNombre = locales.find(l => l.id === formData.local_id)?.nombre || '';
+    
+    if (localNombre.toLowerCase().includes('castellana')) {
+      return producto.stock_local1 || 0;
+    } else if (localNombre.toLowerCase().includes('avenida') || localNombre.toLowerCase().includes('1ra')) {
+      return producto.stock_local2 || 0;
+    }
+    
+    // Fallback al stock total
+    return (producto.stock_local1 || 0) + (producto.stock_local2 || 0);
   };
 
   const handleClienteChange = async (e) => {
@@ -169,12 +197,12 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
   };
 
   const handleAgregarProducto = (producto) => {
-    const stock = getStock(producto);
+    const stock = getStockLocal(producto);
     const itemExistente = items.find((item) => item.producto_id === producto.id);
     const cantActual = itemExistente ? itemExistente.cantidad : 0;
 
     if (stock > 0 && cantActual >= stock) {
-      alert(`Stock máximo alcanzado para ${producto.nombre} (${stock} unidades)`);
+      alert(`Stock máximo alcanzado para ${producto.nombre} (${stock} unidades en este local)`);
       return;
     }
 
@@ -249,6 +277,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
     setItems(items.filter((item) => item.producto_id !== productoId));
   };
 
+  // 🔴 CALCULAR TOTALES - IVA COMO INFORMACIÓN, NO SUMADO
   const calcularTotales = () => {
     let subtotal = 0;
     let descuentoTotal = 0;
@@ -265,11 +294,14 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
       descuentoTotal += (itemSubtotal * descuentoPorcentaje) / 100;
     });
 
-    // Calcular IVA según normativa colombiana
-    const baseImponible = subtotal - descuentoTotal;
+    // El total es subtotal - descuento (SIN IVA)
+    const total = subtotal - descuentoTotal;
+    
+    // IVA es INFORMATIVO (desglosado del total)
+    // Si el precio ya incluye IVA, extraemos el IVA
     const IVA_PORCENTAJE = 19;
-    const ivaMonto = (baseImponible * IVA_PORCENTAJE) / 100;
-    const total = baseImponible + ivaMonto;
+    const baseImponible = total / (1 + IVA_PORCENTAJE / 100);
+    const ivaMonto = total - baseImponible;
 
     return {
       subtotal,
@@ -277,7 +309,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
       baseImponible,
       ivaPorcentaje: IVA_PORCENTAJE,
       ivaMonto,
-      total,
+      total, // Total a pagar (precio que ingresaste)
     };
   };
 
@@ -409,7 +441,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
               <span className="w-6 h-6 bg-[#D4B896] text-gray-900 rounded-full flex items-center justify-center text-xs font-bold">
                 1
               </span>
-              Cliente
+              Cliente y Local
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Cliente */}
@@ -449,9 +481,11 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                 </label>
                 <select
                   value={formData.local_id}
-                  onChange={(e) =>
-                    setFormData({ ...formData, local_id: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setFormData({ ...formData, local_id: e.target.value });
+                    // Limpiar carrito al cambiar de local
+                    setItems([]);
+                  }}
                   required
                   className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent transition text-gray-900 font-medium"
                 >
@@ -462,6 +496,11 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                     </option>
                   ))}
                 </select>
+                {formData.local_id && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    ℹ️ Solo se muestran productos con stock en este local
+                  </p>
+                )}
               </div>
 
               {/* Método de Pago */}
@@ -525,7 +564,13 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
               Productos
             </h3>
 
-            {loadingProductos || errorProductos ? (
+            {!formData.local_id ? (
+              <div className="p-6 bg-amber-50 border border-amber-200 rounded-lg text-center">
+                <p className="text-amber-700 font-medium">
+                  ⚠️ Primero selecciona un local para ver los productos disponibles
+                </p>
+              </div>
+            ) : loadingProductos || errorProductos ? (
               renderEstadoCarga(
                 loadingProductos,
                 errorProductos,
@@ -556,7 +601,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                       type="text"
                       value={buscandoProducto}
                       onChange={(e) => setBuscandoProducto(e.target.value)}
-                      placeholder="Buscar producto, presentación o categoría..."
+                      placeholder="Buscar producto..."
                       className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent transition"
                     />
                   </div>
@@ -583,13 +628,13 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                     {productosFiltrados.length === 0 ? (
                       <div className="col-span-3 bg-white py-8 text-center text-gray-400">
                         {productos.length === 0
-                          ? "No hay productos habilitados para B2B aún."
-                          : "No hay productos que coincidan con la búsqueda"}
+                          ? "No hay productos habilitados para B2B."
+                          : "No hay productos con stock en este local"}
                       </div>
                     ) : (
                       productosFiltrados.map((producto) => {
                         const precioB2B = getPrecioB2B(producto);
-                        const stock = getStock(producto);
+                        const stock = getStockLocal(producto);
                         const enCarrito = items.find(
                           (i) => i.producto_id === producto.id
                         );
@@ -628,20 +673,12 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                                   {formatearMoneda(precioB2B)}
                                 </p>
                                 <p className="text-xs text-gray-500 mt-0.5">
-                                  {esBarril ? "Por barril completo" : "Por unidad"}
+                                  {esBarril ? "Por barril" : "Por unidad"}
                                 </p>
                               </div>
                               <div className="text-right">
-                                <p
-                                  className={`text-xs font-semibold ${
-                                    stock > 0
-                                      ? "text-emerald-600"
-                                      : "text-red-500"
-                                  }`}
-                                >
-                                  {stock > 0
-                                    ? `${stock} disponibles`
-                                    : "Sin stock"}
+                                <p className="text-xs font-semibold text-emerald-600">
+                                  {stock} disponibles
                                 </p>
                                 {esBarril && stock > 0 && (
                                   <p className="text-xs text-gray-500 mt-0.5">
@@ -708,11 +745,6 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                                   </div>
                                   <div className="flex items-center gap-1 mt-0.5">
                                     {getPresentacionBadge(item.presentacion)}
-                                    {esBarril && (
-                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">
-                                        🛢️ Barril
-                                      </span>
-                                    )}
                                   </div>
                                 </td>
                                 <td className="px-4 py-2.5">
@@ -845,7 +877,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
             )}
           </section>
 
-          {/* ── Resumen con IVA ──────────────────────────────────────────── */}
+          {/* ── Resumen con IVA INFORMATIVO ──────────────────────────────────────────── */}
           <section className="bg-gray-50 border-2 border-gray-200 rounded-xl p-5">
             <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
               <span className="w-6 h-6 bg-[#D4B896] text-gray-900 rounded-full flex items-center justify-center text-xs font-bold">
@@ -873,23 +905,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                   </div>
                 )}
 
-                {/* Base Imponible */}
-                <div className="flex justify-between text-gray-600 pt-2 border-t border-gray-300">
-                  <span className="font-medium">Base Imponible</span>
-                  <span className="font-semibold text-gray-800">
-                    {formatearMoneda(baseImponible)}
-                  </span>
-                </div>
-
-                {/* IVA */}
-                <div className="flex justify-between text-gray-600">
-                  <span className="font-medium">IVA ({ivaPorcentaje}%)</span>
-                  <span className="font-semibold text-blue-600">
-                    +{formatearMoneda(ivaMonto)}
-                  </span>
-                </div>
-
-                {/* Total */}
+                {/* Total a Pagar */}
                 <div className="border-t-2 border-gray-400 pt-3 flex justify-between items-center">
                   <span className="text-xl font-bold text-gray-900">
                     Total a Pagar
@@ -897,6 +913,21 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                   <span className="text-2xl font-bold text-emerald-700">
                     {formatearMoneda(total)}
                   </span>
+                </div>
+
+                {/* IVA INFORMATIVO */}
+                <div className="pt-2 border-t border-gray-200 bg-blue-50 -mx-4 px-4 py-3 rounded-lg">
+                  <p className="text-xs text-blue-600 font-semibold mb-2">
+                    ℹ️ Información Tributaria (Incluida en el total)
+                  </p>
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span>Base Gravable:</span>
+                    <span className="font-semibold">{formatearMoneda(baseImponible)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-600 mt-1">
+                    <span>IVA ({ivaPorcentaje}%):</span>
+                    <span className="font-semibold">{formatearMoneda(ivaMonto)}</span>
+                  </div>
                 </div>
 
                 {/* Información adicional */}
