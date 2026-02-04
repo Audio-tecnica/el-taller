@@ -97,6 +97,61 @@ const VentaB2B = sequelize.define('VentaB2B', {
     allowNull: false,
     defaultValue: 'Credito'
   },
+  // Campos fiscales
+  base_imponible: {
+    type: DataTypes.DECIMAL(12, 2),
+    defaultValue: 0,
+    comment: 'Base gravable sin IVA'
+  },
+  iva_porcentaje: {
+    type: DataTypes.DECIMAL(5, 2),
+    defaultValue: 19.00,
+    comment: 'Porcentaje de IVA aplicado'
+  },
+  iva_monto: {
+    type: DataTypes.DECIMAL(12, 2),
+    defaultValue: 0,
+    comment: 'Monto de IVA calculado'
+  },
+  otros_impuestos: {
+    type: DataTypes.DECIMAL(12, 2),
+    defaultValue: 0,
+    comment: 'Otros impuestos (INC, etc.)'
+  },
+  retefuente: {
+    type: DataTypes.DECIMAL(12, 2),
+    defaultValue: 0,
+    comment: 'Retención en la fuente si aplica'
+  },
+  reteiva: {
+    type: DataTypes.DECIMAL(12, 2),
+    defaultValue: 0,
+    comment: 'Retención de IVA si aplica'
+  },
+  cufe: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    comment: 'Código Único de Factura Electrónica'
+  },
+  qr_code: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: 'Código QR de la factura electrónica'
+  },
+  estado_dian: {
+    type: DataTypes.ENUM('Pendiente', 'Enviado', 'Aprobado', 'Rechazado'),
+    defaultValue: 'Pendiente',
+    comment: 'Estado de la factura ante la DIAN'
+  },
+  fecha_envio_dian: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  respuesta_dian: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: 'Respuesta XML de la DIAN'
+  },
   // Observaciones
   notas: {
     type: DataTypes.TEXT,

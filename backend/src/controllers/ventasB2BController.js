@@ -30,9 +30,11 @@ exports.crearVenta = async (req, res) => {
     }
 
     // Calcular totales
+// Calcular totales con impuestos
     let subtotal = 0;
     let descuentoTotal = 0;
     const itemsVenta = [];
+    const IVA_PORCENTAJE = 19; // IVA del 19% en Colombia
 
     for (const item of items) {
       const producto = await Producto.findByPk(item.producto_id);
@@ -43,7 +45,15 @@ exports.crearVenta = async (req, res) => {
       }
 
       const cantidad = parseInt(item.cantidad);
-      const precioUnitario = parseFloat(item.precio_unitario || producto.precio_mayorista || producto.precio_venta);
+      
+      // Para barriles, usar precio de barril completo
+      let precioUnitario;
+      if (producto.presentacion === 'Barril') {
+        precioUnitario = parseFloat(item.precio_unitario || producto.precio_barril || producto.precio_mayorista || 450000);
+      } else {
+        precioUnitario = parseFloat(item.precio_unitario || producto.precio_mayorista || producto.precio_venta);
+      }
+      
       const itemSubtotal = cantidad * precioUnitario;
       
       // Aplicar descuento del producto o descuento general del cliente
@@ -70,8 +80,10 @@ exports.crearVenta = async (req, res) => {
       });
     }
 
-    const iva = 0; // Configurar si aplica IVA
-    const total = subtotal - descuentoTotal + iva;
+    // Calcular impuestos
+    const baseImponible = subtotal - descuentoTotal;
+    const ivaMonto = baseImponible * (IVA_PORCENTAJE / 100);
+    const total = baseImponible + ivaMonto;
 
     // Verificar crédito disponible si es a crédito
     if (metodo_pago === 'Credito') {
@@ -100,7 +112,7 @@ exports.crearVenta = async (req, res) => {
     const fechaVencimiento = new Date();
     fechaVencimiento.setDate(fechaVencimiento.getDate() + cliente.dias_credito);
 
-    // Crear venta
+   // Crear venta con campos fiscales
     const venta = await VentaB2B.create({
       numero_factura: numeroFactura,
       cliente_b2b_id,
@@ -108,7 +120,12 @@ exports.crearVenta = async (req, res) => {
       pedido_id,
       subtotal,
       descuento: descuentoTotal,
-      iva,
+      base_imponible: baseImponible,
+      iva_porcentaje: IVA_PORCENTAJE,
+      iva_monto: ivaMonto,
+      otros_impuestos: 0,
+      retefuente: 0,
+      reteiva: 0,
       total,
       saldo_pendiente: metodo_pago === 'Credito' ? total : 0,
       monto_pagado: metodo_pago === 'Credito' ? 0 : total,
@@ -117,7 +134,8 @@ exports.crearVenta = async (req, res) => {
       fecha_pago_completo: metodo_pago === 'Credito' ? null : new Date(),
       metodo_pago,
       notas,
-      vendedor_id: req.usuario?.id || null  // ⭐ CORREGIDO
+      vendedor_id: req.usuario?.id || null,
+      estado_dian: 'Pendiente'
     }, { transaction });
 
     // Crear items de venta

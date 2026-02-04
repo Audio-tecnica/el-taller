@@ -23,6 +23,11 @@ const Producto = sequelize.define('Producto', {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: true
   },
+   precio_barril: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    comment: 'Precio de barril completo para ventas B2B'
+  },
   presentacion: {
     type: DataTypes.STRING(50),
     allowNull: true

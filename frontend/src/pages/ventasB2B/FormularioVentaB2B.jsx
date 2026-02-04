@@ -111,14 +111,26 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
   }, [productos, buscandoProducto, categoriaFiltro]);
 
   // ── precio a usar: mayorista si existe, sino venta ──────────
-  const getPrecioB2B = (producto) =>
-    producto.precio_mayorista ? Number(producto.precio_mayorista) : Number(producto.precio_venta);
+  const getPrecioB2B = (producto) => {
+    // Si es un barril, usar el precio del barril completo (precio mayorista)
+    if (producto.presentacion === 'Barril') {
+      return producto.precio_mayorista || 450000; // Precio por barril completo
+    }
+    // Para otros productos, usar precio mayorista o precio de venta
+    return producto.precio_mayorista ? Number(producto.precio_mayorista) : Number(producto.precio_venta);
+  };
 
   // ── Stock total ──────────────────────────────────────────────
-  const getStock = (producto) =>
-    producto.stock_total != null
-      ? producto.stock_total
-      : (Number(producto.stock_local1 || 0) + Number(producto.stock_local2 || 0));
+  const getStock = (producto) => {
+    // Si es un barril, mostrar stock de barriles, no de vasos
+    if (producto.presentacion === 'Barril') {
+      return producto.stock_total != null ? producto.stock_total : 
+             (Number(producto.stock_local1 || 0) + Number(producto.stock_local2 || 0));
+    }
+    // Para otros productos, usar stock normal
+    return producto.stock_total != null ? producto.stock_total : 
+           (Number(producto.stock_local1 || 0) + Number(producto.stock_local2 || 0));
+  };
 
   const handleClienteChange = async (e) => {
     const clienteId = e.target.value;
@@ -165,29 +177,42 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
   };
 
   const handleCantidadChange = (productoId, nuevaCantidad) => {
-    if (nuevaCantidad <= 0) {
+    const cantidad = parseInt(nuevaCantidad) || 0;
+    
+    if (cantidad <= 0) {
       handleEliminarItem(productoId);
       return;
     }
+    
+    const item = items.find(i => i.producto_id === productoId);
+    if (item && item.stock > 0 && cantidad > item.stock) {
+      alert(`Stock máximo: ${item.stock} unidades`);
+      return;
+    }
+    
     setItems(items.map(item =>
       item.producto_id === productoId
-        ? { ...item, cantidad: parseInt(nuevaCantidad) }
+        ? { ...item, cantidad }
         : item
     ));
   };
 
   const handlePrecioChange = (productoId, nuevoPrecio) => {
+    const precio = parseFloat(nuevoPrecio) || 0;
     setItems(items.map(item =>
       item.producto_id === productoId
-        ? { ...item, precio_unitario: parseFloat(nuevoPrecio) }
+        ? { ...item, precio_unitario: precio }
         : item
     ));
   };
 
   const handleDescuentoChange = (productoId, nuevoDescuento) => {
+    const descuento = parseFloat(nuevoDescuento) || 0;
+    if (descuento < 0 || descuento > 100) return;
+    
     setItems(items.map(item =>
       item.producto_id === productoId
-        ? { ...item, descuento_porcentaje: parseFloat(nuevoDescuento) }
+        ? { ...item, descuento_porcentaje: descuento }
         : item
     ));
   };
@@ -246,12 +271,6 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
 
   const formatearMoneda = (valor) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(valor || 0);
-
-  // ── Producto ya en carrito? ──────────────────────────────────
-  const cantEnCarrito = (producto) => {
-    const item = items.find(i => i.producto_id === producto.id);
-    return item ? item.cantidad : 0;
-  };
 
   // ── Componente reutilizable: estado carga/error ──────────────
   const renderEstadoCarga = (loading, error, onReintentar, texto) => {
@@ -427,177 +446,171 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                       </div>
                     ) : (
                       productosFiltrados.map(producto => {
+                        const precioB2B = getPrecioB2B(producto);
                         const stock = getStock(producto);
-                        const enCarrito = cantEnCarrito(producto);
-                        const sinStock = stock === 0;
+                        const enCarrito = items.find(i => i.producto_id === producto.id);
+                        const esBarril = producto.presentacion === 'Barril';
 
                         return (
-                          <button
+                          <div
                             key={producto.id}
-                            type="button"
-                            onClick={() => !sinStock && handleAgregarProducto(producto)}
-                            disabled={sinStock}
-                            className={`bg-white p-3 text-left transition-all duration-150 ${
-                              sinStock
-                                ? 'opacity-45 cursor-not-allowed'
-                                : 'hover:bg-[#FFF8EC] hover:shadow-inner cursor-pointer'
-                            }`}
+                            onClick={() => handleAgregarProducto(producto)}
+                            className="bg-white border-2 border-gray-200 rounded-xl p-4 hover:border-[#D4B896] hover:shadow-md transition-all cursor-pointer group"
                           >
-                            {/* Fila superior: nombre + badge cantidad en carrito */}
-                            <div className="flex items-start justify-between gap-2 mb-1.5">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <h4 className="font-bold text-gray-800 text-sm group-hover:text-[#D4B896] transition mb-1">
+                                  {producto.nombre}
+                                </h4>
+                                <div className="flex items-center gap-2">
+                                  {getPresentacionBadge(producto.presentacion)}
+                                  {esBarril && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                                      🛢️ Barril Completo
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {enCarrito && (
+                                <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs font-bold">
+                                  {enCarrito.cantidad} en carrito
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center justify-between mt-3">
                               <div>
-                                <div className="text-sm font-bold text-gray-800 leading-snug">{producto.nombre}</div>
-                                {producto.categoria && (
-                                  <span className="text-xs text-gray-500">
-                                    {producto.categoria.icono || '📦'} {producto.categoria.nombre}
-                                  </span>
+                                <p className="text-lg font-bold text-gray-900">
+                                  {formatearMoneda(precioB2B)}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {esBarril ? 'Por barril completo' : 'Por unidad'}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className={`text-xs font-semibold ${stock > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                  {stock > 0 ? `${stock} disponibles` : 'Sin stock'}
+                                </p>
+                                {esBarril && stock > 0 && (
+                                  <p className="text-xs text-gray-500 mt-0.5">
+                                    (~{stock * 85} vasos)
+                                  </p>
                                 )}
                               </div>
-                              {enCarrito > 0 && (
-                                <span className="inline-flex items-center justify-center w-5 h-5 bg-[#D4B896] text-gray-900 text-xs font-bold rounded-full shrink-0">
-                                  {enCarrito}
-                                </span>
-                              )}
                             </div>
-
-                            {/* Badges: presentación + stock */}
-                            <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                              {getPresentacionBadge(producto.presentacion)}
-                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                                sinStock
-                                  ? 'bg-red-100 text-red-700'
-                                  : stock <= 5
-                                    ? 'bg-amber-100 text-amber-700'
-                                    : 'bg-emerald-100 text-emerald-700'
-                              }`}>
-                                {sinStock ? '❌ Sin stock' : `📦 ${stock}`}
-                              </span>
-                            </div>
-
-                            {/* Precio: mayorista vs venta */}
-                            <div className="flex items-center justify-between">
-                              <div className="text-sm font-bold text-emerald-700">
-                                {formatearMoneda(getPrecioB2B(producto))}
-                              </div>
-                              {producto.precio_mayorista && Number(producto.precio_mayorista) !== Number(producto.precio_venta) && (
-                                <span className="text-xs text-gray-400 line-through">
-                                  {formatearMoneda(producto.precio_venta)}
-                                </span>
-                              )}
-                            </div>
-                          </button>
+                          </div>
                         );
                       })
                     )}
                   </div>
                 </div>
-              </>
-            )}
 
-            {/* Tabla de items en carrito — siempre visible si hay items */}
-            {items.length > 0 && (
-              <div className="border-2 border-gray-200 rounded-xl overflow-hidden">
-                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                  <span className="text-sm font-bold text-gray-700">🛒 Carrito ({items.length} producto{items.length > 1 ? 's' : ''})</span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-600 uppercase">Producto</th>
-                        <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-600 uppercase">Precio</th>
-                        <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-600 uppercase">Cantidad</th>
-                        <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-600 uppercase">Desc %</th>
-                        <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-600 uppercase">Total</th>
-                        <th className="px-4 py-2.5 text-center text-xs font-bold text-gray-600 uppercase w-10"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {items.map(item => {
-                        const itemSubtotal = item.cantidad * item.precio_unitario;
-                        const desc = item.descuento_porcentaje ||
-                          (formData.aplicar_descuento_cliente && clienteSeleccionado?.descuento_porcentaje
-                            ? clienteSeleccionado.descuento_porcentaje : 0);
-                        const itemTotal = itemSubtotal - (itemSubtotal * desc / 100);
-
-                        return (
-                          <tr key={item.producto_id} className="bg-white hover:bg-gray-50">
-                            <td className="px-4 py-2.5">
-                              <div className="text-sm font-semibold text-gray-800">{item.nombre_producto}</div>
-                              <div className="flex items-center gap-1 mt-0.5">
-                                {getPresentacionBadge(item.presentacion)}
-                              </div>
-                            </td>
-                            <td className="px-4 py-2.5">
-                              <input
-                                type="number"
-                                value={item.precio_unitario}
-                                onChange={(e) => handlePrecioChange(item.producto_id, e.target.value)}
-                                min="0"
-                                step="100"
-                                className="w-28 px-2 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
-                              />
-                            </td>
-                            <td className="px-4 py-2.5">
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleCantidadChange(item.producto_id, item.cantidad - 1)}
-                                  className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center font-bold transition"
-                                >−</button>
-                                <span className="w-8 text-center text-sm font-bold text-gray-800">{item.cantidad}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCantidadChange(item.producto_id, item.cantidad + 1)}
-                                  className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center font-bold transition"
-                                >+</button>
-                              </div>
-                            </td>
-                            <td className="px-4 py-2.5">
-                              <input
-                                type="number"
-                                value={item.descuento_porcentaje}
-                                onChange={(e) => handleDescuentoChange(item.producto_id, e.target.value)}
-                                min="0"
-                                max="100"
-                                step="0.5"
-                                className="w-16 px-2 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
-                              />
-                            </td>
-                            <td className="px-4 py-2.5 text-sm font-bold text-gray-800">
-                              {formatearMoneda(itemTotal)}
-                            </td>
-                            <td className="px-4 py-2.5 text-center">
-                              <button
-                                type="button"
-                                onClick={() => handleEliminarItem(item.producto_id)}
-                                className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 flex items-center justify-center transition"
-                              >✕</button>
-                            </td>
+                {/* Tabla de items en carrito — siempre visible si hay items */}
+                {items.length > 0 && (
+                  <div className="border-2 border-gray-200 rounded-xl overflow-hidden">
+                    <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                      <span className="text-sm font-bold text-gray-700">🛒 Carrito ({items.length} producto{items.length > 1 ? 's' : ''})</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-600 uppercase">Producto</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-600 uppercase">Precio</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-600 uppercase">Cantidad</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-600 uppercase">Desc %</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-bold text-gray-600 uppercase">Total</th>
+                            <th className="px-4 py-2.5 text-center text-xs font-bold text-gray-600 uppercase w-10"></th>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {items.map(item => {
+                            const itemSubtotal = item.cantidad * item.precio_unitario;
+                            const desc = item.descuento_porcentaje ||
+                              (formData.aplicar_descuento_cliente && clienteSeleccionado?.descuento_porcentaje
+                                ? clienteSeleccionado.descuento_porcentaje : 0);
+                            const itemTotal = itemSubtotal - (itemSubtotal * desc / 100);
 
-            {/* Checkbox descuento cliente */}
-            {clienteSeleccionado?.descuento_porcentaje > 0 && (
-              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.aplicar_descuento_cliente}
-                    onChange={(e) => setFormData({ ...formData, aplicar_descuento_cliente: e.target.checked })}
-                    className="w-4 h-4 accent-[#D4B896]"
-                  />
-                  <span className="text-sm text-gray-700 font-medium">
-                    Aplicar descuento del cliente <span className="text-amber-700 font-bold">({clienteSeleccionado.descuento_porcentaje}%)</span>
-                  </span>
-                </label>
-              </div>
+                            return (
+                              <tr key={item.producto_id} className="bg-white hover:bg-gray-50">
+                                <td className="px-4 py-2.5">
+                                  <div className="text-sm font-semibold text-gray-800">{item.nombre_producto}</div>
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    {getPresentacionBadge(item.presentacion)}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2.5">
+                                  <input
+                                    type="number"
+                                    value={item.precio_unitario}
+                                    onChange={(e) => handlePrecioChange(item.producto_id, e.target.value)}
+                                    min="0"
+                                    step="100"
+                                    className="w-28 px-2 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                                  />
+                                </td>
+                                <td className="px-4 py-2.5">
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCantidadChange(item.producto_id, item.cantidad - 1)}
+                                      className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center font-bold transition"
+                                    >−</button>
+                                    <span className="w-8 text-center text-sm font-bold text-gray-800">{item.cantidad}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCantidadChange(item.producto_id, item.cantidad + 1)}
+                                      className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center font-bold transition"
+                                    >+</button>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2.5">
+                                  <input
+                                    type="number"
+                                    value={item.descuento_porcentaje}
+                                    onChange={(e) => handleDescuentoChange(item.producto_id, e.target.value)}
+                                    min="0"
+                                    max="100"
+                                    step="0.5"
+                                    className="w-16 px-2 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#D4B896] focus:border-transparent"
+                                  />
+                                </td>
+                                <td className="px-4 py-2.5 text-sm font-bold text-gray-800">
+                                  {formatearMoneda(itemTotal)}
+                                </td>
+                                <td className="px-4 py-2.5 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEliminarItem(item.producto_id)}
+                                    className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 flex items-center justify-center transition"
+                                  >✕</button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Checkbox descuento cliente */}
+                {clienteSeleccionado?.descuento_porcentaje > 0 && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.aplicar_descuento_cliente}
+                        onChange={(e) => setFormData({ ...formData, aplicar_descuento_cliente: e.target.checked })}
+                        className="w-4 h-4 accent-[#D4B896]"
+                      />
+                      <span className="text-sm text-gray-700 font-medium">
+                        Aplicar descuento del cliente <span className="text-amber-700 font-bold">({clienteSeleccionado.descuento_porcentaje}%)</span>
+                      </span>
+                    </label>
+                  </div>
+                )}
+              </>
             )}
           </section>
 
