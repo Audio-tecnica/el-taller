@@ -253,21 +253,34 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
     setItems(items.filter((item) => item.producto_id !== productoId));
   };
 
-  const calcularTotales = () => {
+ const calcularTotales = () => {
     let subtotal = 0;
     let descuentoTotal = 0;
-    items.forEach((item) => {
+    
+    items.forEach(item => {
       const itemSubtotal = item.cantidad * item.precio_unitario;
-      const descuentoPorcentaje =
-        item.descuento_porcentaje ||
-        (formData.aplicar_descuento_cliente &&
-        clienteSeleccionado?.descuento_porcentaje
+      const descuentoPorcentaje = item.descuento_porcentaje ||
+        (formData.aplicar_descuento_cliente && clienteSeleccionado?.descuento_porcentaje
           ? clienteSeleccionado.descuento_porcentaje
           : 0);
       subtotal += itemSubtotal;
       descuentoTotal += itemSubtotal * (descuentoPorcentaje / 100);
     });
-    return { subtotal, descuentoTotal, total: subtotal - descuentoTotal };
+    
+    // Calcular IVA según normativa colombiana
+    const baseImponible = subtotal - descuentoTotal;
+    const IVA_PORCENTAJE = 19;
+    const ivaMonto = baseImponible * (IVA_PORCENTAJE / 100);
+    const total = baseImponible + ivaMonto;
+    
+    return { 
+      subtotal, 
+      descuentoTotal, 
+      baseImponible,
+      ivaPorcentaje: IVA_PORCENTAJE,
+      ivaMonto,
+      total 
+    };
   };
 
  const handleSubmit = async (e) => {
@@ -324,7 +337,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
     }
   };
 
-  const { subtotal, descuentoTotal, total } = calcularTotales();
+ const { subtotal, descuentoTotal, baseImponible, ivaPorcentaje, ivaMonto, total } = calcularTotales();
 
   const formatearMoneda = (valor) =>
     new Intl.NumberFormat("es-CO", {
@@ -835,24 +848,51 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
               Resumen
             </h3>
             <div className="flex justify-end">
-              <div className="w-72 space-y-2">
+              <div className="w-80 space-y-2.5">
+                {/* Subtotal */}
                 <div className="flex justify-between text-gray-600">
-                  <span>Subtotal</span>
-                  <span className="font-semibold text-gray-800">
-                    {formatearMoneda(subtotal)}
-                  </span>
+                  <span className="font-medium">Subtotal</span>
+                  <span className="font-semibold text-gray-800">{formatearMoneda(subtotal)}</span>
                 </div>
+                
+                {/* Descuento */}
+                {descuentoTotal > 0 && (
+                  <div className="flex justify-between text-gray-600">
+                    <span className="font-medium">Descuento</span>
+                    <span className="font-semibold text-orange-600">−{formatearMoneda(descuentoTotal)}</span>
+                  </div>
+                )}
+                
+                {/* Base Imponible */}
+                <div className="flex justify-between text-gray-600 pt-2 border-t border-gray-300">
+                  <span className="font-medium">Base Imponible</span>
+                  <span className="font-semibold text-gray-800">{formatearMoneda(baseImponible)}</span>
+                </div>
+                
+                {/* IVA */}
                 <div className="flex justify-between text-gray-600">
-                  <span>Descuento</span>
-                  <span className="font-semibold text-orange-600">
-                    −{formatearMoneda(descuentoTotal)}
-                  </span>
+                  <span className="font-medium">IVA ({ivaPorcentaje}%)</span>
+                  <span className="font-semibold text-blue-600">+{formatearMoneda(ivaMonto)}</span>
                 </div>
-                <div className="border-t-2 border-gray-300 pt-2 flex justify-between text-xl font-bold text-gray-900">
-                  <span>Total</span>
-                  <span className="text-emerald-700">
-                    {formatearMoneda(total)}
-                  </span>
+                
+                {/* Total */}
+                <div className="border-t-2 border-gray-400 pt-3 flex justify-between items-center">
+                  <span className="text-xl font-bold text-gray-900">Total a Pagar</span>
+                  <span className="text-2xl font-bold text-emerald-700">{formatearMoneda(total)}</span>
+                </div>
+                
+                {/* Información adicional */}
+                <div className="pt-2 text-xs text-gray-500 border-t border-gray-200">
+                  <p className="flex justify-between">
+                    <span>Items en carrito:</span>
+                    <span className="font-semibold text-gray-700">{items.length}</span>
+                  </p>
+                  <p className="flex justify-between mt-1">
+                    <span>Unidades totales:</span>
+                    <span className="font-semibold text-gray-700">
+                      {items.reduce((sum, item) => sum + item.cantidad, 0)}
+                    </span>
+                  </p>
                 </div>
               </div>
             </div>
