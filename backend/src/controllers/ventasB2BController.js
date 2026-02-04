@@ -184,24 +184,35 @@ exports.crearVenta = async (req, res) => {
         ? producto.stock_local1
         : producto.stock_local2;
       const stockNuevo = stockAnterior - item.cantidad;
+      // Crear items de venta
+      for (const item of itemsVenta) {
+        await ItemVentaB2B.create(
+          {
+            venta_b2b_id: venta.id,
+            ...item,
+          },
+          { transaction },
+        );
 
-      await MovimientoInventario.create(
-        {
-          producto_id: item.producto_id,
-          local_id,
-          tipo: "Salida", // ✅ AGREGAR
-          tipo_movimiento: "Venta B2B",
-          cantidad: item.cantidad, // ✅ POSITIVO
-          stock_anterior: stockAnterior, // ✅ AGREGAR
-          stock_nuevo: stockNuevo, // ✅ AGREGAR
-          costo_unitario: 0,
-          precio_venta: item.precio_unitario,
-          usuario_id: req.usuario?.id || null,
-          numero_documento: numeroFactura,
-          observaciones: `Venta B2B a ${cliente.razon_social}`,
-        },
-        { transaction },
-      );
+        // Registro simplificado temporal
+        await MovimientoInventario.create(
+          {
+            producto_id: item.producto_id,
+            local_id,
+            tipo: "Salida",
+            tipo_movimiento: "Venta B2B",
+            cantidad: item.cantidad,
+            stock_anterior: 0,
+            stock_nuevo: 0,
+            costo_unitario: 0,
+            precio_venta: item.precio_unitario,
+            usuario_id: req.usuario?.id || null,
+            numero_documento: numeroFactura,
+            observaciones: `Venta B2B a ${cliente.razon_social}`,
+          },
+          { transaction },
+        );
+      }
 
       // ✅ ACTUALIZAR STOCK DEL PRODUCTO
       await producto.update(
