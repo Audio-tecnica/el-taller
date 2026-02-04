@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from "react";
 import clientesB2BService from "../../services/clientesB2BService";
 import { productosService } from "../../services/productosService";
 import ventasB2BService from "../../services/ventasB2BService";
-import { authService } from "../../services/authService";
 
 // ── Badges de presentación ────────────────────────────────────
 const getPresentacionBadge = (presentacion) => {
@@ -32,11 +31,12 @@ const getPresentacionBadge = (presentacion) => {
 export default function FormularioVentaB2B({ onClose, onGuardar }) {
   const [clientes, setClientes] = useState([]);
   const [productos, setProductos] = useState([]);
+  const [locales, setLocales] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [buscandoProducto, setBuscandoProducto] = useState("");
   const [categoriaFiltro, setCategoriaFiltro] = useState("");
 
-  // ⭐ Estados de carga y error
+  // Estados de carga y error
   const [loadingClientes, setLoadingClientes] = useState(true);
   const [loadingProductos, setLoadingProductos] = useState(true);
   const [errorClientes, setErrorClientes] = useState(null);
@@ -44,7 +44,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
 
   const [formData, setFormData] = useState({
     cliente_b2b_id: "",
-    local_id: "", // 🔴 AGREGAR ESTE CAMPO
+    local_id: "",
     metodo_pago: "Credito",
     notas: "",
     aplicar_descuento_cliente: true,
@@ -56,6 +56,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
   useEffect(() => {
     cargarClientes();
     cargarProductos();
+    cargarLocales();
   }, []);
 
   const cargarClientes = async () => {
@@ -80,10 +81,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
       setLoadingProductos(true);
       setErrorProductos(null);
       const response = await productosService.getProductos();
-      const lista = Array.isArray(response)
-        ? response
-        : response.productos || [];
-      // Solo productos habilitados para B2B
+      const lista = Array.isArray(response) ? response : response.productos || [];
       setProductos(lista.filter((p) => p.disponible_b2b));
     } catch (error) {
       console.error("Error al cargar productos:", error);
@@ -93,7 +91,24 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
     }
   };
 
-  // ── Categorías únicas sacadas de los productos ──────────────
+  const cargarLocales = async () => {
+    try {
+      const response = await fetch(
+        "https://el-taller.onrender.com/api/mesas/locales",
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      const data = await response.json();
+      setLocales(data);
+    } catch (error) {
+      console.error("Error al cargar locales:", error);
+    }
+  };
+
+  // Categorías únicas sacadas de los productos
   const categorias = useMemo(() => {
     const map = {};
     productos.forEach((p) => {
@@ -104,7 +119,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
     return Object.values(map);
   }, [productos]);
 
-  // ── Productos filtrados por búsqueda + categoría ────────────
+  // Productos filtrados por búsqueda + categoría
   const productosFiltrados = useMemo(() => {
     return productos
       .filter((p) => {
@@ -112,42 +127,29 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
           !buscandoProducto ||
           p.nombre.toLowerCase().includes(buscandoProducto.toLowerCase()) ||
           (p.presentacion &&
-            p.presentacion
-              .toLowerCase()
-              .includes(buscandoProducto.toLowerCase())) ||
+            p.presentacion.toLowerCase().includes(buscandoProducto.toLowerCase())) ||
           (p.categoria?.nombre &&
-            p.categoria.nombre
-              .toLowerCase()
-              .includes(buscandoProducto.toLowerCase()));
-        const matchCategoria =
-          !categoriaFiltro || p.categoria?.id === categoriaFiltro;
+            p.categoria.nombre.toLowerCase().includes(buscandoProducto.toLowerCase()));
+        const matchCategoria = !categoriaFiltro || p.categoria?.id === categoriaFiltro;
         return matchBuscar && matchCategoria;
       })
       .slice(0, 12);
   }, [productos, buscandoProducto, categoriaFiltro]);
 
-  // ── precio a usar: mayorista si existe, sino venta ──────────
-  // ── precio a usar: para barriles usar precio_barril, sino mayorista/venta ──
+  // Precio a usar para B2B: SIEMPRE precio_barril para barriles
   const getPrecioB2B = (producto) => {
-    // Si es un barril, usar el precio del barril completo
     if (producto.presentacion === "Barril") {
-      // Prioridad: precio_barril > precio_mayorista > 450000 por defecto
-      return parseFloat(
-        producto.precio_barril || producto.precio_mayorista || 450000,
-      );
+      return parseFloat(producto.precio_barril || 450000);
     }
-    // Para otros productos, usar precio mayorista o precio de venta
     return parseFloat(producto.precio_mayorista || producto.precio_venta);
   };
 
-  // ── Stock total ──────────────────────────────────────────────
+  // Stock total
   const getStock = (producto) => {
-    // Si es un barril, el stock es la cantidad de barriles, no vasos
     const stockTotal =
       producto.stock_total != null
         ? producto.stock_total
-        : Number(producto.stock_local1 || 0) +
-          Number(producto.stock_local2 || 0);
+        : Number(producto.stock_local1 || 0) + Number(producto.stock_local2 || 0);
     return stockTotal;
   };
 
@@ -168,15 +170,11 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
 
   const handleAgregarProducto = (producto) => {
     const stock = getStock(producto);
-    const itemExistente = items.find(
-      (item) => item.producto_id === producto.id,
-    );
+    const itemExistente = items.find((item) => item.producto_id === producto.id);
     const cantActual = itemExistente ? itemExistente.cantidad : 0;
 
     if (stock > 0 && cantActual >= stock) {
-      alert(
-        `Stock máximo alcanzado para ${producto.nombre} (${stock} unidades)`,
-      );
+      alert(`Stock máximo alcanzado para ${producto.nombre} (${stock} unidades)`);
       return;
     }
 
@@ -185,8 +183,8 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
         items.map((item) =>
           item.producto_id === producto.id
             ? { ...item, cantidad: item.cantidad + 1 }
-            : item,
-        ),
+            : item
+        )
       );
     } else {
       setItems([
@@ -220,8 +218,8 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
 
     setItems(
       items.map((item) =>
-        item.producto_id === productoId ? { ...item, cantidad } : item,
-      ),
+        item.producto_id === productoId ? { ...item, cantidad } : item
+      )
     );
   };
 
@@ -229,10 +227,8 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
     const precio = parseFloat(nuevoPrecio) || 0;
     setItems(
       items.map((item) =>
-        item.producto_id === productoId
-          ? { ...item, precio_unitario: precio }
-          : item,
-      ),
+        item.producto_id === productoId ? { ...item, precio_unitario: precio } : item
+      )
     );
   };
 
@@ -244,8 +240,8 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
       items.map((item) =>
         item.producto_id === productoId
           ? { ...item, descuento_porcentaje: descuento }
-          : item,
-      ),
+          : item
+      )
     );
   };
 
@@ -253,63 +249,62 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
     setItems(items.filter((item) => item.producto_id !== productoId));
   };
 
- const calcularTotales = () => {
+  const calcularTotales = () => {
     let subtotal = 0;
     let descuentoTotal = 0;
-    
-    items.forEach(item => {
+
+    items.forEach((item) => {
       const itemSubtotal = item.cantidad * item.precio_unitario;
-      const descuentoPorcentaje = item.descuento_porcentaje ||
-        (formData.aplicar_descuento_cliente && clienteSeleccionado?.descuento_porcentaje
+      const descuentoPorcentaje =
+        item.descuento_porcentaje ||
+        (formData.aplicar_descuento_cliente &&
+        clienteSeleccionado?.descuento_porcentaje
           ? clienteSeleccionado.descuento_porcentaje
           : 0);
       subtotal += itemSubtotal;
-      descuentoTotal += itemSubtotal * (descuentoPorcentaje / 100);
+      descuentoTotal += (itemSubtotal * descuentoPorcentaje) / 100;
     });
-    
+
     // Calcular IVA según normativa colombiana
     const baseImponible = subtotal - descuentoTotal;
     const IVA_PORCENTAJE = 19;
-    const ivaMonto = baseImponible * (IVA_PORCENTAJE / 100);
+    const ivaMonto = (baseImponible * IVA_PORCENTAJE) / 100;
     const total = baseImponible + ivaMonto;
-    
-    return { 
-      subtotal, 
-      descuentoTotal, 
+
+    return {
+      subtotal,
+      descuentoTotal,
       baseImponible,
       ivaPorcentaje: IVA_PORCENTAJE,
       ivaMonto,
-      total 
+      total,
     };
   };
 
- const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (items.length === 0) {
-      alert('Debe agregar al menos un producto');
+
+    if (!formData.cliente_b2b_id) {
+      alert("Por favor seleccione un cliente");
       return;
     }
 
-    if (!formData.cliente_b2b_id) {
-      alert('Debe seleccionar un cliente');
+    if (!formData.local_id) {
+      alert("Por favor seleccione un local");
+      return;
+    }
+
+    if (items.length === 0) {
+      alert("Por favor agregue al menos un producto");
       return;
     }
 
     try {
       setGuardando(true);
-      const user = authService.getCurrentUser();
-      
-      // 🔴 VALIDAR QUE EL USUARIO TENGA LOCAL ASIGNADO
-      if (!user?.local_asignado_id) {
-        alert('Tu usuario no tiene un local asignado. Contacta al administrador.');
-        setGuardando(false);
-        return;
-      }
 
       const ventaData = {
         cliente_b2b_id: formData.cliente_b2b_id,
-        local_id: user.local_asignado_id,
+        local_id: formData.local_id,
         metodo_pago: formData.metodo_pago,
         notas: formData.notas,
         aplicar_descuento_cliente: formData.aplicar_descuento_cliente,
@@ -321,23 +316,26 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
         })),
       };
 
-      console.log('📤 Enviando venta:', ventaData); // Para debug
-      
+      console.log("📤 Enviando venta:", ventaData);
+
       await ventasB2BService.crearVenta(ventaData);
-      
-      alert('✅ Factura creada exitosamente');
+
+      alert("✅ Factura creada exitosamente");
       onGuardar();
       onClose();
     } catch (error) {
-      console.error('❌ Error al crear venta:', error);
-      console.error('📋 Respuesta del servidor:', error.response?.data);
-      alert(`Error al crear factura: ${error.response?.data?.error || error.message}`);
+      console.error("❌ Error al crear venta:", error);
+      console.error("📋 Respuesta del servidor:", error.response?.data);
+      alert(
+        `Error al crear factura: ${error.response?.data?.error || error.message}`
+      );
     } finally {
       setGuardando(false);
     }
   };
 
- const { subtotal, descuentoTotal, baseImponible, ivaPorcentaje, ivaMonto, total } = calcularTotales();
+  const { subtotal, descuentoTotal, baseImponible, ivaPorcentaje, ivaMonto, total } =
+    calcularTotales();
 
   const formatearMoneda = (valor) =>
     new Intl.NumberFormat("es-CO", {
@@ -346,7 +344,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
       minimumFractionDigits: 0,
     }).format(valor || 0);
 
-  // ── Componente reutilizable: estado carga/error ──────────────
+  // Componente reutilizable: estado carga/error
   const renderEstadoCarga = (loading, error, onReintentar, texto) => {
     if (loading) {
       return (
@@ -405,7 +403,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* ── Cliente + Método ────────────────────────────────── */}
+          {/* ── Cliente + Local + Método ────────────────────────────────── */}
           <section>
             <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
               <span className="w-6 h-6 bg-[#D4B896] text-gray-900 rounded-full flex items-center justify-center text-xs font-bold">
@@ -413,19 +411,19 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
               </span>
               Cliente
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Cliente */}
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">
-                  Cliente *
+                  Cliente <span className="text-red-500">*</span>
                 </label>
 
-                {/* ⭐ Si carga o falla → mostrar estado, sino el select */}
                 {loadingClientes || errorClientes ? (
                   renderEstadoCarga(
                     loadingClientes,
                     errorClientes,
                     cargarClientes,
-                    "Cargando clientes...",
+                    "Cargando clientes..."
                   )
                 ) : (
                   <select
@@ -443,6 +441,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                   </select>
                 )}
               </div>
+
               {/* Local */}
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">
@@ -454,20 +453,21 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                     setFormData({ ...formData, local_id: e.target.value })
                   }
                   required
-                  className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent transition text-gray-900"
+                  className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent transition text-gray-900 font-medium"
                 >
                   <option value="">Seleccionar local</option>
-                  <option value="3985df02-a8e0-46d8-b380-a34a6d876549">
-                    El Taller - Principal
-                  </option>
-                  <option value="804730a4-592a-42ab-a2d9-d85179f7d0fb">
-                    El Taller - Sucursal
-                  </option>
+                  {locales.map((local) => (
+                    <option key={local.id} value={local.id}>
+                      {local.nombre}
+                    </option>
+                  ))}
                 </select>
               </div>
+
+              {/* Método de Pago */}
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">
-                  Método de Pago *
+                  Método de Pago <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={formData.metodo_pago}
@@ -525,13 +525,12 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
               Productos
             </h3>
 
-            {/* ⭐ Si productos carga o falla → mostrar estado completo */}
             {loadingProductos || errorProductos ? (
               renderEstadoCarga(
                 loadingProductos,
                 errorProductos,
                 cargarProductos,
-                "Cargando productos...",
+                "Cargando productos..."
               )
             ) : (
               <>
@@ -562,7 +561,6 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                     />
                   </div>
 
-                  {/* Filtro categoría */}
                   {categorias.length > 0 && (
                     <select
                       value={categoriaFiltro}
@@ -593,7 +591,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                         const precioB2B = getPrecioB2B(producto);
                         const stock = getStock(producto);
                         const enCarrito = items.find(
-                          (i) => i.producto_id === producto.id,
+                          (i) => i.producto_id === producto.id
                         );
                         const esBarril = producto.presentacion === "Barril";
 
@@ -601,43 +599,45 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                           <div
                             key={producto.id}
                             onClick={() => handleAgregarProducto(producto)}
-                            className="bg-white border-2 border-gray-200 rounded-xl p-4 hover:border-[#D4B896] hover:shadow-md transition-all cursor-pointer group"
+                            className="bg-white p-4 hover:bg-gray-50 transition-all cursor-pointer border border-gray-200"
                           >
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex-1">
-                                <h4 className="font-bold text-gray-800 text-sm group-hover:text-[#D4B896] transition mb-1">
+                                <h4 className="font-bold text-gray-800 text-sm mb-1">
                                   {producto.nombre}
                                 </h4>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                   {getPresentacionBadge(producto.presentacion)}
                                   {esBarril && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">
                                       🛢️ Barril Completo
                                     </span>
                                   )}
                                 </div>
                               </div>
                               {enCarrito && (
-                                <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs font-bold">
-                                  {enCarrito.cantidad} en carrito
+                                <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs font-bold ml-2">
+                                  {enCarrito.cantidad}
                                 </span>
                               )}
                             </div>
 
                             <div className="flex items-center justify-between mt-3">
                               <div>
-                                <p className="text-lg font-bold text-gray-900">
+                                <p className="text-xl font-black text-gray-900">
                                   {formatearMoneda(precioB2B)}
                                 </p>
                                 <p className="text-xs text-gray-500 mt-0.5">
-                                  {esBarril
-                                    ? "Por barril completo"
-                                    : "Por unidad"}
+                                  {esBarril ? "Por barril completo" : "Por unidad"}
                                 </p>
                               </div>
                               <div className="text-right">
                                 <p
-                                  className={`text-xs font-semibold ${stock > 0 ? "text-emerald-600" : "text-red-500"}`}
+                                  className={`text-xs font-semibold ${
+                                    stock > 0
+                                      ? "text-emerald-600"
+                                      : "text-red-500"
+                                  }`}
                                 >
                                   {stock > 0
                                     ? `${stock} disponibles`
@@ -657,7 +657,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                   </div>
                 </div>
 
-                {/* Tabla de items en carrito — siempre visible si hay items */}
+                {/* Tabla de items en carrito */}
                 {items.length > 0 && (
                   <div className="border-2 border-gray-200 rounded-xl overflow-hidden">
                     <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
@@ -690,28 +690,29 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                           {items.map((item) => {
-                            const itemSubtotal =
-                              item.cantidad * item.precio_unitario;
+                            const itemSubtotal = item.cantidad * item.precio_unitario;
                             const desc =
                               item.descuento_porcentaje ||
                               (formData.aplicar_descuento_cliente &&
                               clienteSeleccionado?.descuento_porcentaje
                                 ? clienteSeleccionado.descuento_porcentaje
                                 : 0);
-                            const itemTotal =
-                              itemSubtotal - (itemSubtotal * desc) / 100;
+                            const itemTotal = itemSubtotal - (itemSubtotal * desc) / 100;
+                            const esBarril = item.presentacion === "Barril";
 
                             return (
-                              <tr
-                                key={item.producto_id}
-                                className="bg-white hover:bg-gray-50"
-                              >
+                              <tr key={item.producto_id} className="bg-white hover:bg-gray-50">
                                 <td className="px-4 py-2.5">
                                   <div className="text-sm font-semibold text-gray-800">
                                     {item.nombre_producto}
                                   </div>
                                   <div className="flex items-center gap-1 mt-0.5">
                                     {getPresentacionBadge(item.presentacion)}
+                                    {esBarril && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">
+                                        🛢️ Barril
+                                      </span>
+                                    )}
                                   </div>
                                 </td>
                                 <td className="px-4 py-2.5">
@@ -719,16 +720,17 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                                     type="number"
                                     value={item.precio_unitario}
                                     onChange={(e) =>
-                                      handlePrecioChange(
-                                        item.producto_id,
-                                        e.target.value,
-                                      )
+                                      handlePrecioChange(item.producto_id, e.target.value)
                                     }
                                     min="0"
-                                    step="100"
-                                    className="w-32 px-3 py-2 border-2 border-gray-300 rounded-lg text-sm text-gray-900 font-semibold bg-white focus:ring-2 focus:ring-[#D4B896] focus:border-[#D4B896] transition"
-                                    placeholder="Precio"
+                                    step="1000"
+                                    className="w-32 px-3 py-2 border-2 border-gray-300 rounded-lg text-sm text-gray-900 font-bold bg-white focus:ring-2 focus:ring-[#D4B896] focus:border-[#D4B896] transition"
                                   />
+                                  {esBarril && (
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      Por barril completo
+                                    </div>
+                                  )}
                                 </td>
                                 <td className="px-4 py-2.5">
                                   <div className="flex items-center gap-2">
@@ -737,7 +739,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                                       onClick={() =>
                                         handleCantidadChange(
                                           item.producto_id,
-                                          item.cantidad - 1,
+                                          item.cantidad - 1
                                         )
                                       }
                                       className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center font-bold text-lg transition"
@@ -750,7 +752,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                                       onChange={(e) =>
                                         handleCantidadChange(
                                           item.producto_id,
-                                          parseInt(e.target.value) || 0,
+                                          parseInt(e.target.value) || 0
                                         )
                                       }
                                       min="1"
@@ -762,7 +764,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                                       onClick={() =>
                                         handleCantidadChange(
                                           item.producto_id,
-                                          item.cantidad + 1,
+                                          item.cantidad + 1
                                         )
                                       }
                                       className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center font-bold text-lg transition"
@@ -770,6 +772,11 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                                       +
                                     </button>
                                   </div>
+                                  {esBarril && (
+                                    <div className="text-xs text-gray-500 mt-1 text-center">
+                                      ~{item.cantidad * 85} vasos
+                                    </div>
+                                  )}
                                 </td>
                                 <td className="px-4 py-2.5">
                                   <input
@@ -778,25 +785,24 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                                     onChange={(e) =>
                                       handleDescuentoChange(
                                         item.producto_id,
-                                        e.target.value,
+                                        e.target.value
                                       )
                                     }
                                     min="0"
                                     max="100"
                                     step="0.5"
-                                    className="w-20 px-3 py-2 border-2 border-gray-300 rounded-lg text-sm text-gray-900 font-semibold bg-white focus:ring-2 focus:ring-[#D4B896] focus:border-[#D4B896] transition"
-                                    placeholder="%"
+                                    className="w-20 px-3 py-2 border-2 border-gray-300 rounded-lg text-sm text-gray-900 font-bold bg-white focus:ring-2 focus:ring-[#D4B896] focus:border-[#D4B896] transition"
                                   />
                                 </td>
-                                <td className="px-4 py-2.5 text-sm font-bold text-gray-800">
-                                  {formatearMoneda(itemTotal)}
+                                <td className="px-4 py-2.5">
+                                  <div className="text-sm font-bold text-gray-800">
+                                    {formatearMoneda(itemTotal)}
+                                  </div>
                                 </td>
                                 <td className="px-4 py-2.5 text-center">
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      handleEliminarItem(item.producto_id)
-                                    }
+                                    onClick={() => handleEliminarItem(item.producto_id)}
                                     className="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 flex items-center justify-center transition font-bold"
                                   >
                                     ✕
@@ -839,53 +845,67 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
             )}
           </section>
 
-          {/* ── Totales ──────────────────────────────────────────── */}
+          {/* ── Resumen con IVA ──────────────────────────────────────────── */}
           <section className="bg-gray-50 border-2 border-gray-200 rounded-xl p-5">
             <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
               <span className="w-6 h-6 bg-[#D4B896] text-gray-900 rounded-full flex items-center justify-center text-xs font-bold">
                 3
               </span>
-              Resumen
+              Resumen de Factura
             </h3>
             <div className="flex justify-end">
               <div className="w-80 space-y-2.5">
                 {/* Subtotal */}
                 <div className="flex justify-between text-gray-600">
                   <span className="font-medium">Subtotal</span>
-                  <span className="font-semibold text-gray-800">{formatearMoneda(subtotal)}</span>
+                  <span className="font-semibold text-gray-800">
+                    {formatearMoneda(subtotal)}
+                  </span>
                 </div>
-                
+
                 {/* Descuento */}
                 {descuentoTotal > 0 && (
                   <div className="flex justify-between text-gray-600">
                     <span className="font-medium">Descuento</span>
-                    <span className="font-semibold text-orange-600">−{formatearMoneda(descuentoTotal)}</span>
+                    <span className="font-semibold text-orange-600">
+                      −{formatearMoneda(descuentoTotal)}
+                    </span>
                   </div>
                 )}
-                
+
                 {/* Base Imponible */}
                 <div className="flex justify-between text-gray-600 pt-2 border-t border-gray-300">
                   <span className="font-medium">Base Imponible</span>
-                  <span className="font-semibold text-gray-800">{formatearMoneda(baseImponible)}</span>
+                  <span className="font-semibold text-gray-800">
+                    {formatearMoneda(baseImponible)}
+                  </span>
                 </div>
-                
+
                 {/* IVA */}
                 <div className="flex justify-between text-gray-600">
                   <span className="font-medium">IVA ({ivaPorcentaje}%)</span>
-                  <span className="font-semibold text-blue-600">+{formatearMoneda(ivaMonto)}</span>
+                  <span className="font-semibold text-blue-600">
+                    +{formatearMoneda(ivaMonto)}
+                  </span>
                 </div>
-                
+
                 {/* Total */}
                 <div className="border-t-2 border-gray-400 pt-3 flex justify-between items-center">
-                  <span className="text-xl font-bold text-gray-900">Total a Pagar</span>
-                  <span className="text-2xl font-bold text-emerald-700">{formatearMoneda(total)}</span>
+                  <span className="text-xl font-bold text-gray-900">
+                    Total a Pagar
+                  </span>
+                  <span className="text-2xl font-bold text-emerald-700">
+                    {formatearMoneda(total)}
+                  </span>
                 </div>
-                
+
                 {/* Información adicional */}
                 <div className="pt-2 text-xs text-gray-500 border-t border-gray-200">
                   <p className="flex justify-between">
                     <span>Items en carrito:</span>
-                    <span className="font-semibold text-gray-700">{items.length}</span>
+                    <span className="font-semibold text-gray-700">
+                      {items.length}
+                    </span>
                   </p>
                   <p className="flex justify-between mt-1">
                     <span>Unidades totales:</span>
@@ -905,9 +925,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
             </label>
             <textarea
               value={formData.notas}
-              onChange={(e) =>
-                setFormData({ ...formData, notas: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
               rows="2"
               placeholder="Información adicional..."
               className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent resize-none transition"
