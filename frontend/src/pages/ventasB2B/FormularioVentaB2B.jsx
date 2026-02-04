@@ -503,7 +503,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                 )}
               </div>
 
-              {/* Método de Pago */}
+              {/* Método de Pago - CORREGIDO */}
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">
                   Método de Pago <span className="text-red-500">*</span>
@@ -517,7 +517,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                   className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent bg-white transition"
                 >
                   <option value="Credito">💳 Crédito</option>
-                  <option value="Contado">💵 Contado</option>
+                  <option value="Efectivo">💵 Efectivo</option>
                 </select>
               </div>
             </div>
