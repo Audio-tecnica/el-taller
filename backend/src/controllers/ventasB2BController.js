@@ -29,8 +29,7 @@ exports.crearVenta = async (req, res) => {
       return res.status(400).json({ error: 'Cliente no activo' });
     }
 
-    // Calcular totales
-// Calcular totales con impuestos
+    // Calcular totales con impuestos
     let subtotal = 0;
     let descuentoTotal = 0;
     const itemsVenta = [];
@@ -112,7 +111,7 @@ exports.crearVenta = async (req, res) => {
     const fechaVencimiento = new Date();
     fechaVencimiento.setDate(fechaVencimiento.getDate() + cliente.dias_credito);
 
-   // Crear venta con campos fiscales
+   // ⭐ CREAR VENTA CON CAMPO "iva" AGREGADO
     const venta = await VentaB2B.create({
       numero_factura: numeroFactura,
       cliente_b2b_id,
@@ -120,6 +119,7 @@ exports.crearVenta = async (req, res) => {
       pedido_id,
       subtotal,
       descuento: descuentoTotal,
+      iva: ivaMonto,  // ⭐⭐⭐ ESTE ES EL CAMPO QUE FALTABA
       base_imponible: baseImponible,
       iva_porcentaje: IVA_PORCENTAJE,
       iva_monto: ivaMonto,
@@ -153,7 +153,7 @@ exports.crearVenta = async (req, res) => {
         cantidad: -item.cantidad,
         costo_unitario: 0,
         precio_venta: item.precio_unitario,
-        usuario_id: req.usuario?.id || null,  // ⭐ CORREGIDO
+        usuario_id: req.usuario?.id || null,
         numero_documento: numeroFactura,
         observaciones: `Venta B2B a ${cliente.razon_social}`
       }, { transaction });
