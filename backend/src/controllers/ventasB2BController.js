@@ -176,18 +176,37 @@ exports.crearVenta = async (req, res) => {
         { transaction },
       );
 
-      // Descontar inventario
+      const producto = await Producto.findByPk(item.producto_id);
+      const local = await Local.findByPk(local_id);
+      const esLocal1 = local.nombre.toLowerCase().includes("castellana");
+
+      const stockAnterior = esLocal1
+        ? producto.stock_local1
+        : producto.stock_local2;
+      const stockNuevo = stockAnterior - item.cantidad;
+
       await MovimientoInventario.create(
         {
           producto_id: item.producto_id,
           local_id,
+          tipo: "Salida", // ✅ AGREGAR
           tipo_movimiento: "Venta B2B",
-          cantidad: -item.cantidad,
+          cantidad: item.cantidad, // ✅ POSITIVO
+          stock_anterior: stockAnterior, // ✅ AGREGAR
+          stock_nuevo: stockNuevo, // ✅ AGREGAR
           costo_unitario: 0,
           precio_venta: item.precio_unitario,
           usuario_id: req.usuario?.id || null,
           numero_documento: numeroFactura,
           observaciones: `Venta B2B a ${cliente.razon_social}`,
+        },
+        { transaction },
+      );
+
+      // ✅ ACTUALIZAR STOCK DEL PRODUCTO
+      await producto.update(
+        {
+          [esLocal1 ? "stock_local1" : "stock_local2"]: stockNuevo,
         },
         { transaction },
       );
