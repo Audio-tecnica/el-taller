@@ -168,14 +168,20 @@ export default function Pedido() {
   };
 
   const descargarFacturaPDF = () => {
-    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
     const token = localStorage.getItem("token");
     
+    // Usar la URL base del servicio API que ya está configurado correctamente
+    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    
+    // Construir la URL completa
+    // Nota: Si VITE_API_URL ya termina con /api, no duplicar
+    const baseUrl = API_BASE.replace(/\/api$/, ''); // Remover /api final si existe
+    const url = `${baseUrl}/api/facturas/pdf/${pedidoCobrado}?token=${token}`;
+    
+    console.log("Descargando factura desde:", url); // Para debug
+    
     // Abrir en nueva ventana para descargar
-    window.open(
-      `${API_URL}/api/facturas/pdf/${pedidoCobrado}?token=${token}`,
-      '_blank'
-    );
+    window.open(url, '_blank');
   };
 
   const finalizarSinFactura = () => {
