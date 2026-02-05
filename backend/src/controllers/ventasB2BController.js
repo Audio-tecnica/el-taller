@@ -384,7 +384,7 @@ exports.obtenerVentaPorId = async (req, res) => {
   }
 };
 
-// Anular venta
+// Anular venta B2B
 exports.anularVenta = async (req, res) => {
   const transaction = await sequelize.transaction();
 
@@ -392,55 +392,56 @@ exports.anularVenta = async (req, res) => {
     const { id } = req.params;
     const { motivo } = req.body;
 
-    if (!motivo) {
-      return res
-        .status(400)
-        .json({ error: "Debe proporcionar un motivo de anulación" });
+    if (!motivo || motivo.trim() === '') {
+      await transaction.rollback();
+      return res.status(400).json({ error: 'Debe proporcionar un motivo de anulación' });
     }
 
+    // Obtener venta con sus items
     const venta = await VentaB2B.findByPk(id, {
       include: [
         {
           model: ItemVentaB2B,
-          as: "items",
+          as: 'items',
         },
         {
           model: ClienteB2B,
-          as: "cliente",
+          as: 'cliente',
         },
       ],
+      transaction,
     });
 
     if (!venta) {
       await transaction.rollback();
-      return res.status(404).json({ error: "Venta no encontrada" });
+      return res.status(404).json({ error: 'Venta no encontrada' });
     }
 
-    if (venta.estado_pago === "Anulado") {
+    if (venta.estado_pago === 'Anulado') {
       await transaction.rollback();
-      return res.status(400).json({ error: "La venta ya está anulada" });
+      return res.status(400).json({ error: 'La venta ya está anulada' });
     }
+
+    // Determinar si es local 1 o local 2
+    const local = await Local.findByPk(venta.local_id, { transaction });
+    const esLocal1 = local.nombre.toLowerCase().includes('castellana');
 
     // Reversar inventario
     for (const item of venta.items) {
-      // Obtener producto y stock actual
-      const producto = await Producto.findByPk(item.producto_id);
-      const local = await Local.findByPk(venta.local_id);
-      const esLocal1 = local.nombre.toLowerCase().includes("castellana");
+      const producto = await Producto.findByPk(item.producto_id, { transaction });
 
-      const stockAnterior = esLocal1
-        ? producto.stock_local1
-        : producto.stock_local2;
+      if (!producto) continue;
+
+      const stockAnterior = esLocal1 ? producto.stock_local1 : producto.stock_local2;
       const stockNuevo = stockAnterior + item.cantidad; // SUMAR porque es reverso
 
-      // Crear movimiento de inventario
+      // Crear movimiento de inventario (ENTRADA porque es reverso de la SALIDA)
       await MovimientoInventario.create(
         {
           producto_id: item.producto_id,
           local_id: venta.local_id,
-          tipo: "entrada", // ⭐ AGREGAR ESTE CAMPO
-          tipo_movimiento: "Anulación Venta B2B",
-          cantidad: item.cantidad, // Positivo porque es entrada (reverso)
+          tipo: 'entrada', // ⭐ IMPORTANTE: es entrada (reverso)
+          cantidad: item.cantidad, // Positivo
           stock_anterior: stockAnterior,
           stock_nuevo: stockNuevo,
           costo_unitario: producto.precio_mayorista || 0,
@@ -449,44 +450,55 @@ exports.anularVenta = async (req, res) => {
           numero_documento: venta.numero_factura,
           observaciones: `Anulación de venta B2B: ${motivo}`,
         },
-        { transaction },
+        { transaction }
       );
 
       // Actualizar stock del producto
       await producto.update(
         {
-          [esLocal1 ? "stock_local1" : "stock_local2"]: stockNuevo,
+          [esLocal1 ? 'stock_local1' : 'stock_local2']: stockNuevo,
         },
-        { transaction },
+        { transaction }
       );
     }
 
-    // Actualizar estadísticas del cliente
-    const cliente = venta.cliente;
-    await cliente.update(
+    // Reversar crédito del cliente (si fue a crédito)
+    if (venta.metodo_pago === 'Credito') {
+      const cliente = venta.cliente;
+      const nuevoCreditoUtilizado = Math.max(
+        0,
+        parseFloat(cliente.credito_utilizado) - parseFloat(venta.saldo_pendiente)
+      );
+
+      await cliente.update(
+        {
+          credito_utilizado: nuevoCreditoUtilizado,
+        },
+        { transaction }
+      );
+    }
+
+    // Actualizar venta
+    await venta.update(
       {
-        total_ventas:
-          parseFloat(cliente.total_ventas) - parseFloat(venta.total),
-        total_facturas: Math.max(0, cliente.total_facturas - 1),
-        credito_utilizado:
-          venta.metodo_pago === "Credito" // ⬅️ USAR credito_utilizado
-            ? Math.max(
-                0,
-                parseFloat(cliente.credito_utilizado || 0) -
-                  parseFloat(venta.saldo_pendiente),
-              )
-            : cliente.credito_utilizado,
+        estado_pago: 'Anulado',
+        observaciones_anulacion: motivo,
+        anulado_por: req.usuario?.id || null,
+        fecha_anulacion: new Date(),
       },
-      { transaction },
+      { transaction }
     );
 
     await transaction.commit();
 
-    res.json({ mensaje: "Venta anulada exitosamente", venta });
+    res.json({
+      mensaje: 'Venta anulada exitosamente',
+      venta,
+    });
   } catch (error) {
     await transaction.rollback();
-    console.error("Error al anular venta:", error);
-    res.status(500).json({ error: "Error al anular venta" });
+    console.error('Error al anular venta:', error);
+    res.status(500).json({ error: 'Error al anular venta' });
   }
 };
 

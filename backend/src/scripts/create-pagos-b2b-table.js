@@ -49,10 +49,10 @@ async function crearTablaPagosB2B() {
     console.log('🎉 ¡Tabla pagos_b2b lista para usar!');
     console.log('');
 
+    await sequelize.close();
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error al crear tabla pagos_b2b:', error);
-    console.error('Detalles:', error.message);
+    console.error('❌ Error al crear tabla pagos_b2b:', error.message);
     process.exit(1);
   }
 }

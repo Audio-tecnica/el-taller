@@ -95,13 +95,19 @@ exports.registrarPago = async (req, res) => {
 
     await venta.actualizarEstadoPago();
 
-    // Actualizar crédito disponible del cliente
+  // Actualizar crédito del cliente
     const cliente = venta.cliente;
-    const nuevoCreditoDisponible = parseFloat(cliente.credito_disponible) + montoPago;
+    const nuevoCreditoUtilizado = Math.max(
+      0,
+      parseFloat(cliente.credito_utilizado) - montoPago
+    );
 
-    await cliente.update({
-      credito_disponible: nuevoCreditoDisponible
-    }, { transaction });
+    await cliente.update(
+      {
+        credito_utilizado: nuevoCreditoUtilizado,
+      },
+      { transaction }
+    );
 
     await transaction.commit();
 
@@ -300,13 +306,16 @@ exports.anularPago = async (req, res) => {
 
     await venta.actualizarEstadoPago();
 
-    // Reversar crédito del cliente
+    // Reversar crédito del cliente (sumar porque se anula el pago)
     const cliente = venta.cliente;
-    const nuevoCreditoDisponible = parseFloat(cliente.credito_disponible) - parseFloat(pago.monto);
+    const nuevoCreditoUtilizado = parseFloat(cliente.credito_utilizado) + parseFloat(pago.monto);
 
-    await cliente.update({
-      credito_disponible: nuevoCreditoDisponible
-    }, { transaction });
+    await cliente.update(
+      {
+        credito_utilizado: nuevoCreditoUtilizado,
+      },
+      { transaction }
+    );
 
     await transaction.commit();
 
