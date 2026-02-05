@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const inventarioController = require("../controllers/inventarioController");
-const { authMiddleware } = require("../middleware/authMiddleware");  // ⭐ Agregar llaves
+const { authMiddleware } = require('../middleware/authMiddleware');  // ⭐ Agregar llaves
 
 router.use(authMiddleware);
 
