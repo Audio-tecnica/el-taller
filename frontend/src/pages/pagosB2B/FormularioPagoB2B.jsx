@@ -61,14 +61,41 @@ export default function FormularioPagoB2B({ onClose, onGuardar }) {
 
   const cargarVentasPendientes = async () => {
     try {
-      const response = await ventasB2BService.obtenerVentas({
-        cliente_id: formData.cliente_b2b_id,
-        estado_pago: 'Pendiente,Parcial,Vencido',
-        limite: 50
-      });
-      setVentas(response.ventas || []);
+      // Hacer 3 llamadas separadas para cada estado
+      const [pendientes, parciales, vencidas] = await Promise.all([
+        ventasB2BService.obtenerVentas({
+          cliente_id: formData.cliente_b2b_id,
+          estado_pago: 'Pendiente',
+          limite: 50
+        }),
+        ventasB2BService.obtenerVentas({
+          cliente_id: formData.cliente_b2b_id,
+          estado_pago: 'Parcial',
+          limite: 50
+        }),
+        ventasB2BService.obtenerVentas({
+          cliente_id: formData.cliente_b2b_id,
+          estado_pago: 'Vencido',
+          limite: 50
+        })
+      ]);
+
+      // Combinar todas las ventas
+      const todasLasVentas = [
+        ...(pendientes.ventas || []),
+        ...(parciales.ventas || []),
+        ...(vencidas.ventas || [])
+      ];
+
+      // Ordenar por fecha de vencimiento (las más próximas primero)
+      todasLasVentas.sort((a, b) => 
+        new Date(a.fecha_vencimiento) - new Date(b.fecha_vencimiento)
+      );
+
+      setVentas(todasLasVentas);
     } catch (error) {
       console.error('Error al cargar ventas:', error);
+      setVentas([]);
     }
   };
 
