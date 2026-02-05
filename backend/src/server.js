@@ -6,6 +6,9 @@ const { Server } = require("socket.io");
 require("dotenv").config();
 require('./utils/keepAlive');
 
+// ⭐ Agregar sequelize para la migración
+const sequelize = require('./config/database');
+
 const app = express();
 const server = http.createServer(app);
 
@@ -114,32 +117,29 @@ app.use("/api/productos", productosRoutes);
 app.use("/api/mesas", mesasRoutes);
 app.use("/api/pedidos", pedidosRoutes);
 app.use('/api/barriles', barrilesRoutes);
-app.use('/api/inventario', inventarioRoutes); // Rutas originales
-app.use('/api/inventario-kardex', inventarioKardexRoutes); // Rutas nuevas en otra ruta
-app.use('/api/proveedores', proveedorRoutes); // ⭐ Nuevo
-app.use('/api/reportes-premium', reportesPremiumRoutes); // ⭐ Nuevo
-app.use('/api/clientes-b2b', clientesB2BRoutes); // ⭐ Módulo B2B
-app.use('/api/ventas-b2b', ventasB2BRoutes); // ⭐ Módulo B2B
-app.use('/api/pagos-b2b', pagosB2BRoutes); // ⭐ Módulo B2B
-app.use('/api/impuestos', impuestosRoutes); // ⭐ Sistema de Impuestos
+app.use('/api/inventario', inventarioRoutes);
+app.use('/api/inventario-kardex', inventarioKardexRoutes);
+app.use('/api/proveedores', proveedorRoutes);
+app.use('/api/reportes-premium', reportesPremiumRoutes);
+app.use('/api/clientes-b2b', clientesB2BRoutes);
+app.use('/api/ventas-b2b', ventasB2BRoutes);
+app.use('/api/pagos-b2b', pagosB2BRoutes);
+app.use('/api/impuestos', impuestosRoutes);
 
 // Socket.IO - Manejo de conexiones
 io.on('connection', (socket) => {
   console.log(`🔌 Cliente conectado: ${socket.id}`);
   
-  // El cliente puede unirse a rooms por local
   socket.on('join_local', (local) => {
     socket.join(`local_${local}`);
     console.log(`📍 Socket ${socket.id} se unió a local_${local}`);
   });
   
-  // El cliente puede unirse a una mesa específica
   socket.on('join_mesa', (mesaId) => {
     socket.join(`mesa_${mesaId}`);
     console.log(`🍽️ Socket ${socket.id} se unió a mesa_${mesaId}`);
   });
   
-  // Salir de una mesa
   socket.on('leave_mesa', (mesaId) => {
     socket.leave(`mesa_${mesaId}`);
     console.log(`🚪 Socket ${socket.id} salió de mesa_${mesaId}`);
@@ -153,7 +153,7 @@ io.on('connection', (socket) => {
 // Exportar io para usarlo en otros módulos
 module.exports.io = io;
 
-// Función helper para emitir eventos (usar en controladores)
+// Función helper para emitir eventos
 app.emitEvent = (event, data, room = null) => {
   if (room) {
     io.to(room).emit(event, data);
@@ -171,11 +171,91 @@ app.use((err, req, res, next) => {
   });
 });
 
+// ⭐ MIGRACIÓN AUTOMÁTICA DE IMPUESTOS
+const ejecutarMigracionImpuestos = async () => {
+  try {
+    const [results] = await sequelize.query(`
+      SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'impuestos');
+    `);
+    
+    if (!results[0].exists) {
+      console.log('🔄 Creando tablas de impuestos...');
+      
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS impuestos (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          codigo VARCHAR(20) NOT NULL UNIQUE,
+          nombre VARCHAR(100) NOT NULL,
+          descripcion TEXT,
+          tipo VARCHAR(20) NOT NULL DEFAULT 'Impuesto',
+          porcentaje DECIMAL(5,2) NOT NULL,
+          base_calculo VARCHAR(20) NOT NULL DEFAULT 'Subtotal',
+          aplica_a VARCHAR(30) NOT NULL DEFAULT 'Todos',
+          cuenta_contable VARCHAR(20),
+          orden INTEGER NOT NULL DEFAULT 0,
+          activo BOOLEAN NOT NULL DEFAULT true,
+          fecha_creacion TIMESTAMP DEFAULT NOW(),
+          fecha_actualizacion TIMESTAMP DEFAULT NOW()
+        );
+      `);
+
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS cliente_impuestos (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          cliente_b2b_id UUID NOT NULL REFERENCES clientes_b2b(id) ON DELETE CASCADE,
+          impuesto_id UUID NOT NULL REFERENCES impuestos(id) ON DELETE CASCADE,
+          porcentaje_personalizado DECIMAL(5,2),
+          activo BOOLEAN NOT NULL DEFAULT true,
+          fecha_creacion TIMESTAMP DEFAULT NOW(),
+          UNIQUE(cliente_b2b_id, impuesto_id)
+        );
+      `);
+
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS venta_impuestos (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          venta_b2b_id UUID NOT NULL REFERENCES ventas_b2b(id) ON DELETE CASCADE,
+          impuesto_id UUID NOT NULL REFERENCES impuestos(id),
+          codigo_impuesto VARCHAR(20) NOT NULL,
+          nombre_impuesto VARCHAR(100) NOT NULL,
+          tipo VARCHAR(20) NOT NULL,
+          porcentaje DECIMAL(5,2) NOT NULL,
+          base DECIMAL(12,2) NOT NULL,
+          monto DECIMAL(12,2) NOT NULL,
+          fecha_creacion TIMESTAMP DEFAULT NOW()
+        );
+      `);
+
+      await sequelize.query(`
+        INSERT INTO impuestos (codigo, nombre, descripcion, tipo, porcentaje, base_calculo, aplica_a, orden) VALUES
+        ('IVA19', 'IVA 19%', 'Tarifa general', 'Impuesto', 19.00, 'Subtotal', 'Todos', 1),
+        ('IVA5', 'IVA 5%', 'Tarifa reducida', 'Impuesto', 5.00, 'Subtotal', 'Todos', 2),
+        ('IVA0', 'IVA Exento', 'Exentos', 'Impuesto', 0.00, 'Subtotal', 'Todos', 3),
+        ('INC8', 'Impoconsumo 8%', 'Bares y restaurantes', 'Impuesto', 8.00, 'Subtotal', 'Todos', 4),
+        ('RFTE25', 'ReteFuente 2.5%', 'Por compras', 'Retencion', 2.50, 'Subtotal', 'Todos', 10),
+        ('RFTE35', 'ReteFuente 3.5%', 'Por servicios', 'Retencion', 3.50, 'Subtotal', 'Todos', 11),
+        ('RIVA15', 'ReteIVA 15%', '15% del IVA', 'Retencion', 15.00, 'Subtotal', 'Todos', 12),
+        ('RICA', 'ReteICA', 'Varía por municipio', 'Retencion', 0.69, 'Subtotal', 'Todos', 13)
+        ON CONFLICT (codigo) DO NOTHING;
+      `);
+
+      console.log('✅ Tablas de impuestos creadas exitosamente');
+    } else {
+      console.log('✅ Tablas de impuestos ya existen');
+    }
+  } catch (error) {
+    console.log('⚠️ Migración impuestos:', error.message);
+  }
+};
+
 const PORT = process.env.PORT || 5000;
 
-// Usar server.listen en lugar de app.listen para Socket.IO
-server.listen(PORT, () => {
+// Usar server.listen con migración automática
+server.listen(PORT, async () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🍺 El Taller Backend - Ready!`);
   console.log(`🔌 WebSocket enabled`);
+  
+  // Ejecutar migración automática
+  await ejecutarMigracionImpuestos();
 });
