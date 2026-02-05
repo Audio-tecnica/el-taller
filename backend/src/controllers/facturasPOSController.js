@@ -40,7 +40,7 @@ const facturasPOSController = {
           { 
             model: Usuario, 
             as: "usuario",
-            attributes: ['nombre', 'apellido']
+            attributes: ['nombre'] // Solo nombre, sin apellido
           }
         ],
       });
@@ -109,7 +109,7 @@ const facturasPOSController = {
       doc.text(`Factura No: ${pedido.id.slice(0, 8).toUpperCase()}`, 10, doc.y);
       doc.text(`Mesa: ${pedido.mesa?.numero || 'N/A'}`, 10, doc.y);
       doc.text(`Local: ${pedido.mesa?.local?.nombre || 'N/A'}`, 10, doc.y);
-      doc.text(`Atendido por: ${pedido.usuario?.nombre || 'N/A'} ${pedido.usuario?.apellido || ''}`, 10, doc.y);
+      doc.text(`Atendido por: ${pedido.usuario?.nombre || 'N/A'}`, 10, doc.y);
       doc.text(`Método de pago: ${pedido.metodo_pago?.toUpperCase() || 'N/A'}`, 10, doc.y);
       
       doc.moveDown(0.5);
@@ -247,7 +247,7 @@ const facturasPOSController = {
           { 
             model: Usuario, 
             as: "usuario",
-            attributes: ['nombre', 'apellido']
+            attributes: ['nombre'] // Solo nombre, sin apellido
           }
         ],
       });
@@ -269,7 +269,7 @@ const facturasPOSController = {
           fecha: pedido.closed_at || pedido.created_at,
           mesa: pedido.mesa?.numero,
           local: pedido.mesa?.local?.nombre,
-          atendidoPor: `${pedido.usuario?.nombre || ''} ${pedido.usuario?.apellido || ''}`.trim(),
+          atendidoPor: pedido.usuario?.nombre || 'N/A',
           metodoPago: pedido.metodo_pago,
           estado: pedido.estado,
         },
