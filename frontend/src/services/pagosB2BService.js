@@ -1,40 +1,34 @@
 import api from './api';
 
 const pagosB2BService = {
-  // Registrar pago
+  // Registrar nuevo pago
   registrarPago: async (pagoData) => {
-    const { data } = await api.post('/pagos-b2b', pagoData);
-    return data;
+    const response = await api.post('/pagos-b2b', pagoData);
+    return response.data;
   },
 
   // Obtener pagos con filtros
   obtenerPagos: async (params = {}) => {
-    const { data } = await api.get('/pagos-b2b', { params });
-    return data;
+    const response = await api.get('/pagos-b2b', { params });
+    return response.data;
   },
 
   // Obtener pago por ID
   obtenerPagoPorId: async (id) => {
-    const { data } = await api.get(`/pagos-b2b/${id}`);
-    return data;
+    const response = await api.get(`/pagos-b2b/${id}`);
+    return response.data;
   },
 
   // Anular pago
   anularPago: async (id, motivo) => {
-    const { data } = await api.delete(`/pagos-b2b/${id}`, { data: { motivo } });
-    return data;
+    const response = await api.post(`/pagos-b2b/${id}/anular`, { motivo });
+    return response.data;
   },
 
-  // Obtener resumen de pagos
+  // Obtener resumen
   obtenerResumenPagos: async (params = {}) => {
-    const { data } = await api.get('/pagos-b2b/resumen', { params });
-    return data;
-  },
-
-  // Obtener pagos por turno
-  obtenerPagosPorTurno: async (turnoId) => {
-    const { data } = await api.get(`/pagos-b2b/turno/${turnoId}`);
-    return data;
+    const response = await api.get('/pagos-b2b/resumen', { params });
+    return response.data;
   }
 };
 

@@ -1,58 +1,58 @@
-import { useState } from 'react';
-import ventasB2BService from '../../services/ventasB2BService';
+import { useState } from "react";
+import ventasB2BService from "../../services/ventasB2BService";
 
 export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
   const [anulando, setAnulando] = useState(false);
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
-  const [motivoAnulacion, setMotivoAnulacion] = useState('');
+  const [motivoAnulacion, setMotivoAnulacion] = useState("");
 
   const handleAnular = async () => {
     if (!motivoAnulacion.trim()) {
-      alert('Por favor ingrese un motivo de anulación');
+      alert("Por favor ingrese un motivo de anulación");
       return;
     }
 
     try {
       setAnulando(true);
       await ventasB2BService.anularVenta(venta.id, motivoAnulacion);
-      alert('Factura anulada exitosamente');
+      alert("Factura anulada exitosamente");
       onActualizar();
       onClose();
     } catch (error) {
-      console.error('Error al anular venta:', error);
-      alert(error.response?.data?.error || 'Error al anular la factura');
+      console.error("Error al anular venta:", error);
+      alert(error.response?.data?.error || "Error al anular la factura");
     } finally {
       setAnulando(false);
     }
   };
 
   const formatearMoneda = (valor) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0
+    return new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
+      minimumFractionDigits: 0,
     }).format(valor || 0);
   };
 
   const formatearFecha = (fecha) => {
-    return new Date(fecha).toLocaleDateString('es-CO', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(fecha).toLocaleDateString("es-CO", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   const getEstadoColor = (estado) => {
     const colores = {
-      'Pagado': 'bg-green-100 text-green-800',
-      'Pendiente': 'bg-yellow-100 text-yellow-800',
-      'Parcial': 'bg-orange-100 text-orange-800',
-      'Vencido': 'bg-red-100 text-red-800',
-      'Anulado': 'bg-gray-100 text-gray-800'
+      Pagado: "bg-green-100 text-green-800",
+      Pendiente: "bg-yellow-100 text-yellow-800",
+      Parcial: "bg-orange-100 text-orange-800",
+      Vencido: "bg-red-100 text-red-800",
+      Anulado: "bg-gray-100 text-gray-800",
     };
-    return colores[estado] || 'bg-gray-100 text-gray-800';
+    return colores[estado] || "bg-gray-100 text-gray-800";
   };
 
   const calcularSubtotalItem = (item) => {
@@ -69,11 +69,11 @@ export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
-      <div 
+      <div
         className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
@@ -88,7 +88,9 @@ export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className={`px-3 py-1 text-sm font-semibold rounded-full ${getEstadoColor(venta.estado_pago)}`}>
+            <span
+              className={`px-3 py-1 text-sm font-semibold rounded-full ${getEstadoColor(venta.estado_pago)}`}
+            >
               {venta.estado_pago}
             </span>
             <button
@@ -103,42 +105,60 @@ export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
         <div className="p-6 space-y-6">
           {/* Información del Cliente */}
           <section className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">Información del Cliente</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">
+              Información del Cliente
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <div className="text-sm text-gray-600">Razón Social</div>
-                <div className="font-semibold text-gray-900">{venta.cliente?.razon_social}</div>
+                <div className="font-semibold text-gray-900">
+                  {venta.cliente?.razon_social}
+                </div>
               </div>
               <div>
                 <div className="text-sm text-gray-600">Documento</div>
-                <div className="font-semibold text-gray-900">{venta.cliente?.numero_documento}</div>
+                <div className="font-semibold text-gray-900">
+                  {venta.cliente?.numero_documento}
+                </div>
               </div>
               <div>
                 <div className="text-sm text-gray-600">Contacto</div>
-                <div className="font-semibold text-gray-900">{venta.cliente?.nombre_contacto}</div>
+                <div className="font-semibold text-gray-900">
+                  {venta.cliente?.nombre_contacto}
+                </div>
               </div>
               <div>
                 <div className="text-sm text-gray-600">Teléfono</div>
-                <div className="font-semibold text-gray-900">{venta.cliente?.telefono}</div>
+                <div className="font-semibold text-gray-900">
+                  {venta.cliente?.telefono}
+                </div>
               </div>
             </div>
           </section>
 
           {/* Información de la Venta */}
           <section className="bg-blue-50 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">Detalles de la Venta</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">
+              Detalles de la Venta
+            </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <div className="text-sm text-gray-600">Método de Pago</div>
-                <div className="font-semibold text-gray-900">{venta.metodo_pago}</div>
+                <div className="font-semibold text-gray-900">
+                  {venta.metodo_pago}
+                </div>
               </div>
               <div>
                 <div className="text-sm text-gray-600">Vendedor</div>
-                <div className="font-semibold text-gray-900">{venta.vendedor?.nombre || 'N/A'}</div>
+                <div className="font-semibold text-gray-900">
+                  {venta.vendedor?.nombre || "N/A"}
+                </div>
               </div>
               <div>
                 <div className="text-sm text-gray-600">Local</div>
-                <div className="font-semibold text-gray-900">{venta.local?.nombre || 'N/A'}</div>
+                <div className="font-semibold text-gray-900">
+                  {venta.local?.nombre || "N/A"}
+                </div>
               </div>
               <div>
                 <div className="text-sm text-gray-600">Días de Crédito</div>
@@ -148,7 +168,7 @@ export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
               </div>
             </div>
 
-            {venta.metodo_pago === 'Credito' && (
+            {venta.metodo_pago === "Credito" && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-blue-200">
                 <div>
                   <div className="text-sm text-gray-600">Fecha Vencimiento</div>
@@ -158,14 +178,20 @@ export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
                 </div>
                 <div>
                   <div className="text-sm text-gray-600">Días de Mora</div>
-                  <div className={`font-semibold ${venta.dias_mora > 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                  <div
+                    className={`font-semibold ${venta.dias_mora > 0 ? "text-red-600" : "text-gray-900"}`}
+                  >
                     {venta.dias_mora} días
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-600">Fecha Pago Completo</div>
+                  <div className="text-sm text-gray-600">
+                    Fecha Pago Completo
+                  </div>
                   <div className="font-semibold text-gray-900">
-                    {venta.fecha_pago_completo ? formatearFecha(venta.fecha_pago_completo) : 'Pendiente'}
+                    {venta.fecha_pago_completo
+                      ? formatearFecha(venta.fecha_pago_completo)
+                      : "Pendiente"}
                   </div>
                 </div>
               </div>
@@ -174,7 +200,9 @@ export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
 
           {/* Items de la Venta */}
           <section>
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">Productos</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">
+              Productos
+            </h3>
             <div className="border border-gray-300 rounded-lg overflow-hidden">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -233,7 +261,9 @@ export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
               <div className="w-80 space-y-3">
                 <div className="flex justify-between text-gray-700">
                   <span>Subtotal:</span>
-                  <span className="font-semibold">{formatearMoneda(venta.subtotal)}</span>
+                  <span className="font-semibold">
+                    {formatearMoneda(venta.subtotal)}
+                  </span>
                 </div>
                 <div className="flex justify-between text-gray-700">
                   <span>Descuento:</span>
@@ -243,14 +273,16 @@ export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
                 </div>
                 <div className="flex justify-between text-gray-700">
                   <span>IVA:</span>
-                  <span className="font-semibold">{formatearMoneda(venta.iva)}</span>
+                  <span className="font-semibold">
+                    {formatearMoneda(venta.iva)}
+                  </span>
                 </div>
                 <div className="flex justify-between text-2xl font-bold text-gray-900 border-t border-gray-300 pt-3">
                   <span>Total:</span>
                   <span>{formatearMoneda(venta.total)}</span>
                 </div>
 
-                {venta.metodo_pago === 'Credito' && (
+                {venta.metodo_pago === "Credito" && (
                   <>
                     <div className="flex justify-between text-lg text-gray-700 border-t border-gray-200 pt-3">
                       <span>Monto Pagado:</span>
@@ -271,7 +303,9 @@ export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
           {/* Notas */}
           {venta.notas && (
             <section>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Notas</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                Notas
+              </h3>
               <div className="bg-gray-50 rounded-lg p-4 text-gray-700">
                 {venta.notas}
               </div>
@@ -279,9 +313,11 @@ export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
           )}
 
           {/* Información de Anulación */}
-          {venta.estado_pago === 'Anulado' && venta.observaciones_anulacion && (
+          {venta.estado_pago === "Anulado" && venta.observaciones_anulacion && (
             <section className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-red-800 mb-2">Motivo de Anulación</h3>
+              <h3 className="text-lg font-semibold text-red-800 mb-2">
+                Motivo de Anulación
+              </h3>
               <p className="text-gray-700">{venta.observaciones_anulacion}</p>
               <p className="text-sm text-gray-500 mt-2">
                 Anulado el {formatearFecha(venta.fecha_anulacion)}
@@ -292,7 +328,7 @@ export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
           {/* Botones de Acción */}
           <section className="flex justify-between pt-4 border-t border-gray-200">
             <div>
-              {venta.estado_pago !== 'Anulado' && venta.estado_pago !== 'Pagado' && (
+              {venta.estado_pago !== "Anulado" && (
                 <button
                   onClick={() => setMostrarConfirmacion(true)}
                   className="px-6 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition"
@@ -308,14 +344,18 @@ export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
               >
                 Cerrar
               </button>
-              {venta.estado_pago !== 'Anulado' && venta.estado_pago !== 'Pagado' && (
-                <button
-                  onClick={() => alert('Función de registrar pago próximamente')}
-                  className="px-6 py-2 bg-[#D4B896] text-black font-semibold rounded-lg hover:bg-[#c4a886] transition"
-                >
-                  Registrar Pago
-                </button>
-              )}
+              {venta.estado_pago !== "Anulado" &&
+                venta.estado_pago !== "Pagado" && (
+                  <button
+                    onClick={() => {
+                      // Redirigir a la página de pagos con la venta preseleccionada
+                      window.location.href = `/pagos-b2b?venta_id=${venta.id}`;
+                    }}
+                    className="px-6 py-2 bg-[#D4B896] text-black font-semibold rounded-lg hover:bg-[#c4a886] transition"
+                  >
+                    💰 Registrar Pago
+                  </button>
+                )}
             </div>
           </section>
         </div>
@@ -328,7 +368,8 @@ export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
                 ¿Confirmar Anulación?
               </h3>
               <p className="text-gray-600 mb-4">
-                Esta acción no se puede deshacer. Se revertirá el inventario y el crédito del cliente.
+                Esta acción no se puede deshacer. Se revertirá el inventario y
+                el crédito del cliente.
               </p>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -346,7 +387,7 @@ export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
                 <button
                   onClick={() => {
                     setMostrarConfirmacion(false);
-                    setMotivoAnulacion('');
+                    setMotivoAnulacion("");
                   }}
                   disabled={anulando}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
@@ -358,7 +399,7 @@ export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
                   disabled={anulando || !motivoAnulacion.trim()}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
                 >
-                  {anulando ? 'Anulando...' : 'Anular Factura'}
+                  {anulando ? "Anulando..." : "Anular Factura"}
                 </button>
               </div>
             </div>
