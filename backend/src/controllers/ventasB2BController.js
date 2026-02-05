@@ -166,8 +166,9 @@ exports.crearVenta = async (req, res) => {
       { transaction },
     );
 
-    // Crear items de venta
+// Crear items de venta y actualizar inventario
     for (const item of itemsVenta) {
+      // Crear el item de la venta
       await ItemVentaB2B.create(
         {
           venta_b2b_id: venta.id,
@@ -176,48 +177,38 @@ exports.crearVenta = async (req, res) => {
         { transaction },
       );
 
+      // Obtener producto y local para actualizar stock
       const producto = await Producto.findByPk(item.producto_id);
       const local = await Local.findByPk(local_id);
+      
+      // Determinar si es local 1 o local 2
       const esLocal1 = local.nombre.toLowerCase().includes("castellana");
-
-      const stockAnterior = esLocal1
-        ? producto.stock_local1
-        : producto.stock_local2;
+      const stockAnterior = esLocal1 ? producto.stock_local1 : producto.stock_local2;
       const stockNuevo = stockAnterior - item.cantidad;
-      // Crear items de venta
-      for (const item of itemsVenta) {
-        await ItemVentaB2B.create(
-          {
-            venta_b2b_id: venta.id,
-            ...item,
-          },
-          { transaction },
-        );
 
-        // Registro simplificado temporal
-        await MovimientoInventario.create(
-          {
-            producto_id: item.producto_id,
-            local_id,
-            tipo: "Salida",
-            tipo_movimiento: "Venta B2B",
-            cantidad: item.cantidad,
-            stock_anterior: 0,
-            stock_nuevo: 0,
-            costo_unitario: 0,
-            precio_venta: item.precio_unitario,
-            usuario_id: req.usuario?.id || null,
-            numero_documento: numeroFactura,
-            observaciones: `Venta B2B a ${cliente.razon_social}`,
-          },
-          { transaction },
-        );
-      }
-
-      // ✅ ACTUALIZAR STOCK DEL PRODUCTO
+      // Actualizar stock del producto
       await producto.update(
         {
           [esLocal1 ? "stock_local1" : "stock_local2"]: stockNuevo,
+        },
+        { transaction },
+      );
+
+      // Registrar movimiento de inventario
+      await MovimientoInventario.create(
+        {
+          producto_id: item.producto_id,
+          local_id,
+          tipo: "venta_b2b",
+          tipo_movimiento: "Venta B2B",
+          cantidad: -item.cantidad, // Negativo porque es salida
+          stock_anterior: stockAnterior,
+          stock_nuevo: stockNuevo,
+          costo_unitario: producto.precio_mayorista || 0,
+          precio_venta: item.precio_unitario,
+          usuario_id: req.usuario?.id || null,
+          numero_documento: numeroFactura,
+          observaciones: `Venta B2B a ${cliente.razon_social}`,
         },
         { transaction },
       );
@@ -230,7 +221,7 @@ exports.crearVenta = async (req, res) => {
         total_facturas: cliente.total_facturas + 1,
         ultima_compra: new Date(),
         credito_utilizado:
-          metodo_pago === "Credito" // ⬅️ USAR credito_utilizado
+          metodo_pago === "Credito"
             ? parseFloat(cliente.credito_utilizado || 0) + total
             : cliente.credito_utilizado,
       },
@@ -279,6 +270,7 @@ exports.crearVenta = async (req, res) => {
     res.status(500).json({ error: "Error al crear venta B2B" });
   }
 };
+
 
 // Obtener ventas con filtros
 exports.obtenerVentas = async (req, res) => {
