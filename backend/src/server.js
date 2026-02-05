@@ -12,11 +12,6 @@ const sequelize = require('./config/database');
 const app = express();
 const server = http.createServer(app);
 
-// Y agrega un endpoint de health check
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
 // Configurar Socket.IO
 const io = new Server(server, {
   cors: {
@@ -33,7 +28,6 @@ const io = new Server(server, {
   pingTimeout: 60000,
   pingInterval: 25000
 });
-
 
 // Middleware - CORS primero
 const allowedOrigins = [
@@ -81,6 +75,11 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+// Y agrega un endpoint de health check adicional
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Routes
 const authRoutes = require("./routes/authRoutes");
 const setupRoutes = require("./routes/setupRoutes");
@@ -107,6 +106,10 @@ const pagosB2BRoutes = require('./routes/pagosB2BRoutes');
 // ⭐ RUTAS IMPUESTOS
 const impuestosRoutes = require('./routes/impuestosRoutes');
 
+// ⭐ RUTAS FACTURAS POS
+const facturasRoutes = require('./routes/facturasRoutes');
+
+// Registrar todas las rutas
 app.use('/api/reportes', reportesRoutes);
 app.use("/api/turnos", turnosRoutes);
 app.use("/api/cortesias", cortesiasRoutes);
@@ -125,6 +128,7 @@ app.use('/api/clientes-b2b', clientesB2BRoutes);
 app.use('/api/ventas-b2b', ventasB2BRoutes);
 app.use('/api/pagos-b2b', pagosB2BRoutes);
 app.use('/api/impuestos', impuestosRoutes);
+app.use('/api/facturas', facturasRoutes); // ⭐ NUEVA RUTA
 
 // Socket.IO - Manejo de conexiones
 io.on('connection', (socket) => {
