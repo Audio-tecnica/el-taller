@@ -58,12 +58,24 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
   // Estados para impuestos
   const [impuestosSeleccionados, setImpuestosSeleccionados] = useState([]);
   const [impuestosCliente, setImpuestosCliente] = useState([]);
+  const [impuestosDisponibles, setImpuestosDisponibles] = useState([]);
 
   useEffect(() => {
     cargarClientes();
     cargarProductos();
     cargarLocales();
+    cargarImpuestosDisponibles();
   }, []);
+
+  // Cargar todos los impuestos disponibles
+  const cargarImpuestosDisponibles = async () => {
+    try {
+      const data = await impuestosService.obtenerImpuestosActivos();
+      setImpuestosDisponibles(data);
+    } catch (error) {
+      console.error("Error al cargar impuestos:", error);
+    }
+  };
 
   const cargarClientes = async () => {
     try {
@@ -202,7 +214,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
           // Preseleccionar los impuestos del cliente
           const idsImpuestos = impuestosDelCliente.map(ic => ic.impuesto_id);
           setImpuestosSeleccionados(idsImpuestos);
-        } catch (err) {
+        } catch  {
           console.log("Cliente sin impuestos predeterminados");
           setImpuestosCliente([]);
           setImpuestosSeleccionados([]);
@@ -338,30 +350,37 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
       };
     }
 
-    // NUEVO: Calcular con impuestos flexibles usando el servicio
-    // Necesitamos obtener la info de los impuestos seleccionados
-    // Por ahora hacemos el cálculo básico aquí
+    // CALCULAR CON IMPUESTOS FLEXIBLES
     let totalImpuestos = 0;
     let totalRetenciones = 0;
     const detalleImpuestos = [];
 
-    // Nota: El cálculo real se hace con impuestosCliente que tiene la info completa
-    impuestosCliente.forEach(impCliente => {
-      if (impuestosSeleccionados.includes(impCliente.impuesto_id)) {
-        const porcentaje = parseFloat(impCliente.porcentaje || impCliente.porcentaje_original);
+    // Usar impuestosDisponibles para obtener la info completa de cada impuesto seleccionado
+    impuestosSeleccionados.forEach(impuestoId => {
+      // Buscar primero en impuestosCliente (por si tiene porcentaje personalizado)
+      const impCliente = impuestosCliente.find(ic => ic.impuesto_id === impuestoId);
+      // Buscar en impuestosDisponibles para obtener los datos completos
+      const impDisponible = impuestosDisponibles.find(imp => imp.id === impuestoId);
+      
+      if (impDisponible) {
+        // Usar porcentaje personalizado si existe, sino el del catálogo
+        const porcentaje = impCliente?.porcentaje_personalizado 
+          ? parseFloat(impCliente.porcentaje_personalizado)
+          : parseFloat(impDisponible.porcentaje);
+        
         const monto = (baseParaImpuestos * porcentaje) / 100;
         
-        if (impCliente.tipo === 'Impuesto') {
+        if (impDisponible.tipo === 'Impuesto') {
           totalImpuestos += monto;
         } else {
           totalRetenciones += monto;
         }
 
         detalleImpuestos.push({
-          id: impCliente.impuesto_id,
-          codigo: impCliente.codigo,
-          nombre: impCliente.nombre,
-          tipo: impCliente.tipo,
+          id: impDisponible.id,
+          codigo: impDisponible.codigo,
+          nombre: impDisponible.nombre,
+          tipo: impDisponible.tipo,
           porcentaje: porcentaje,
           base: baseParaImpuestos,
           monto: monto
@@ -477,15 +496,13 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
     }
   };
 
-  const { 
+const { 
     subtotal, 
     descuentoTotal, 
     baseImponible, 
     ivaPorcentaje, 
     ivaMonto, 
     total,
-    totalImpuestos,
-    totalRetenciones,
     detalleImpuestos,
     usandoImpuestosFlexibles 
   } = calcularTotales();
@@ -1041,6 +1058,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                 impuestosCliente={impuestosCliente}
                 subtotal={subtotal - descuentoTotal}
                 disabled={guardando}
+                onImpuestosDisponiblesLoaded={setImpuestosDisponibles}
               />
             </section>
           )}

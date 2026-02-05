@@ -10,13 +10,15 @@ import impuestosService from '../services/impuestosService';
  * - impuestosCliente: Array de impuestos predeterminados del cliente (opcional)
  * - subtotal: Monto subtotal para calcular preview
  * - disabled: Si el selector está deshabilitado
+ * - onImpuestosDisponiblesLoaded: Callback para pasar los impuestos disponibles al padre
  */
 export default function SelectorImpuestos({
   impuestosSeleccionados = [],
   onImpuestosChange,
   impuestosCliente = [],
   subtotal = 0,
-  disabled = false
+  disabled = false,
+  onImpuestosDisponiblesLoaded
 }) {
   const [impuestosDisponibles, setImpuestosDisponibles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +52,10 @@ export default function SelectorImpuestos({
       setLoading(true);
       const data = await impuestosService.obtenerImpuestosActivos();
       setImpuestosDisponibles(data);
+      // Notificar al padre los impuestos disponibles
+      if (onImpuestosDisponiblesLoaded) {
+        onImpuestosDisponiblesLoaded(data);
+      }
     } catch (error) {
       console.error('Error al cargar impuestos:', error);
     } finally {
