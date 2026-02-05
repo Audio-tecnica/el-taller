@@ -921,7 +921,7 @@ const {
                                       handlePrecioChange(item.producto_id, e.target.value)
                                     }
                                     min="0"
-                                    step="1"
+                                    step="any"
                                     className="w-32 px-3 py-2 border-2 border-gray-300 rounded-lg text-sm text-gray-900 font-bold bg-white focus:ring-2 focus:ring-[#D4B896] focus:border-[#D4B896] transition"
                                   />
                                   {esBarril && (
