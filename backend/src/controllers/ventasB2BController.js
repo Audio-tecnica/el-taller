@@ -166,7 +166,7 @@ exports.crearVenta = async (req, res) => {
       { transaction },
     );
 
-// Crear items de venta y actualizar inventario
+    // Crear items de venta y actualizar inventario
     for (const item of itemsVenta) {
       // Crear el item de la venta
       await ItemVentaB2B.create(
@@ -180,10 +180,12 @@ exports.crearVenta = async (req, res) => {
       // Obtener producto y local para actualizar stock
       const producto = await Producto.findByPk(item.producto_id);
       const local = await Local.findByPk(local_id);
-      
+
       // Determinar si es local 1 o local 2
       const esLocal1 = local.nombre.toLowerCase().includes("castellana");
-      const stockAnterior = esLocal1 ? producto.stock_local1 : producto.stock_local2;
+      const stockAnterior = esLocal1
+        ? producto.stock_local1
+        : producto.stock_local2;
       const stockNuevo = stockAnterior - item.cantidad;
 
       // Actualizar stock del producto
@@ -270,7 +272,6 @@ exports.crearVenta = async (req, res) => {
     res.status(500).json({ error: "Error al crear venta B2B" });
   }
 };
-
 
 // Obtener ventas con filtros
 exports.obtenerVentas = async (req, res) => {
@@ -422,32 +423,43 @@ exports.anularVenta = async (req, res) => {
 
     // Reversar inventario
     for (const item of venta.items) {
+      // Obtener producto y stock actual
+      const producto = await Producto.findByPk(item.producto_id);
+      const local = await Local.findByPk(venta.local_id);
+      const esLocal1 = local.nombre.toLowerCase().includes("castellana");
+
+      const stockAnterior = esLocal1
+        ? producto.stock_local1
+        : producto.stock_local2;
+      const stockNuevo = stockAnterior + item.cantidad; // SUMAR porque es reverso
+
+      // Crear movimiento de inventario
       await MovimientoInventario.create(
         {
           producto_id: item.producto_id,
           local_id: venta.local_id,
+          tipo: "entrada", // ⭐ AGREGAR ESTE CAMPO
           tipo_movimiento: "Anulación Venta B2B",
-          cantidad: item.cantidad,
-          costo_unitario: 0,
+          cantidad: item.cantidad, // Positivo porque es entrada (reverso)
+          stock_anterior: stockAnterior,
+          stock_nuevo: stockNuevo,
+          costo_unitario: producto.precio_mayorista || 0,
           precio_venta: item.precio_unitario,
-          usuario_id: req.usuario?.id || null, // ⭐ CORREGIDO
+          usuario_id: req.usuario?.id || null,
           numero_documento: venta.numero_factura,
           observaciones: `Anulación de venta B2B: ${motivo}`,
         },
         { transaction },
       );
-    }
 
-    // Actualizar venta
-    await venta.update(
-      {
-        estado_pago: "Anulado",
-        observaciones_anulacion: motivo,
-        anulado_por: req.usuario?.id || null, // ⭐ CORREGIDO
-        fecha_anulacion: new Date(),
-      },
-      { transaction },
-    );
+      // Actualizar stock del producto
+      await producto.update(
+        {
+          [esLocal1 ? "stock_local1" : "stock_local2"]: stockNuevo,
+        },
+        { transaction },
+      );
+    }
 
     // Actualizar estadísticas del cliente
     const cliente = venta.cliente;
