@@ -8,7 +8,6 @@ const {
   Categoria,
 } = require("../models");
 const sequelize = require("../config/database");
-const { MovimientoInventario } = require("../models");
 
 const pedidosController = {
   // Abrir pedido en una mesa
@@ -161,23 +160,7 @@ const pedidosController = {
           [stockKey]: nuevoStock 
         }, { transaction: t });
         
-        // ⭐ Registrar movimiento de inventario (si existe el modelo)
-        try {
-          await MovimientoInventario.create({
-            producto_id: producto.id,
-            local_id: pedido.local_id,
-            tipo: 'venta',
-            cantidad: -cantidad, // Negativo porque es una salida
-            stock_anterior: stockDisponible,
-            stock_nuevo: nuevoStock,
-            motivo: `Venta en pedido ${pedido_id}`,
-            pedido_id: pedido_id,
-            usuario_id: pedido.usuario_id
-          }, { transaction: t });
-        } catch (err) {
-          // Si el modelo MovimientoInventario no existe, continuar sin error
-          console.log('⚠️ Modelo MovimientoInventario no disponible:', err.message);
-        }
+        console.log(`✅ Stock actualizado: ${producto.nombre} - ${stockDisponible} → ${nuevoStock} (Local ${localNum})`);
       }
 
       // Buscar o crear el item en el pedido
@@ -235,7 +218,7 @@ const pedidosController = {
       res.json(pedidoActualizado);
     } catch (error) {
       if (!t.finished) await t.rollback();
-      console.error('Error en agregarItem:', error);
+      console.error('❌ Error en agregarItem:', error);
       res.status(500).json({ error: error.message });
     }
   },
@@ -279,6 +262,8 @@ const pedidosController = {
           [vasosKey]: vasosActuales + cantidadQuitar 
         }, { transaction: t });
         
+        console.log(`✅ Vasos devueltos: ${producto.nombre} - ${vasosActuales} → ${vasosActuales + cantidadQuitar}`);
+        
       } else {
         // ⭐ DEVOLVER STOCK DE PRODUCTOS NORMALES
         const stockActual = producto[stockKey] || 0;
@@ -288,22 +273,7 @@ const pedidosController = {
           [stockKey]: nuevoStock 
         }, { transaction: t });
         
-        // Registrar movimiento de devolución
-        try {
-          await MovimientoInventario.create({
-            producto_id: producto.id,
-            local_id: pedido.local_id,
-            tipo: 'devolucion',
-            cantidad: cantidadQuitar, // Positivo porque es una entrada
-            stock_anterior: stockActual,
-            stock_nuevo: nuevoStock,
-            motivo: `Devolución de pedido ${pedido_id} (item quitado)`,
-            pedido_id: pedido_id,
-            usuario_id: pedido.usuario_id
-          }, { transaction: t });
-        } catch (err) {
-          console.log('⚠️ Modelo MovimientoInventario no disponible:', err.message);
-        }
+        console.log(`✅ Stock devuelto: ${producto.nombre} - ${stockActual} → ${nuevoStock} (Local ${localNum})`);
       }
 
       // Actualizar o eliminar el item
@@ -350,7 +320,7 @@ const pedidosController = {
       res.json(pedidoActualizado);
     } catch (error) {
       if (!t.finished) await t.rollback();
-      console.error('Error en quitarItem:', error);
+      console.error('❌ Error en quitarItem:', error);
       res.status(500).json({ error: error.message });
     }
   },
@@ -403,20 +373,9 @@ const pedidosController = {
       }
 
       // 4. Realizar el cambio
-      // Actualizar pedido con nueva mesa
       await pedido.update({ mesa_id: nueva_mesa_id }, { transaction: t });
-
-      // Liberar mesa origen
-      await Mesa.update(
-        { estado: "disponible" },
-        { where: { id: mesaOrigenId }, transaction: t }
-      );
-
-      // Ocupar mesa destino
-      await Mesa.update(
-        { estado: "ocupada" },
-        { where: { id: nueva_mesa_id }, transaction: t }
-      );
+      await Mesa.update({ estado: "disponible" }, { where: { id: mesaOrigenId }, transaction: t });
+      await Mesa.update({ estado: "ocupada" }, { where: { id: nueva_mesa_id }, transaction: t });
 
       await t.commit();
 
@@ -430,14 +389,8 @@ const pedidosController = {
           include: [{ model: Local, as: 'local' }] 
         });
         
-        io.emit('mesa_actualizada', { 
-          mesa: mesaOrigenActualizada, 
-          accion: 'pedido_movido' 
-        });
-        io.emit('mesa_actualizada', { 
-          mesa: mesaDestinoActualizada, 
-          accion: 'pedido_recibido' 
-        });
+        io.emit('mesa_actualizada', { mesa: mesaOrigenActualizada, accion: 'pedido_movido' });
+        io.emit('mesa_actualizada', { mesa: mesaDestinoActualizada, accion: 'pedido_recibido' });
       }
 
       res.json({
@@ -545,6 +498,8 @@ const pedidosController = {
             [vasosKey]: vasosActuales + item.cantidad 
           }, { transaction: t });
           
+          console.log(`✅ Vasos devueltos (cancelación): ${producto.nombre} - ${vasosActuales} → ${vasosActuales + item.cantidad}`);
+          
         } else {
           // Devolver stock de productos normales
           const stockActual = producto[stockKey] || 0;
@@ -554,22 +509,7 @@ const pedidosController = {
             [stockKey]: nuevoStock 
           }, { transaction: t });
           
-          // Registrar movimiento
-          try {
-            await MovimientoInventario.create({
-              producto_id: producto.id,
-              local_id: pedido.local_id,
-              tipo: 'devolucion',
-              cantidad: item.cantidad,
-              stock_anterior: stockActual,
-              stock_nuevo: nuevoStock,
-              motivo: `Pedido cancelado ${pedido_id}`,
-              pedido_id: pedido_id,
-              usuario_id: pedido.usuario_id
-            }, { transaction: t });
-          } catch (err) {
-            console.log('⚠️ Modelo MovimientoInventario no disponible:', err.message);
-          }
+          console.log(`✅ Stock devuelto (cancelación): ${producto.nombre} - ${stockActual} → ${nuevoStock} (Local ${localNum})`);
         }
       }
 
@@ -591,7 +531,7 @@ const pedidosController = {
       res.json({ message: "Pedido cancelado e inventario devuelto" });
     } catch (error) {
       if (!t.finished) await t.rollback();
-      console.error('Error en cancelarPedido:', error);
+      console.error('❌ Error en cancelarPedido:', error);
       res.status(500).json({ error: error.message });
     }
   },
