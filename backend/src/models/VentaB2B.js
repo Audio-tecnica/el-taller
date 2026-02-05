@@ -227,25 +227,21 @@ VentaB2B.prototype.calcularDiasMora = function() {
   return diferencia;
 };
 
+
 // Método para actualizar estado de pago
-VentaB2B.prototype.actualizarEstadoPago = async function() {
-  const saldoPendiente = parseFloat(this.total) - parseFloat(this.monto_pagado);
-  this.saldo_pendiente = saldoPendiente;
+VentaB2B.prototype.actualizarEstadoPago = async function () {
+  const saldo = parseFloat(this.saldo_pendiente);
+  const total = parseFloat(this.total);
   
-  if (saldoPendiente <= 0) {
+  if (saldo <= 0) {
     this.estado_pago = 'Pagado';
     this.fecha_pago_completo = new Date();
-  } else if (parseFloat(this.monto_pagado) > 0) {
+  } else if (saldo < total) {
     this.estado_pago = 'Parcial';
+  } else if (new Date() > new Date(this.fecha_vencimiento)) {
+    this.estado_pago = 'Vencido';
   } else {
-    const diasMora = this.calcularDiasMora();
-    this.dias_mora = diasMora;
-    
-    if (diasMora > 0) {
-      this.estado_pago = 'Vencido';
-    } else {
-      this.estado_pago = 'Pendiente';
-    }
+    this.estado_pago = 'Pendiente';
   }
   
   await this.save();

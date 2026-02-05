@@ -84,32 +84,34 @@ exports.registrarPago = async (req, res) => {
       turno_id
     }, { transaction });
 
-    // Actualizar venta
-    const nuevoMontoPagado = parseFloat(venta.monto_pagado) + montoPago;
-    const nuevoSaldoPendiente = parseFloat(venta.total) - nuevoMontoPagado;
-
+ // Actualizar venta
     await venta.update({
       monto_pagado: nuevoMontoPagado,
       saldo_pendiente: nuevoSaldoPendiente
     }, { transaction });
 
-    await venta.actualizarEstadoPago();
-
-  // Actualizar crédito del cliente
-    const cliente = venta.cliente;
-    const nuevoCreditoUtilizado = Math.max(
-      0,
-      parseFloat(cliente.credito_utilizado) - montoPago
-    );
-
-    await cliente.update(
-      {
-        credito_utilizado: nuevoCreditoUtilizado,
-      },
-      { transaction }
-    );
-
-    await transaction.commit();
+    // Actualizar estado de pago DENTRO de la transacción
+    const saldo = nuevoSaldoPendiente;
+    const total = parseFloat(venta.total);
+    
+    let nuevoEstadoPago = venta.estado_pago;
+    let fechaPagoCompleto = venta.fecha_pago_completo;
+    
+    if (saldo <= 0) {
+      nuevoEstadoPago = 'Pagado';
+      fechaPagoCompleto = new Date();
+    } else if (saldo < total) {
+      nuevoEstadoPago = 'Parcial';
+    } else if (new Date() > new Date(venta.fecha_vencimiento)) {
+      nuevoEstadoPago = 'Vencido';
+    } else {
+      nuevoEstadoPago = 'Pendiente';
+    }
+    
+    await venta.update({
+      estado_pago: nuevoEstadoPago,
+      fecha_pago_completo: fechaPagoCompleto
+    }, { transaction });
 
     // Obtener pago completo
     const pagoCompleto = await PagoB2B.findByPk(pago.id, {
