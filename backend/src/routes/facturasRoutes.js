@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const facturasPOSController = require('../controllers/facturasPOSController');
-const authMiddleware = require('../middleware/authMiddleware');
 
-// Generar PDF de factura (requiere autenticación)
-router.get('/pdf/:pedido_id', authMiddleware, facturasPOSController.generarFacturaPDF);
+// Generar PDF de factura
+router.get('/pdf/:pedido_id', facturasPOSController.generarFacturaPDF);
 
-// Obtener datos de factura (requiere autenticación)
-router.get('/datos/:pedido_id', authMiddleware, facturasPOSController.obtenerDatosFactura);
+// Obtener datos de factura
+router.get('/datos/:pedido_id', facturasPOSController.obtenerDatosFactura);
 
 module.exports = router;
