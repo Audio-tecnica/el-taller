@@ -32,7 +32,7 @@ export default function Pedido() {
       // Buscar el pedido actual
       const pedidosAbiertos = await pedidosService.getPedidosAbiertos();
       const pedidoActual = pedidosAbiertos.find((p) => p.id === pedido_id);
-      
+
       if (pedidoActual) {
         setPedido(pedidoActual);
       } else {
@@ -68,7 +68,8 @@ export default function Pedido() {
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [cargarDatos]);
 
   const handleAgregarProducto = async (producto) => {
@@ -76,7 +77,7 @@ export default function Pedido() {
       const pedidoActualizado = await pedidosService.agregarItem(
         pedido_id,
         producto.id,
-        1
+        1,
       );
       setPedido((prev) => ({
         ...prev,
@@ -100,7 +101,7 @@ export default function Pedido() {
       const pedidoActualizado = await pedidosService.quitarItem(
         pedido_id,
         item.id,
-        1
+        1,
       );
       setPedido((prev) => ({
         ...prev,
@@ -122,7 +123,7 @@ export default function Pedido() {
     try {
       const pedidoActualizado = await pedidosService.quitarItem(
         pedido_id,
-        item.id
+        item.id,
       );
       setPedido((prev) => ({
         ...prev,
@@ -146,7 +147,7 @@ export default function Pedido() {
         pedido_id,
         metodoPago,
         montoCortesia,
-        razonCortesia
+        razonCortesia,
       );
       toast.success("Pedido cobrado!");
       navigate("/pos");
@@ -187,7 +188,8 @@ export default function Pedido() {
     if (nombre.includes("barril")) return "border-amber-500";
     if (nombre.includes("botella")) return "border-green-500";
     if (nombre.includes("lata")) return "border-blue-500";
-    if (nombre.includes("comida") || nombre.includes("piqueo")) return "border-orange-500";
+    if (nombre.includes("comida") || nombre.includes("piqueo"))
+      return "border-orange-500";
     if (nombre.includes("bebida")) return "border-purple-500";
     return "border-gray-700";
   };
@@ -334,12 +336,17 @@ export default function Pedido() {
                                 : "bg-emerald-500")
                           }
                           style={{
-                            width: ((producto.vasos_disponibles_local1 / producto.capacidad_barril) * 100) + "%",
+                            width:
+                              (producto.vasos_disponibles_local1 /
+                                producto.capacidad_barril) *
+                                100 +
+                              "%",
                           }}
                         />
                       </div>
                       <p className="text-[9px] text-gray-500 text-center mt-0.5">
-                        {producto.vasos_disponibles_local1}/{producto.capacidad_barril} vasos
+                        {producto.vasos_disponibles_local1}/
+                        {producto.capacidad_barril} vasos
                       </p>
                     </div>
                   )}
@@ -357,7 +364,9 @@ export default function Pedido() {
       <div
         className={
           "fixed lg:relative lg:w-80 xl:w-96 w-full bottom-0 lg:bottom-auto left-0 lg:left-auto bg-[#141414] border-l border-[#2a2a2a] flex flex-col transition-transform duration-300 z-40 max-h-[80vh] lg:max-h-full lg:h-full " +
-          (mostrarCuentaMovil ? "translate-y-0" : "translate-y-full lg:translate-y-0")
+          (mostrarCuentaMovil
+            ? "translate-y-0"
+            : "translate-y-full lg:translate-y-0")
         }
       >
         {/* Botón para cerrar en móvil */}
@@ -471,26 +480,55 @@ export default function Pedido() {
             <div className="p-6 space-y-4">
               {/* Resumen */}
               <div className="bg-[#1a1a1a] rounded-xl p-4 space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Subtotal</span>
-                  <span className="text-white font-medium">
-                    ${Number(pedido?.subtotal || 0).toLocaleString()}
-                  </span>
-                </div>
-                {montoCortesia > 0 && (
-                  <div className="flex justify-between text-emerald-500">
-                    <span>Cortesia</span>
-                    <span>-${Number(montoCortesia).toLocaleString()}</span>
-                  </div>
-                )}
-                <div className="flex justify-between border-t border-[#2a2a2a] pt-2 mt-2">
-                  <span className="text-[#D4B896] font-bold">
-                    Total a cobrar
-                  </span>
-                  <span className="text-[#D4B896] font-bold text-xl">
-                    ${Math.max(0, Number(pedido?.subtotal || 0) - montoCortesia).toLocaleString()}
-                  </span>
-                </div>
+                {(() => {
+                  // Cálculo del Impoconsumo (8%)
+                  const subtotalConImpuesto = Number(pedido?.subtotal || 0);
+                  const baseGravable = subtotalConImpuesto / 1.08;
+                  const impoconsumo = subtotalConImpuesto - baseGravable;
+
+                  return (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Base gravable</span>
+                        <span className="text-gray-300">
+                          ${Math.round(baseGravable).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Impoconsumo (8%)</span>
+                        <span className="text-gray-300">
+                          ${Math.round(impoconsumo).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-[#2a2a2a] pt-2">
+                        <span className="text-white font-medium">Subtotal</span>
+                        <span className="text-white font-medium">
+                          ${subtotalConImpuesto.toLocaleString()}
+                        </span>
+                      </div>
+                      {montoCortesia > 0 && (
+                        <div className="flex justify-between text-emerald-500">
+                          <span>Cortesía</span>
+                          <span>
+                            -${Number(montoCortesia).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between border-t border-[#2a2a2a] pt-2 mt-2">
+                        <span className="text-[#D4B896] font-bold">
+                          Total a cobrar
+                        </span>
+                        <span className="text-[#D4B896] font-bold text-xl">
+                          $
+                          {Math.max(
+                            0,
+                            subtotalConImpuesto - montoCortesia,
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Botón para mostrar/ocultar cortesía */}
@@ -516,8 +554,8 @@ export default function Pedido() {
                         setMontoCortesia(
                           Math.min(
                             parseFloat(e.target.value) || 0,
-                            pedido?.subtotal || 0
-                          )
+                            pedido?.subtotal || 0,
+                          ),
                         )
                       }
                       className="w-full px-4 py-2 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white focus:ring-2 focus:ring-[#D4B896]"
@@ -538,7 +576,9 @@ export default function Pedido() {
                       <option value="cumpleanos">Cumpleanos</option>
                       <option value="cliente_vip">Cliente VIP</option>
                       <option value="promocion">Promocion</option>
-                      <option value="disculpa">Disculpa por inconveniente</option>
+                      <option value="disculpa">
+                        Disculpa por inconveniente
+                      </option>
                       <option value="fidelizacion">Fidelizacion</option>
                       <option value="cortesia_casa">Cortesia de la casa</option>
                       <option value="otro">Otro</option>
@@ -549,7 +589,9 @@ export default function Pedido() {
                     <button
                       type="button"
                       onClick={() =>
-                        setMontoCortesia(Math.round((pedido?.subtotal || 0) * 0.1))
+                        setMontoCortesia(
+                          Math.round((pedido?.subtotal || 0) * 0.1),
+                        )
                       }
                       className="flex-1 py-2 bg-[#2a2a2a] text-gray-300 rounded-lg text-sm hover:bg-[#3a3a3a]"
                     >
@@ -558,7 +600,9 @@ export default function Pedido() {
                     <button
                       type="button"
                       onClick={() =>
-                        setMontoCortesia(Math.round((pedido?.subtotal || 0) * 0.2))
+                        setMontoCortesia(
+                          Math.round((pedido?.subtotal || 0) * 0.2),
+                        )
                       }
                       className="flex-1 py-2 bg-[#2a2a2a] text-gray-300 rounded-lg text-sm hover:bg-[#3a3a3a]"
                     >
@@ -637,7 +681,11 @@ export default function Pedido() {
                   onClick={handleCobrar}
                   className="flex-1 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-500 transition"
                 >
-                  Cobrar ${Math.max(0, Number(pedido?.subtotal || 0) - montoCortesia).toLocaleString()}
+                  Cobrar $
+                  {Math.max(
+                    0,
+                    Number(pedido?.subtotal || 0) - montoCortesia,
+                  ).toLocaleString()}
                 </button>
               </div>
             </div>
