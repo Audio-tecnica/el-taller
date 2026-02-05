@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const impuestosController = require('../controllers/impuestosController');
-const authMiddleware = require('../middleware/authMiddleware');
+const { authMiddleware } = require('../middleware/authMiddleware');
 
 // Aplicar autenticación a todas las rutas
 router.use(authMiddleware);
