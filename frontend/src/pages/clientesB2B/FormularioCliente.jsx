@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import clientesB2BService from "../../services/clientesB2BService";
+import impuestosService from "../../services/impuestosService";
 
 export default function FormularioCliente({ cliente, onClose, onGuardar }) {
   const [formData, setFormData] = useState({
@@ -26,6 +27,54 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
   });
 
   const [guardando, setGuardando] = useState(false);
+
+  // Estados para impuestos
+  const [impuestosDisponibles, setImpuestosDisponibles] = useState([]);
+  const [impuestosSeleccionados, setImpuestosSeleccionados] = useState([]);
+  const [loadingImpuestos, setLoadingImpuestos] = useState(true);
+
+  // Cargar impuestos disponibles
+  useEffect(() => {
+    cargarImpuestosDisponibles();
+  }, []);
+
+  // Cargar impuestos del cliente cuando se está editando
+  useEffect(() => {
+    if (cliente?.id) {
+      cargarImpuestosCliente(cliente.id);
+    }
+  }, [cliente]);
+
+  const cargarImpuestosDisponibles = async () => {
+    try {
+      setLoadingImpuestos(true);
+      const data = await impuestosService.obtenerImpuestosActivos();
+      setImpuestosDisponibles(data);
+    } catch (error) {
+      console.error("Error al cargar impuestos:", error);
+    } finally {
+      setLoadingImpuestos(false);
+    }
+  };
+
+  const cargarImpuestosCliente = async (clienteId) => {
+    try {
+      const impuestosCliente = await impuestosService.obtenerImpuestosCliente(clienteId);
+      const ids = impuestosCliente.map(ic => ic.impuesto_id);
+      setImpuestosSeleccionados(ids);
+    } catch (error) {
+      console.log("Cliente sin impuestos predeterminados");
+      setImpuestosSeleccionados([]);
+    }
+  };
+
+  const handleToggleImpuesto = (impuestoId) => {
+    setImpuestosSeleccionados(prev => 
+      prev.includes(impuestoId)
+        ? prev.filter(id => id !== impuestoId)
+        : [...prev, impuestoId]
+    );
+  };
 
   useEffect(() => {
     if (cliente) {
@@ -90,10 +139,25 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
         notas: formData.notas || null,
       };
 
+      let clienteId;
+      
       if (cliente) {
         await clientesB2BService.actualizarCliente(cliente.id, dataToSend);
+        clienteId = cliente.id;
       } else {
-        await clientesB2BService.crearCliente(dataToSend);
+        const nuevoCliente = await clientesB2BService.crearCliente(dataToSend);
+        clienteId = nuevoCliente.id;
+      }
+
+      // Guardar impuestos predeterminados del cliente
+      if (clienteId && impuestosSeleccionados.length > 0) {
+        try {
+          const impuestosData = impuestosSeleccionados.map(id => ({ impuesto_id: id }));
+          await impuestosService.asignarImpuestosCliente(clienteId, impuestosData);
+        } catch (error) {
+          console.error("Error al guardar impuestos del cliente:", error);
+          // No bloquear si falla, el cliente ya se guardó
+        }
       }
 
       onGuardar();
@@ -398,6 +462,88 @@ export default function FormularioCliente({ cliente, onClose, onGuardar }) {
                 />
               </div>
             </div>
+          </section>
+
+          {/* Impuestos Predeterminados */}
+          <section>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              Impuestos Predeterminados
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Selecciona los impuestos que se precargarán automáticamente al crear facturas para este cliente.
+            </p>
+            
+            {loadingImpuestos ? (
+              <div className="animate-pulse flex space-x-4">
+                <div className="flex-1 space-y-2">
+                  <div className="h-8 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Impuestos */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-blue-800 mb-3">
+                    📊 Impuestos (suman al total)
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {impuestosDisponibles
+                      .filter(imp => imp.tipo === 'Impuesto')
+                      .map(impuesto => {
+                        const isSelected = impuestosSeleccionados.includes(impuesto.id);
+                        return (
+                          <button
+                            key={impuesto.id}
+                            type="button"
+                            onClick={() => handleToggleImpuesto(impuesto.id)}
+                            className={`
+                              px-3 py-2 rounded-lg text-sm font-medium transition-all
+                              ${isSelected 
+                                ? 'bg-blue-600 text-white shadow-md' 
+                                : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-400'
+                              }
+                            `}
+                            title={impuesto.descripcion}
+                          >
+                            {impuesto.nombre}
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                {/* Retenciones */}
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-orange-800 mb-3">
+                    📉 Retenciones (restan del total)
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {impuestosDisponibles
+                      .filter(imp => imp.tipo === 'Retencion')
+                      .map(retencion => {
+                        const isSelected = impuestosSeleccionados.includes(retencion.id);
+                        return (
+                          <button
+                            key={retencion.id}
+                            type="button"
+                            onClick={() => handleToggleImpuesto(retencion.id)}
+                            className={`
+                              px-3 py-2 rounded-lg text-sm font-medium transition-all
+                              ${isSelected 
+                                ? 'bg-orange-600 text-white shadow-md' 
+                                : 'bg-white text-gray-700 border border-gray-300 hover:border-orange-400'
+                              }
+                            `}
+                            title={retencion.descripcion}
+                          >
+                            {retencion.nombre}
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Información Bancaria */}

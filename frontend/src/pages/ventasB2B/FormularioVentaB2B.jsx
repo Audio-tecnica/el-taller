@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import clientesB2BService from "../../services/clientesB2BService";
 import { productosService } from "../../services/productosService";
 import ventasB2BService from "../../services/ventasB2BService";
+import impuestosService from "../../services/impuestosService";
+import SelectorImpuestos from "../../components/SelectorImpuestos";
 
 // ── Badges de presentación ────────────────────────────────────
 const getPresentacionBadge = (presentacion) => {
@@ -52,6 +54,10 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
 
   const [items, setItems] = useState([]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+
+  // Estados para impuestos
+  const [impuestosSeleccionados, setImpuestosSeleccionados] = useState([]);
+  const [impuestosCliente, setImpuestosCliente] = useState([]);
 
   useEffect(() => {
     cargarClientes();
@@ -188,11 +194,26 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
       try {
         const cliente = await clientesB2BService.obtenerClientePorId(clienteId);
         setClienteSeleccionado(cliente);
+        
+        // Cargar impuestos predeterminados del cliente
+        try {
+          const impuestosDelCliente = await impuestosService.obtenerImpuestosCliente(clienteId);
+          setImpuestosCliente(impuestosDelCliente);
+          // Preseleccionar los impuestos del cliente
+          const idsImpuestos = impuestosDelCliente.map(ic => ic.impuesto_id);
+          setImpuestosSeleccionados(idsImpuestos);
+        } catch (err) {
+          console.log("Cliente sin impuestos predeterminados");
+          setImpuestosCliente([]);
+          setImpuestosSeleccionados([]);
+        }
       } catch (error) {
         console.error("Error al cargar cliente:", error);
       }
     } else {
       setClienteSeleccionado(null);
+      setImpuestosCliente([]);
+      setImpuestosSeleccionados([]);
     }
   };
 
@@ -277,7 +298,7 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
     setItems(items.filter((item) => item.producto_id !== productoId));
   };
 
-  // 🔴 CALCULAR TOTALES - IVA COMO INFORMACIÓN, NO SUMADO
+  // 🔴 CALCULAR TOTALES - CON SISTEMA DE IMPUESTOS FLEXIBLE
   const calcularTotales = () => {
     let subtotal = 0;
     let descuentoTotal = 0;
@@ -294,22 +315,73 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
       descuentoTotal += (itemSubtotal * descuentoPorcentaje) / 100;
     });
 
-    // El total es subtotal - descuento (SIN IVA)
-    const total = subtotal - descuentoTotal;
+    // Base para calcular impuestos (subtotal - descuentos)
+    const baseParaImpuestos = subtotal - descuentoTotal;
     
-    // IVA es INFORMATIVO (desglosado del total)
-    // Si el precio ya incluye IVA, extraemos el IVA
-    const IVA_PORCENTAJE = 19;
-    const baseImponible = total / (1 + IVA_PORCENTAJE / 100);
-    const ivaMonto = total - baseImponible;
+    // Si NO hay impuestos seleccionados, mostrar IVA informativo (compatibilidad)
+    if (impuestosSeleccionados.length === 0) {
+      const IVA_PORCENTAJE = 19;
+      const baseImponible = baseParaImpuestos / (1 + IVA_PORCENTAJE / 100);
+      const ivaMonto = baseParaImpuestos - baseImponible;
+
+      return {
+        subtotal,
+        descuentoTotal,
+        baseImponible,
+        ivaPorcentaje: IVA_PORCENTAJE,
+        ivaMonto,
+        total: baseParaImpuestos,
+        totalImpuestos: 0,
+        totalRetenciones: 0,
+        detalleImpuestos: [],
+        usandoImpuestosFlexibles: false
+      };
+    }
+
+    // NUEVO: Calcular con impuestos flexibles usando el servicio
+    // Necesitamos obtener la info de los impuestos seleccionados
+    // Por ahora hacemos el cálculo básico aquí
+    let totalImpuestos = 0;
+    let totalRetenciones = 0;
+    const detalleImpuestos = [];
+
+    // Nota: El cálculo real se hace con impuestosCliente que tiene la info completa
+    impuestosCliente.forEach(impCliente => {
+      if (impuestosSeleccionados.includes(impCliente.impuesto_id)) {
+        const porcentaje = parseFloat(impCliente.porcentaje || impCliente.porcentaje_original);
+        const monto = (baseParaImpuestos * porcentaje) / 100;
+        
+        if (impCliente.tipo === 'Impuesto') {
+          totalImpuestos += monto;
+        } else {
+          totalRetenciones += monto;
+        }
+
+        detalleImpuestos.push({
+          id: impCliente.impuesto_id,
+          codigo: impCliente.codigo,
+          nombre: impCliente.nombre,
+          tipo: impCliente.tipo,
+          porcentaje: porcentaje,
+          base: baseParaImpuestos,
+          monto: monto
+        });
+      }
+    });
+
+    const total = baseParaImpuestos + totalImpuestos - totalRetenciones;
 
     return {
       subtotal,
       descuentoTotal,
-      baseImponible,
-      ivaPorcentaje: IVA_PORCENTAJE,
-      ivaMonto,
-      total, // Total a pagar (precio que ingresaste)
+      baseImponible: baseParaImpuestos,
+      ivaPorcentaje: 0,
+      ivaMonto: 0,
+      total,
+      totalImpuestos,
+      totalRetenciones,
+      detalleImpuestos,
+      usandoImpuestosFlexibles: true
     };
   };
 
@@ -368,6 +440,8 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
           precio_unitario: item.precio_unitario,
           descuento_porcentaje: item.descuento_porcentaje,
         })),
+        // Incluir impuestos seleccionados
+        impuestos_ids: impuestosSeleccionados,
       };
 
       console.log("📤 Enviando venta:", ventaData);
@@ -403,8 +477,18 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
     }
   };
 
-  const { subtotal, descuentoTotal, baseImponible, ivaPorcentaje, ivaMonto, total } =
-    calcularTotales();
+  const { 
+    subtotal, 
+    descuentoTotal, 
+    baseImponible, 
+    ivaPorcentaje, 
+    ivaMonto, 
+    total,
+    totalImpuestos,
+    totalRetenciones,
+    detalleImpuestos,
+    usandoImpuestosFlexibles 
+  } = calcularTotales();
 
   const formatearMoneda = (valor) =>
     new Intl.NumberFormat("es-CO", {
@@ -942,11 +1026,30 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
             )}
           </section>
 
+          {/* ── Selector de Impuestos ──────────────────────────────────────────── */}
+          {clienteSeleccionado && (
+            <section className="bg-white border-2 border-gray-200 rounded-xl p-5">
+              <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <span className="w-6 h-6 bg-[#D4B896] text-gray-900 rounded-full flex items-center justify-center text-xs font-bold">
+                  3
+                </span>
+                Impuestos y Retenciones
+              </h3>
+              <SelectorImpuestos
+                impuestosSeleccionados={impuestosSeleccionados}
+                onImpuestosChange={setImpuestosSeleccionados}
+                impuestosCliente={impuestosCliente}
+                subtotal={subtotal - descuentoTotal}
+                disabled={guardando}
+              />
+            </section>
+          )}
+
           {/* ── Resumen con IVA INFORMATIVO ──────────────────────────────────────────── */}
           <section className="bg-gray-50 border-2 border-gray-200 rounded-xl p-5">
             <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
               <span className="w-6 h-6 bg-[#D4B896] text-gray-900 rounded-full flex items-center justify-center text-xs font-bold">
-                3
+                4
               </span>
               Resumen de Factura
             </h3>
@@ -970,30 +1073,51 @@ export default function FormularioVentaB2B({ onClose, onGuardar }) {
                   </div>
                 )}
 
+                {/* Impuestos flexibles (si hay seleccionados) */}
+                {usandoImpuestosFlexibles && detalleImpuestos.length > 0 && (
+                  <div className="space-y-1 py-2 border-t border-gray-200">
+                    {detalleImpuestos.map((imp, idx) => (
+                      <div 
+                        key={idx}
+                        className={`flex justify-between text-sm ${
+                          imp.tipo === 'Retencion' ? 'text-orange-600' : 'text-blue-600'
+                        }`}
+                      >
+                        <span>{imp.nombre}</span>
+                        <span className="font-medium">
+                          {imp.tipo === 'Retencion' ? '−' : '+'} {formatearMoneda(imp.monto)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {/* Total a Pagar */}
                 <div className="border-t-2 border-gray-400 pt-3 flex justify-between items-center">
                   <span className="text-xl font-bold text-gray-900">
-                    Total a Pagar
+                    {usandoImpuestosFlexibles ? 'Neto a Pagar' : 'Total a Pagar'}
                   </span>
                   <span className="text-2xl font-bold text-emerald-700">
                     {formatearMoneda(total)}
                   </span>
                 </div>
 
-                {/* IVA INFORMATIVO */}
-                <div className="pt-2 border-t border-gray-200 bg-blue-50 -mx-4 px-4 py-3 rounded-lg">
-                  <p className="text-xs text-blue-600 font-semibold mb-2">
-                    ℹ️ Información Tributaria (Incluida en el total)
-                  </p>
-                  <div className="flex justify-between text-xs text-gray-600">
-                    <span>Base Gravable:</span>
-                    <span className="font-semibold">{formatearMoneda(baseImponible)}</span>
+                {/* IVA INFORMATIVO (solo si NO hay impuestos flexibles) */}
+                {!usandoImpuestosFlexibles && (
+                  <div className="pt-2 border-t border-gray-200 bg-blue-50 -mx-4 px-4 py-3 rounded-lg">
+                    <p className="text-xs text-blue-600 font-semibold mb-2">
+                      ℹ️ Información Tributaria (Incluida en el total)
+                    </p>
+                    <div className="flex justify-between text-xs text-gray-600">
+                      <span>Base Gravable:</span>
+                      <span className="font-semibold">{formatearMoneda(baseImponible)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-600 mt-1">
+                      <span>IVA ({ivaPorcentaje}%):</span>
+                      <span className="font-semibold">{formatearMoneda(ivaMonto)}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-xs text-gray-600 mt-1">
-                    <span>IVA ({ivaPorcentaje}%):</span>
-                    <span className="font-semibold">{formatearMoneda(ivaMonto)}</span>
-                  </div>
-                </div>
+                )}
 
                 {/* Información adicional */}
                 <div className="pt-2 text-xs text-gray-500 border-t border-gray-200">

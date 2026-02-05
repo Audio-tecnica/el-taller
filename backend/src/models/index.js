@@ -34,6 +34,13 @@ const ItemVentaB2B = require('./ItemVentaB2B');
 const PagoB2B = require('./PagoB2B');
 
 // ==========================================
+// IMPORTAR MODELOS DE IMPUESTOS
+// ==========================================
+const Impuesto = require('./Impuesto');
+const ClienteImpuesto = require('./ClienteImpuesto');
+const VentaImpuesto = require('./VentaImpuesto');
+
+// ==========================================
 // RELACIONES EXISTENTES
 // ==========================================
 
@@ -194,6 +201,26 @@ PagoB2B.belongsTo(Turno, { foreignKey: 'turno_id', as: 'turno' });
 Turno.hasMany(PagoB2B, { foreignKey: 'turno_id', as: 'pagos_b2b' });
 
 // ==========================================
+// RELACIONES DE IMPUESTOS
+// ==========================================
+
+// ClienteImpuesto - ClienteB2B
+ClienteImpuesto.belongsTo(ClienteB2B, { foreignKey: 'cliente_b2b_id', as: 'cliente' });
+ClienteB2B.hasMany(ClienteImpuesto, { foreignKey: 'cliente_b2b_id', as: 'impuestos_cliente' });
+
+// ClienteImpuesto - Impuesto
+ClienteImpuesto.belongsTo(Impuesto, { foreignKey: 'impuesto_id', as: 'impuesto' });
+Impuesto.hasMany(ClienteImpuesto, { foreignKey: 'impuesto_id', as: 'clientes_impuesto' });
+
+// VentaImpuesto - VentaB2B
+VentaImpuesto.belongsTo(VentaB2B, { foreignKey: 'venta_b2b_id', as: 'venta' });
+VentaB2B.hasMany(VentaImpuesto, { foreignKey: 'venta_b2b_id', as: 'impuestos_aplicados' });
+
+// VentaImpuesto - Impuesto
+VentaImpuesto.belongsTo(Impuesto, { foreignKey: 'impuesto_id', as: 'impuesto' });
+Impuesto.hasMany(VentaImpuesto, { foreignKey: 'impuesto_id', as: 'ventas_impuesto' });
+
+// ==========================================
 // EXPORTAR MODELOS
 // ==========================================
 module.exports = {
@@ -222,5 +249,10 @@ module.exports = {
   ClienteB2B,
   VentaB2B,
   ItemVentaB2B,
-  PagoB2B
+  PagoB2B,
+  
+  // Modelos de Impuestos
+  Impuesto,
+  ClienteImpuesto,
+  VentaImpuesto
 };

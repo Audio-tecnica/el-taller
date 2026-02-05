@@ -101,6 +101,9 @@ const clientesB2BRoutes = require('./routes/clientesB2BRoutes');
 const ventasB2BRoutes = require('./routes/ventasB2BRoutes');
 const pagosB2BRoutes = require('./routes/pagosB2BRoutes');
 
+// ⭐ RUTAS IMPUESTOS
+const impuestosRoutes = require('./routes/impuestosRoutes');
+
 app.use('/api/reportes', reportesRoutes);
 app.use("/api/turnos", turnosRoutes);
 app.use("/api/cortesias", cortesiasRoutes);
@@ -118,6 +121,7 @@ app.use('/api/reportes-premium', reportesPremiumRoutes); // ⭐ Nuevo
 app.use('/api/clientes-b2b', clientesB2BRoutes); // ⭐ Módulo B2B
 app.use('/api/ventas-b2b', ventasB2BRoutes); // ⭐ Módulo B2B
 app.use('/api/pagos-b2b', pagosB2BRoutes); // ⭐ Módulo B2B
+app.use('/api/impuestos', impuestosRoutes); // ⭐ Sistema de Impuestos
 
 // Socket.IO - Manejo de conexiones
 io.on('connection', (socket) => {
