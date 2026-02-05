@@ -1,9 +1,26 @@
-const PDFDocument = require("pdfkit");
+// Intentar cargar pdfkit de forma segura
+let PDFDocument;
+try {
+  PDFDocument = require("pdfkit");
+  console.log("✅ PDFKit cargado correctamente");
+} catch (error) {
+  console.error("⚠️ No se pudo cargar PDFKit:", error.message);
+  PDFDocument = null;
+}
+
 const { Pedido, ItemPedido, Producto, Mesa, Local, Usuario } = require("../models");
 
 const facturasPOSController = {
   // Generar PDF de factura/ticket
   generarFacturaPDF: async (req, res) => {
+    // Verificar si PDFKit está disponible
+    if (!PDFDocument) {
+      return res.status(501).json({ 
+        error: "Generación de PDF no disponible",
+        mensaje: "PDFKit no está instalado correctamente. Ejecute: npm install pdfkit"
+      });
+    }
+
     try {
       const { pedido_id } = req.params;
 
