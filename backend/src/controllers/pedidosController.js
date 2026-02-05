@@ -9,6 +9,36 @@ const {
 } = require("../models");
 const sequelize = require("../config/database");
 
+// ⭐ Función helper para determinar el número del local
+const getLocalNumber = (local) => {
+  // Intentar obtener el número del local de diferentes formas
+  if (local.numero) {
+    return local.numero;
+  }
+  
+  // Si el nombre contiene "castellana" o "1" → Local 1
+  if (local.nombre && (
+    local.nombre.toLowerCase().includes('castellana') ||
+    local.nombre.toLowerCase().includes('local 1') ||
+    local.nombre === '1'
+  )) {
+    return 1;
+  }
+  
+  // Si el nombre contiene "avenida" o "2" → Local 2
+  if (local.nombre && (
+    local.nombre.toLowerCase().includes('avenida') ||
+    local.nombre.toLowerCase().includes('local 2') ||
+    local.nombre === '2'
+  )) {
+    return 2;
+  }
+  
+  // Por defecto, asumir Local 1
+  console.warn(`⚠️ No se pudo determinar el número del local ${local.id} (${local.nombre}), usando Local 1 por defecto`);
+  return 1;
+};
+
 const pedidosController = {
   // Abrir pedido en una mesa
   abrirPedido: async (req, res) => {
@@ -100,7 +130,12 @@ const pedidosController = {
       const { pedido_id } = req.params;
       const { producto_id, cantidad, notas } = req.body;
 
-      const pedido = await Pedido.findByPk(pedido_id, { include: [{ model: Mesa, as: 'mesa' }] });
+      const pedido = await Pedido.findByPk(pedido_id, { 
+        include: [
+          { model: Mesa, as: 'mesa', include: [{ model: Local, as: 'local' }] }
+        ] 
+      });
+      
       if (!pedido || pedido.estado !== "abierto") {
         await t.rollback();
         return res.status(400).json({ error: "Pedido no válido o cerrado" });
@@ -112,10 +147,25 @@ const pedidosController = {
         return res.status(404).json({ error: "Producto no encontrado" });
       }
 
-      // Obtener información del local
-      const local = await Local.findByPk(pedido.local_id);
-      const localNum = local?.numero || 1;
+      // ⭐ OBTENER INFORMACIÓN DEL LOCAL CORRECTAMENTE
+      let local = null;
+      if (pedido.mesa && pedido.mesa.local) {
+        local = pedido.mesa.local;
+      } else {
+        local = await Local.findByPk(pedido.local_id);
+      }
+      
+      if (!local) {
+        await t.rollback();
+        return res.status(500).json({ error: "No se pudo determinar el local del pedido" });
+      }
+
+      const localNum = getLocalNumber(local);
       const stockKey = `stock_local${localNum}`;
+
+      console.log(`📍 Pedido en: ${local.nombre} (ID: ${local.id}) → Local ${localNum}`);
+      console.log(`📦 Producto: ${producto.nombre}`);
+      console.log(`🔑 Campo de stock a usar: ${stockKey}`);
 
       // ⭐ GESTIÓN DE INVENTARIO SEGÚN TIPO DE PRODUCTO
       if (producto.unidad_medida === 'barriles') {
@@ -123,14 +173,18 @@ const pedidosController = {
         const vasosKey = `vasos_disponibles_local${localNum}`;
         const barrilActivoKey = `barril_activo_local${localNum}`;
         
+        console.log(`🍺 Barril - Campo de vasos: ${vasosKey}`);
+        console.log(`🍺 Barril activo: ${producto[barrilActivoKey]}`);
+        console.log(`🍺 Vasos disponibles: ${producto[vasosKey]}`);
+        
         if (!producto[barrilActivoKey]) {
           await t.rollback();
-          return res.status(400).json({ error: `No hay barril activo de ${producto.nombre}` });
+          return res.status(400).json({ error: `No hay barril activo de ${producto.nombre} en ${local.nombre}` });
         }
         if (producto[vasosKey] < cantidad) {
           await t.rollback();
           return res.status(400).json({ 
-            error: `Solo quedan ${producto[vasosKey]} vasos`, 
+            error: `Solo quedan ${producto[vasosKey]} vasos en ${local.nombre}`, 
             vasos_disponibles: producto[vasosKey] 
           });
         }
@@ -140,17 +194,23 @@ const pedidosController = {
           [vasosKey]: producto[vasosKey] - cantidad 
         }, { transaction: t });
         
+        console.log(`✅ Vasos descontados: ${producto[vasosKey] + cantidad} → ${producto[vasosKey]} (${local.nombre})`);
+        
       } else {
         // ⭐ LÓGICA PARA PRODUCTOS NORMALES (BOTELLAS, LATAS, ETC)
         
         // Verificar si hay stock disponible
         const stockDisponible = producto[stockKey] || 0;
         
+        console.log(`📊 Stock disponible en ${stockKey}: ${stockDisponible}`);
+        console.log(`📊 Cantidad solicitada: ${cantidad}`);
+        
         if (stockDisponible < cantidad) {
           await t.rollback();
           return res.status(400).json({ 
-            error: `Stock insuficiente. Solo quedan ${stockDisponible} unidades de ${producto.nombre}`,
-            stock_disponible: stockDisponible
+            error: `Stock insuficiente en ${local.nombre}. Solo quedan ${stockDisponible} unidades de ${producto.nombre}`,
+            stock_disponible: stockDisponible,
+            local: local.nombre
           });
         }
         
@@ -160,7 +220,7 @@ const pedidosController = {
           [stockKey]: nuevoStock 
         }, { transaction: t });
         
-        console.log(`✅ Stock actualizado: ${producto.nombre} - ${stockDisponible} → ${nuevoStock} (Local ${localNum})`);
+        console.log(`✅ Stock actualizado: ${producto.nombre} - ${stockDisponible} → ${nuevoStock} (${local.nombre} - ${stockKey})`);
       }
 
       // Buscar o crear el item en el pedido
@@ -230,7 +290,12 @@ const pedidosController = {
       const { pedido_id, item_id } = req.params;
       const { cantidad } = req.body;
 
-      const pedido = await Pedido.findByPk(pedido_id, { include: [{ model: Mesa, as: 'mesa' }] });
+      const pedido = await Pedido.findByPk(pedido_id, { 
+        include: [
+          { model: Mesa, as: 'mesa', include: [{ model: Local, as: 'local' }] }
+        ] 
+      });
+      
       if (!pedido || pedido.estado !== "abierto") {
         await t.rollback();
         return res.status(400).json({ error: "Pedido no válido o cerrado" });
@@ -249,9 +314,17 @@ const pedidosController = {
       const cantidadQuitar = cantidad || item.cantidad;
       
       // ⭐ DEVOLVER INVENTARIO AL QUITAR ITEMS
-      const local = await Local.findByPk(pedido.local_id);
-      const localNum = local?.numero || 1;
+      let local = null;
+      if (pedido.mesa && pedido.mesa.local) {
+        local = pedido.mesa.local;
+      } else {
+        local = await Local.findByPk(pedido.local_id);
+      }
+      
+      const localNum = getLocalNumber(local);
       const stockKey = `stock_local${localNum}`;
+      
+      console.log(`📍 Devolviendo stock en: ${local.nombre} → Local ${localNum} → ${stockKey}`);
       
       if (producto.unidad_medida === 'barriles') {
         // DEVOLVER VASOS AL BARRIL
@@ -262,7 +335,7 @@ const pedidosController = {
           [vasosKey]: vasosActuales + cantidadQuitar 
         }, { transaction: t });
         
-        console.log(`✅ Vasos devueltos: ${producto.nombre} - ${vasosActuales} → ${vasosActuales + cantidadQuitar}`);
+        console.log(`✅ Vasos devueltos: ${producto.nombre} - ${vasosActuales} → ${vasosActuales + cantidadQuitar} (${local.nombre})`);
         
       } else {
         // ⭐ DEVOLVER STOCK DE PRODUCTOS NORMALES
@@ -273,7 +346,7 @@ const pedidosController = {
           [stockKey]: nuevoStock 
         }, { transaction: t });
         
-        console.log(`✅ Stock devuelto: ${producto.nombre} - ${stockActual} → ${nuevoStock} (Local ${localNum})`);
+        console.log(`✅ Stock devuelto: ${producto.nombre} - ${stockActual} → ${nuevoStock} (${local.nombre} - ${stockKey})`);
       }
 
       // Actualizar o eliminar el item
@@ -332,7 +405,6 @@ const pedidosController = {
       const { pedido_id } = req.params;
       const { nueva_mesa_id } = req.body;
 
-      // 1. Validar que el pedido exista y esté abierto
       const pedido = await Pedido.findByPk(pedido_id, {
         include: [{ model: Mesa, as: "mesa" }],
       });
@@ -347,7 +419,6 @@ const pedidosController = {
       const mesaOrigenId = pedido.mesa_id;
       const mesaOrigen = pedido.mesa;
 
-      // 2. Validar que la nueva mesa exista y esté disponible
       const mesaDestino = await Mesa.findByPk(nueva_mesa_id);
 
       if (!mesaDestino) {
@@ -364,7 +435,6 @@ const pedidosController = {
         });
       }
 
-      // 3. Validar que estén en el mismo local
       if (mesaOrigen.local_id !== mesaDestino.local_id) {
         await t.rollback();
         return res.status(400).json({ 
@@ -372,14 +442,12 @@ const pedidosController = {
         });
       }
 
-      // 4. Realizar el cambio
       await pedido.update({ mesa_id: nueva_mesa_id }, { transaction: t });
       await Mesa.update({ estado: "disponible" }, { where: { id: mesaOrigenId }, transaction: t });
       await Mesa.update({ estado: "ocupada" }, { where: { id: nueva_mesa_id }, transaction: t });
 
       await t.commit();
 
-      // 📌 SOCKET: Emitir cambios en ambas mesas
       const io = req.app.get('io');
       if (io) {
         const mesaOrigenActualizada = await Mesa.findByPk(mesaOrigenId, { 
@@ -449,7 +517,6 @@ const pedidosController = {
 
       await t.commit();
 
-      // 📌 SOCKET: Emitir mesa disponible
       const io = req.app.get('io');
       if (io && pedido.mesa_id) {
         const mesaActualizada = await Mesa.findByPk(pedido.mesa_id, { include: [{ model: Local, as: 'local' }] });
@@ -471,7 +538,7 @@ const pedidosController = {
       const { pedido_id } = req.params;
       const pedido = await Pedido.findByPk(pedido_id, { 
         include: [
-          { model: Mesa, as: "mesa" },
+          { model: Mesa, as: "mesa", include: [{ model: Local, as: 'local' }] },
           { model: ItemPedido, as: "items", include: [{ model: Producto, as: "producto" }] }
         ] 
       });
@@ -482,15 +549,22 @@ const pedidosController = {
       }
 
       // ⭐ DEVOLVER INVENTARIO AL CANCELAR PEDIDO
-      const local = await Local.findByPk(pedido.local_id);
-      const localNum = local?.numero || 1;
+      let local = null;
+      if (pedido.mesa && pedido.mesa.local) {
+        local = pedido.mesa.local;
+      } else {
+        local = await Local.findByPk(pedido.local_id);
+      }
+      
+      const localNum = getLocalNumber(local);
       const stockKey = `stock_local${localNum}`;
+      
+      console.log(`🗑️ Cancelando pedido - Devolviendo inventario a ${local.nombre} (${stockKey})`);
       
       for (const item of pedido.items) {
         const producto = item.producto;
         
         if (producto.unidad_medida === 'barriles') {
-          // Devolver vasos al barril
           const vasosKey = `vasos_disponibles_local${localNum}`;
           const vasosActuales = producto[vasosKey] || 0;
           
@@ -501,7 +575,6 @@ const pedidosController = {
           console.log(`✅ Vasos devueltos (cancelación): ${producto.nombre} - ${vasosActuales} → ${vasosActuales + item.cantidad}`);
           
         } else {
-          // Devolver stock de productos normales
           const stockActual = producto[stockKey] || 0;
           const nuevoStock = stockActual + item.cantidad;
           
@@ -509,7 +582,7 @@ const pedidosController = {
             [stockKey]: nuevoStock 
           }, { transaction: t });
           
-          console.log(`✅ Stock devuelto (cancelación): ${producto.nombre} - ${stockActual} → ${nuevoStock} (Local ${localNum})`);
+          console.log(`✅ Stock devuelto (cancelación): ${producto.nombre} - ${stockActual} → ${nuevoStock} (${stockKey})`);
         }
       }
 
@@ -521,7 +594,6 @@ const pedidosController = {
 
       await t.commit();
 
-      // 📌 SOCKET: Emitir mesa disponible
       const io = req.app.get('io');
       if (io && pedido.mesa_id) {
         const mesaActualizada = await Mesa.findByPk(pedido.mesa_id, { include: [{ model: Local, as: 'local' }] });
