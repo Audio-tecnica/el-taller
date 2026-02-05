@@ -1,11 +1,11 @@
-const { PagoB2B, VentaB2B, ClienteB2B, Usuario, Turno } = require('../models');
-const { Op } = require('sequelize');
-const sequelize = require('../config/database');
+const { PagoB2B, VentaB2B, ClienteB2B, Usuario, Turno } = require("../models");
+const { Op } = require("sequelize");
+const sequelize = require("../config/database");
 
 // Registrar pago
 exports.registrarPago = async (req, res) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
     const {
       venta_b2b_id,
@@ -14,7 +14,7 @@ exports.registrarPago = async (req, res) => {
       referencia_pago,
       banco,
       notas,
-      turno_id
+      turno_id,
     } = req.body;
 
     // Validar venta
@@ -22,24 +22,28 @@ exports.registrarPago = async (req, res) => {
       include: [
         {
           model: ClienteB2B,
-          as: 'cliente'
-        }
-      ]
+          as: "cliente",
+        },
+      ],
     });
 
     if (!venta) {
       await transaction.rollback();
-      return res.status(404).json({ error: 'Venta no encontrada' });
+      return res.status(404).json({ error: "Venta no encontrada" });
     }
 
-    if (venta.estado_pago === 'Pagado') {
+    if (venta.estado_pago === "Pagado") {
       await transaction.rollback();
-      return res.status(400).json({ error: 'La venta ya está completamente pagada' });
+      return res
+        .status(400)
+        .json({ error: "La venta ya está completamente pagada" });
     }
 
-    if (venta.estado_pago === 'Anulado') {
+    if (venta.estado_pago === "Anulado") {
       await transaction.rollback();
-      return res.status(400).json({ error: 'No se puede registrar pago a una venta anulada' });
+      return res
+        .status(400)
+        .json({ error: "No se puede registrar pago a una venta anulada" });
     }
 
     const montoPago = parseFloat(monto);
@@ -47,98 +51,112 @@ exports.registrarPago = async (req, res) => {
 
     if (montoPago <= 0) {
       await transaction.rollback();
-      return res.status(400).json({ error: 'El monto debe ser mayor a cero' });
+      return res.status(400).json({ error: "El monto debe ser mayor a cero" });
     }
 
     if (montoPago > saldoPendiente) {
       await transaction.rollback();
-      return res.status(400).json({ 
-        error: `El monto no puede ser mayor al saldo pendiente ($${saldoPendiente.toFixed(2)})` 
+      return res.status(400).json({
+        error: `El monto no puede ser mayor al saldo pendiente ($${saldoPendiente.toFixed(2)})`,
       });
     }
 
     // Generar número de recibo
     const ultimoPago = await PagoB2B.findOne({
-      order: [['fecha_creacion', 'DESC']]
+      order: [["fecha_creacion", "DESC"]],
     });
 
     let numeroRecibo;
     if (ultimoPago && ultimoPago.numero_recibo) {
-      const ultimoNumero = parseInt(ultimoPago.numero_recibo.split('-')[1]) || 0;
-      numeroRecibo = `RB2B-${String(ultimoNumero + 1).padStart(6, '0')}`;
+      const ultimoNumero =
+        parseInt(ultimoPago.numero_recibo.split("-")[1]) || 0;
+      numeroRecibo = `RB2B-${String(ultimoNumero + 1).padStart(6, "0")}`;
     } else {
-      numeroRecibo = 'RB2B-000001';
+      numeroRecibo = "RB2B-000001";
     }
 
     // Crear pago
-    const pago = await PagoB2B.create({
-      numero_recibo: numeroRecibo,
-      venta_b2b_id,
-      cliente_b2b_id: venta.cliente_b2b_id,
-      monto: montoPago,
-      metodo_pago,
-      referencia_pago,
-      banco,
-      notas,
-      recibido_por: req.usuario?.id || null,  // ⭐ CORREGIDO
-      turno_id
-    }, { transaction });
+    const pago = await PagoB2B.create(
+      {
+        numero_recibo: numeroRecibo,
+        venta_b2b_id,
+        cliente_b2b_id: venta.cliente_b2b_id,
+        monto: montoPago,
+        metodo_pago,
+        referencia_pago,
+        banco,
+        notas,
+        recibido_por: req.usuario?.id || null, // ⭐ CORREGIDO
+        turno_id,
+      },
+      { transaction },
+    );
 
- // Actualizar venta
-    await venta.update({
-      monto_pagado: nuevoMontoPagado,
-      saldo_pendiente: nuevoSaldoPendiente
-    }, { transaction });
+    // Calcular nuevos montos
+    const nuevoMontoPagado = parseFloat(venta.monto_pagado || 0) + montoPago;
+    const nuevoSaldoPendiente = parseFloat(venta.total) - nuevoMontoPagado;
+
+    // Actualizar venta
+    await venta.update(
+      {
+        monto_pagado: nuevoMontoPagado,
+        saldo_pendiente: nuevoSaldoPendiente,
+      },
+      { transaction },
+    );
 
     // Actualizar estado de pago DENTRO de la transacción
     const saldo = nuevoSaldoPendiente;
     const total = parseFloat(venta.total);
-    
+
     let nuevoEstadoPago = venta.estado_pago;
     let fechaPagoCompleto = venta.fecha_pago_completo;
-    
+
     if (saldo <= 0) {
-      nuevoEstadoPago = 'Pagado';
+      nuevoEstadoPago = "Pagado";
       fechaPagoCompleto = new Date();
     } else if (saldo < total) {
-      nuevoEstadoPago = 'Parcial';
+      nuevoEstadoPago = "Parcial";
     } else if (new Date() > new Date(venta.fecha_vencimiento)) {
-      nuevoEstadoPago = 'Vencido';
+      nuevoEstadoPago = "Vencido";
     } else {
-      nuevoEstadoPago = 'Pendiente';
+      nuevoEstadoPago = "Pendiente";
     }
-    
-    await venta.update({
-      estado_pago: nuevoEstadoPago,
-      fecha_pago_completo: fechaPagoCompleto
-    }, { transaction });
+
+    await venta.update(
+      {
+        estado_pago: nuevoEstadoPago,
+        fecha_pago_completo: fechaPagoCompleto,
+      },
+      { transaction },
+    );
 
     // Obtener pago completo
     const pagoCompleto = await PagoB2B.findByPk(pago.id, {
       include: [
         {
           model: VentaB2B,
-          as: 'venta',
+          as: "venta",
           include: [
             {
               model: ClienteB2B,
-              as: 'cliente'
-            }
-          ]
+              as: "cliente",
+            },
+          ],
         },
         {
           model: Usuario,
-          as: 'receptor',
-          attributes: ['id', 'nombre']
-        }
-      ]
+          as: "receptor",
+          attributes: ["id", "nombre"],
+        },
+      ],
     });
 
     res.status(201).json(pagoCompleto);
   } catch (error) {
     await transaction.rollback();
-    console.error('Error al registrar pago:', error);
-    res.status(500).json({ error: 'Error al registrar pago' });
+    console.error("Error al registrar pago:", error);
+    res.status(500).json({ error: "Error al registrar pago" });
   }
 };
 
@@ -151,9 +169,9 @@ exports.obtenerPagos = async (req, res) => {
       fecha_desde,
       fecha_hasta,
       metodo_pago,
-      estado = 'Aplicado',
+      estado = "Aplicado",
       limite = 50,
-      pagina = 1
+      pagina = 1,
     } = req.query;
 
     const where = { estado };
@@ -175,34 +193,34 @@ exports.obtenerPagos = async (req, res) => {
       include: [
         {
           model: VentaB2B,
-          as: 'venta',
-          attributes: ['id', 'numero_factura', 'total', 'saldo_pendiente']
+          as: "venta",
+          attributes: ["id", "numero_factura", "total", "saldo_pendiente"],
         },
         {
           model: ClienteB2B,
-          as: 'cliente',
-          attributes: ['id', 'razon_social', 'numero_documento']
+          as: "cliente",
+          attributes: ["id", "razon_social", "numero_documento"],
         },
         {
           model: Usuario,
-          as: 'receptor',
-          attributes: ['id', 'nombre']
-        }
+          as: "receptor",
+          attributes: ["id", "nombre"],
+        },
       ],
-      order: [['fecha_pago', 'DESC']],
+      order: [["fecha_pago", "DESC"]],
       limit: parseInt(limite),
-      offset
+      offset,
     });
 
     res.json({
       pagos,
       total: count,
       pagina: parseInt(pagina),
-      totalPaginas: Math.ceil(count / parseInt(limite))
+      totalPaginas: Math.ceil(count / parseInt(limite)),
     });
   } catch (error) {
-    console.error('Error al obtener pagos:', error);
-    res.status(500).json({ error: 'Error al obtener pagos' });
+    console.error("Error al obtener pagos:", error);
+    res.status(500).json({ error: "Error al obtener pagos" });
   }
 };
 
@@ -215,117 +233,127 @@ exports.obtenerPagoPorId = async (req, res) => {
       include: [
         {
           model: VentaB2B,
-          as: 'venta',
+          as: "venta",
           include: [
             {
               model: ClienteB2B,
-              as: 'cliente'
-            }
-          ]
+              as: "cliente",
+            },
+          ],
         },
         {
           model: Usuario,
-          as: 'receptor',
-          attributes: ['id', 'nombre', 'email']
+          as: "receptor",
+          attributes: ["id", "nombre", "email"],
         },
         {
           model: Usuario,
-          as: 'anulador',
-          attributes: ['id', 'nombre', 'email']
+          as: "anulador",
+          attributes: ["id", "nombre", "email"],
         },
         {
           model: Turno,
-          as: 'turno'
-        }
-      ]
+          as: "turno",
+        },
+      ],
     });
 
     if (!pago) {
-      return res.status(404).json({ error: 'Pago no encontrado' });
+      return res.status(404).json({ error: "Pago no encontrado" });
     }
 
     res.json(pago);
   } catch (error) {
-    console.error('Error al obtener pago:', error);
-    res.status(500).json({ error: 'Error al obtener pago' });
+    console.error("Error al obtener pago:", error);
+    res.status(500).json({ error: "Error al obtener pago" });
   }
 };
 
 // Anular pago
 exports.anularPago = async (req, res) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
     const { id } = req.params;
     const { motivo } = req.body;
 
     if (!motivo) {
-      return res.status(400).json({ error: 'Debe proporcionar un motivo de anulación' });
+      return res
+        .status(400)
+        .json({ error: "Debe proporcionar un motivo de anulación" });
     }
 
     const pago = await PagoB2B.findByPk(id, {
       include: [
         {
           model: VentaB2B,
-          as: 'venta',
+          as: "venta",
           include: [
             {
               model: ClienteB2B,
-              as: 'cliente'
-            }
-          ]
-        }
-      ]
+              as: "cliente",
+            },
+          ],
+        },
+      ],
     });
 
     if (!pago) {
       await transaction.rollback();
-      return res.status(404).json({ error: 'Pago no encontrado' });
+      return res.status(404).json({ error: "Pago no encontrado" });
     }
 
-    if (pago.estado === 'Anulado') {
+    if (pago.estado === "Anulado") {
       await transaction.rollback();
-      return res.status(400).json({ error: 'El pago ya está anulado' });
+      return res.status(400).json({ error: "El pago ya está anulado" });
     }
 
     // Actualizar pago
-    await pago.update({
-      estado: 'Anulado',
-      anulado_por: req.usuario?.id || null,  // ⭐ CORREGIDO
-      fecha_anulacion: new Date(),
-      motivo_anulacion: motivo
-    }, { transaction });
+    await pago.update(
+      {
+        estado: "Anulado",
+        anulado_por: req.usuario?.id || null, // ⭐ CORREGIDO
+        fecha_anulacion: new Date(),
+        motivo_anulacion: motivo,
+      },
+      { transaction },
+    );
 
     // Reversar el pago en la venta
     const venta = pago.venta;
-    const nuevoMontoPagado = parseFloat(venta.monto_pagado) - parseFloat(pago.monto);
+    const nuevoMontoPagado =
+      parseFloat(venta.monto_pagado) - parseFloat(pago.monto);
     const nuevoSaldoPendiente = parseFloat(venta.total) - nuevoMontoPagado;
 
-    await venta.update({
-      monto_pagado: nuevoMontoPagado,
-      saldo_pendiente: nuevoSaldoPendiente
-    }, { transaction });
+    await venta.update(
+      {
+        monto_pagado: nuevoMontoPagado,
+        saldo_pendiente: nuevoSaldoPendiente,
+      },
+      { transaction },
+    );
 
     await venta.actualizarEstadoPago();
 
     // Reversar crédito del cliente (sumar porque se anula el pago)
     const cliente = venta.cliente;
-    const nuevoCreditoUtilizado = parseFloat(cliente.credito_utilizado) + parseFloat(pago.monto);
+    const nuevoCreditoUtilizado =
+      parseFloat(cliente.credito_utilizado) + parseFloat(pago.monto);
 
     await cliente.update(
       {
         credito_utilizado: nuevoCreditoUtilizado,
       },
-      { transaction }
+      { transaction },
     );
 
     await transaction.commit();
 
-    res.json({ mensaje: 'Pago anulado exitosamente', pago });
+    res.json({ mensaje: "Pago anulado exitosamente", pago });
   } catch (error) {
     await transaction.rollback();
-    console.error('Error al anular pago:', error);
-    res.status(500).json({ error: 'Error al anular pago' });
+    console.error("Error al anular pago:", error);
+    res.status(500).json({ error: "Error al anular pago" });
   }
 };
 
@@ -334,7 +362,7 @@ exports.obtenerResumenPagos = async (req, res) => {
   try {
     const { fecha_desde, fecha_hasta } = req.query;
 
-    const where = { estado: 'Aplicado' };
+    const where = { estado: "Aplicado" };
 
     if (fecha_desde || fecha_hasta) {
       where.fecha_pago = {};
@@ -342,32 +370,32 @@ exports.obtenerResumenPagos = async (req, res) => {
       if (fecha_hasta) where.fecha_pago[Op.lte] = new Date(fecha_hasta);
     }
 
-    const totalPagos = await PagoB2B.sum('monto', { where }) || 0;
+    const totalPagos = (await PagoB2B.sum("monto", { where })) || 0;
     const cantidadPagos = await PagoB2B.count({ where });
 
     // Por método de pago
     const porMetodo = await PagoB2B.findAll({
       where,
       attributes: [
-        'metodo_pago',
-        [sequelize.fn('SUM', sequelize.col('monto')), 'total'],
-        [sequelize.fn('COUNT', sequelize.col('id')), 'cantidad']
+        "metodo_pago",
+        [sequelize.fn("SUM", sequelize.col("monto")), "total"],
+        [sequelize.fn("COUNT", sequelize.col("id")), "cantidad"],
       ],
-      group: ['metodo_pago']
+      group: ["metodo_pago"],
     });
 
     res.json({
       totalPagos: parseFloat(totalPagos),
       cantidadPagos,
-      porMetodo: porMetodo.map(m => ({
+      porMetodo: porMetodo.map((m) => ({
         metodo: m.metodo_pago,
         total: parseFloat(m.dataValues.total),
-        cantidad: parseInt(m.dataValues.cantidad)
-      }))
+        cantidad: parseInt(m.dataValues.cantidad),
+      })),
     });
   } catch (error) {
-    console.error('Error al obtener resumen:', error);
-    res.status(500).json({ error: 'Error al obtener resumen de pagos' });
+    console.error("Error al obtener resumen:", error);
+    res.status(500).json({ error: "Error al obtener resumen de pagos" });
   }
 };
 
@@ -377,34 +405,37 @@ exports.obtenerPagosPorTurno = async (req, res) => {
     const { turno_id } = req.params;
 
     const pagos = await PagoB2B.findAll({
-      where: { 
+      where: {
         turno_id,
-        estado: 'Aplicado'
+        estado: "Aplicado",
       },
       include: [
         {
           model: VentaB2B,
-          as: 'venta',
-          attributes: ['numero_factura']
+          as: "venta",
+          attributes: ["numero_factura"],
         },
         {
           model: ClienteB2B,
-          as: 'cliente',
-          attributes: ['razon_social']
-        }
+          as: "cliente",
+          attributes: ["razon_social"],
+        },
       ],
-      order: [['fecha_pago', 'ASC']]
+      order: [["fecha_pago", "ASC"]],
     });
 
-    const totalPagos = pagos.reduce((sum, pago) => sum + parseFloat(pago.monto), 0);
+    const totalPagos = pagos.reduce(
+      (sum, pago) => sum + parseFloat(pago.monto),
+      0,
+    );
 
     res.json({
       pagos,
       total: totalPagos,
-      cantidad: pagos.length
+      cantidad: pagos.length,
     });
   } catch (error) {
-    console.error('Error al obtener pagos del turno:', error);
-    res.status(500).json({ error: 'Error al obtener pagos del turno' });
+    console.error("Error al obtener pagos del turno:", error);
+    res.status(500).json({ error: "Error al obtener pagos del turno" });
   }
 };
