@@ -73,7 +73,7 @@ const facturasPOSController = {
       // ENCABEZADO
       // ─────────────────────────────────────────
       doc.fontSize(14).font('Helvetica-Bold').text('EL TALLER', { align: 'center' });
-      doc.fontSize(8).font('Helvetica').text('Bar & Cervecería', { align: 'center' });
+      doc.fontSize(8).font('Helvetica').text('Bar & Games', { align: 'center' });
       doc.moveDown(0.3);
       
       // Información del negocio

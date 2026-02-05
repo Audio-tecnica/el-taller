@@ -182,6 +182,13 @@ export default function Pedido() {
     
     // Abrir en nueva ventana para descargar
     window.open(url, '_blank');
+    
+    // Mostrar mensaje de confirmación pero NO cerrar el modal
+    toast.success("Factura generada! Revisa la nueva ventana", { duration: 3000 });
+    
+    // NO cerramos el modal aquí - dejamos que el usuario decida
+    // setMostrarModalFactura(false);
+    // navigate("/pos");
   };
 
   const finalizarSinFactura = () => {
@@ -730,11 +737,15 @@ export default function Pedido() {
                   Descargar Factura PDF
                 </button>
 
+                <p className="text-xs text-gray-500 text-center">
+                  Puedes descargar la factura las veces que necesites
+                </p>
+
                 <button
                   onClick={finalizarSinFactura}
-                  className="w-full py-3 bg-[#1a1a1a] text-gray-400 rounded-xl hover:bg-[#2a2a2a] transition border border-[#2a2a2a]"
+                  className="w-full py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 transition"
                 >
-                  Continuar sin factura
+                  Finalizar y Volver al POS
                 </button>
               </div>
 
