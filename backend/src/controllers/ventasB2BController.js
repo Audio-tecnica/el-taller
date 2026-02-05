@@ -199,7 +199,7 @@ exports.crearVenta = async (req, res) => {
         {
           producto_id: item.producto_id,
           local_id,
-          tipo: "venta_b2b",
+          tipo: "salida",
           tipo_movimiento: "Venta B2B",
           cantidad: -item.cantidad, // Negativo porque es salida
           stock_anterior: stockAnterior,
