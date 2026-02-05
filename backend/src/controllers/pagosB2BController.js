@@ -151,6 +151,7 @@ exports.registrarPago = async (req, res) => {
         },
       ],
     });
+    await transaction.commit();
 
     res.status(201).json(pagoCompleto);
   } catch (error) {
