@@ -8,6 +8,7 @@ const {
   Categoria,
 } = require("../models");
 const sequelize = require("../config/database");
+const { MovimientoInventario } = require("../models");
 
 const pedidosController = {
   // Abrir pedido en una mesa
@@ -112,10 +113,14 @@ const pedidosController = {
         return res.status(404).json({ error: "Producto no encontrado" });
       }
 
-      // Si es barril, descontar vasos
+      // Obtener información del local
+      const local = await Local.findByPk(pedido.local_id);
+      const localNum = local?.numero || 1;
+      const stockKey = `stock_local${localNum}`;
+
+      // ⭐ GESTIÓN DE INVENTARIO SEGÚN TIPO DE PRODUCTO
       if (producto.unidad_medida === 'barriles') {
-        const local = await Local.findByPk(pedido.local_id);
-        const localNum = local?.numero || 1;
+        // LÓGICA PARA BARRILES
         const vasosKey = `vasos_disponibles_local${localNum}`;
         const barrilActivoKey = `barril_activo_local${localNum}`;
         
@@ -125,31 +130,84 @@ const pedidosController = {
         }
         if (producto[vasosKey] < cantidad) {
           await t.rollback();
-          return res.status(400).json({ error: `Solo quedan ${producto[vasosKey]} vasos`, vasos_disponibles: producto[vasosKey] });
+          return res.status(400).json({ 
+            error: `Solo quedan ${producto[vasosKey]} vasos`, 
+            vasos_disponibles: producto[vasosKey] 
+          });
         }
-        await producto.update({ [vasosKey]: producto[vasosKey] - cantidad }, { transaction: t });
+        
+        // Descontar vasos del barril activo
+        await producto.update({ 
+          [vasosKey]: producto[vasosKey] - cantidad 
+        }, { transaction: t });
+        
+      } else {
+        // ⭐ LÓGICA PARA PRODUCTOS NORMALES (BOTELLAS, LATAS, ETC)
+        
+        // Verificar si hay stock disponible
+        const stockDisponible = producto[stockKey] || 0;
+        
+        if (stockDisponible < cantidad) {
+          await t.rollback();
+          return res.status(400).json({ 
+            error: `Stock insuficiente. Solo quedan ${stockDisponible} unidades de ${producto.nombre}`,
+            stock_disponible: stockDisponible
+          });
+        }
+        
+        // Descontar del inventario
+        const nuevoStock = stockDisponible - cantidad;
+        await producto.update({ 
+          [stockKey]: nuevoStock 
+        }, { transaction: t });
+        
+        // ⭐ Registrar movimiento de inventario (si existe el modelo)
+        try {
+          await MovimientoInventario.create({
+            producto_id: producto.id,
+            local_id: pedido.local_id,
+            tipo: 'venta',
+            cantidad: -cantidad, // Negativo porque es una salida
+            stock_anterior: stockDisponible,
+            stock_nuevo: nuevoStock,
+            motivo: `Venta en pedido ${pedido_id}`,
+            pedido_id: pedido_id,
+            usuario_id: pedido.usuario_id
+          }, { transaction: t });
+        } catch (err) {
+          // Si el modelo MovimientoInventario no existe, continuar sin error
+          console.log('⚠️ Modelo MovimientoInventario no disponible:', err.message);
+        }
       }
 
+      // Buscar o crear el item en el pedido
       let item = await ItemPedido.findOne({ where: { pedido_id, producto_id } });
 
       if (item) {
         const nuevaCantidad = item.cantidad + cantidad;
-        await item.update({ cantidad: nuevaCantidad, subtotal: nuevaCantidad * parseFloat(producto.precio_venta) }, { transaction: t });
+        await item.update({ 
+          cantidad: nuevaCantidad, 
+          subtotal: nuevaCantidad * parseFloat(producto.precio_venta) 
+        }, { transaction: t });
       } else {
         item = await ItemPedido.create({
-          pedido_id, producto_id, cantidad,
+          pedido_id, 
+          producto_id, 
+          cantidad,
           precio_unitario: producto.precio_venta,
           subtotal: cantidad * parseFloat(producto.precio_venta),
           notas,
         }, { transaction: t });
       }
 
+      // Actualizar subtotal del pedido
       const items = await ItemPedido.findAll({ where: { pedido_id }, transaction: t });
       const nuevoSubtotal = items.reduce((sum, i) => sum + parseFloat(i.subtotal), 0);
       await pedido.update({ subtotal: nuevoSubtotal }, { transaction: t });
 
       await t.commit();
 
+      // Obtener pedido actualizado
       const pedidoActualizado = await Pedido.findByPk(pedido_id, {
         include: [
           { model: Mesa, as: "mesa" },
@@ -157,19 +215,27 @@ const pedidosController = {
         ],
       });
 
-      // 📌 SOCKET: Emitir pedido actualizado
+      // 📌 SOCKET: Emitir actualizaciones
       const io = req.app.get('io');
       if (io) {
         io.emit('pedido_actualizado', { pedido: pedidoActualizado, accion: 'item_agregado' });
+        
+        // Emitir actualización de producto (para reflejar cambio de stock)
+        const prodActualizado = await Producto.findByPk(producto_id, { 
+          include: [{ model: Categoria, as: 'categoria' }] 
+        });
+        
         if (producto.unidad_medida === 'barriles') {
-          const prodActualizado = await Producto.findByPk(producto_id, { include: [{ model: Categoria, as: 'categoria' }] });
           io.emit('barril_actualizado', { tipo: 'venta', producto: prodActualizado });
+        } else {
+          io.emit('producto_actualizado', { tipo: 'venta', producto: prodActualizado });
         }
       }
 
       res.json(pedidoActualizado);
     } catch (error) {
       if (!t.finished) await t.rollback();
+      console.error('Error en agregarItem:', error);
       res.status(500).json({ error: error.message });
     }
   },
@@ -181,26 +247,77 @@ const pedidosController = {
       const { pedido_id, item_id } = req.params;
       const { cantidad } = req.body;
 
-      const pedido = await Pedido.findByPk(pedido_id);
+      const pedido = await Pedido.findByPk(pedido_id, { include: [{ model: Mesa, as: 'mesa' }] });
       if (!pedido || pedido.estado !== "abierto") {
         await t.rollback();
         return res.status(400).json({ error: "Pedido no válido o cerrado" });
       }
 
-      const item = await ItemPedido.findByPk(item_id);
+      const item = await ItemPedido.findByPk(item_id, {
+        include: [{ model: Producto, as: 'producto' }]
+      });
+      
       if (!item || item.pedido_id !== pedido_id) {
         await t.rollback();
         return res.status(404).json({ error: "Item no encontrado" });
       }
 
+      const producto = item.producto;
       const cantidadQuitar = cantidad || item.cantidad;
+      
+      // ⭐ DEVOLVER INVENTARIO AL QUITAR ITEMS
+      const local = await Local.findByPk(pedido.local_id);
+      const localNum = local?.numero || 1;
+      const stockKey = `stock_local${localNum}`;
+      
+      if (producto.unidad_medida === 'barriles') {
+        // DEVOLVER VASOS AL BARRIL
+        const vasosKey = `vasos_disponibles_local${localNum}`;
+        const vasosActuales = producto[vasosKey] || 0;
+        
+        await producto.update({ 
+          [vasosKey]: vasosActuales + cantidadQuitar 
+        }, { transaction: t });
+        
+      } else {
+        // ⭐ DEVOLVER STOCK DE PRODUCTOS NORMALES
+        const stockActual = producto[stockKey] || 0;
+        const nuevoStock = stockActual + cantidadQuitar;
+        
+        await producto.update({ 
+          [stockKey]: nuevoStock 
+        }, { transaction: t });
+        
+        // Registrar movimiento de devolución
+        try {
+          await MovimientoInventario.create({
+            producto_id: producto.id,
+            local_id: pedido.local_id,
+            tipo: 'devolucion',
+            cantidad: cantidadQuitar, // Positivo porque es una entrada
+            stock_anterior: stockActual,
+            stock_nuevo: nuevoStock,
+            motivo: `Devolución de pedido ${pedido_id} (item quitado)`,
+            pedido_id: pedido_id,
+            usuario_id: pedido.usuario_id
+          }, { transaction: t });
+        } catch (err) {
+          console.log('⚠️ Modelo MovimientoInventario no disponible:', err.message);
+        }
+      }
+
+      // Actualizar o eliminar el item
       if (cantidadQuitar >= item.cantidad) {
         await item.destroy({ transaction: t });
       } else {
         const nuevaCantidad = item.cantidad - cantidadQuitar;
-        await item.update({ cantidad: nuevaCantidad, subtotal: nuevaCantidad * parseFloat(item.precio_unitario) }, { transaction: t });
+        await item.update({ 
+          cantidad: nuevaCantidad, 
+          subtotal: nuevaCantidad * parseFloat(item.precio_unitario) 
+        }, { transaction: t });
       }
 
+      // Actualizar subtotal del pedido
       const items = await ItemPedido.findAll({ where: { pedido_id }, transaction: t });
       const nuevoSubtotal = items.reduce((sum, i) => sum + parseFloat(i.subtotal), 0);
       await pedido.update({ subtotal: nuevoSubtotal }, { transaction: t });
@@ -214,15 +331,26 @@ const pedidosController = {
         ],
       });
 
-      // 📌 SOCKET: Emitir pedido actualizado
+      // 📌 SOCKET: Emitir actualizaciones
       const io = req.app.get('io');
       if (io) {
         io.emit('pedido_actualizado', { pedido: pedidoActualizado, accion: 'item_quitado' });
+        
+        const prodActualizado = await Producto.findByPk(producto.id, { 
+          include: [{ model: Categoria, as: 'categoria' }] 
+        });
+        
+        if (producto.unidad_medida === 'barriles') {
+          io.emit('barril_actualizado', { tipo: 'devolucion', producto: prodActualizado });
+        } else {
+          io.emit('producto_actualizado', { tipo: 'devolucion', producto: prodActualizado });
+        }
       }
 
       res.json(pedidoActualizado);
     } catch (error) {
       if (!t.finished) await t.rollback();
+      console.error('Error en quitarItem:', error);
       res.status(500).json({ error: error.message });
     }
   },
@@ -388,11 +516,61 @@ const pedidosController = {
     const t = await sequelize.transaction();
     try {
       const { pedido_id } = req.params;
-      const pedido = await Pedido.findByPk(pedido_id, { include: [{ model: Mesa, as: "mesa" }] });
+      const pedido = await Pedido.findByPk(pedido_id, { 
+        include: [
+          { model: Mesa, as: "mesa" },
+          { model: ItemPedido, as: "items", include: [{ model: Producto, as: "producto" }] }
+        ] 
+      });
 
       if (!pedido || pedido.estado !== "abierto") {
         await t.rollback();
         return res.status(400).json({ error: "Pedido no válido o ya cerrado" });
+      }
+
+      // ⭐ DEVOLVER INVENTARIO AL CANCELAR PEDIDO
+      const local = await Local.findByPk(pedido.local_id);
+      const localNum = local?.numero || 1;
+      const stockKey = `stock_local${localNum}`;
+      
+      for (const item of pedido.items) {
+        const producto = item.producto;
+        
+        if (producto.unidad_medida === 'barriles') {
+          // Devolver vasos al barril
+          const vasosKey = `vasos_disponibles_local${localNum}`;
+          const vasosActuales = producto[vasosKey] || 0;
+          
+          await producto.update({ 
+            [vasosKey]: vasosActuales + item.cantidad 
+          }, { transaction: t });
+          
+        } else {
+          // Devolver stock de productos normales
+          const stockActual = producto[stockKey] || 0;
+          const nuevoStock = stockActual + item.cantidad;
+          
+          await producto.update({ 
+            [stockKey]: nuevoStock 
+          }, { transaction: t });
+          
+          // Registrar movimiento
+          try {
+            await MovimientoInventario.create({
+              producto_id: producto.id,
+              local_id: pedido.local_id,
+              tipo: 'devolucion',
+              cantidad: item.cantidad,
+              stock_anterior: stockActual,
+              stock_nuevo: nuevoStock,
+              motivo: `Pedido cancelado ${pedido_id}`,
+              pedido_id: pedido_id,
+              usuario_id: pedido.usuario_id
+            }, { transaction: t });
+          } catch (err) {
+            console.log('⚠️ Modelo MovimientoInventario no disponible:', err.message);
+          }
+        }
       }
 
       await pedido.update({ estado: "cancelado", closed_at: new Date() }, { transaction: t });
@@ -410,9 +588,10 @@ const pedidosController = {
         io.emit('mesa_actualizada', { mesa: mesaActualizada, accion: 'pedido_cancelado' });
       }
 
-      res.json({ message: "Pedido cancelado" });
+      res.json({ message: "Pedido cancelado e inventario devuelto" });
     } catch (error) {
       if (!t.finished) await t.rollback();
+      console.error('Error en cancelarPedido:', error);
       res.status(500).json({ error: error.message });
     }
   },
