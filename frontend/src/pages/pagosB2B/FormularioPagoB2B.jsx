@@ -264,7 +264,7 @@ export default function FormularioPagoB2B({ onClose, onGuardar }) {
               disabled={!ventaSeleccionada}
               required
               min="0"
-              step="1000"
+              step="1"
               max={ventaSeleccionada?.saldo_pendiente || 0}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4B896] focus:border-transparent text-gray-900 bg-white disabled:bg-gray-100"
               placeholder="0"
