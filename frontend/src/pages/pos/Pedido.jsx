@@ -21,6 +21,8 @@ export default function Pedido() {
   const [mostrarCuentaMovil, setMostrarCuentaMovil] = useState(false);
   const [mostrarModalFactura, setMostrarModalFactura] = useState(false);
   const [pedidoCobrado, setPedidoCobrado] = useState(null);
+  // NUEVO: Estado para controlar el refresh durante el proceso de facturación
+  const [procesoFacturacionActivo, setProcesoFacturacionActivo] = useState(false);
 
   const cargarDatos = useCallback(async () => {
     try {
@@ -38,40 +40,46 @@ export default function Pedido() {
       if (pedidoActual) {
         setPedido(pedidoActual);
       } else {
-        // El pedido ya no existe o fue cerrado desde otro dispositivo
-        toast.success("Este pedido ya fue cobrado");
-        navigate("/pos");
-        return;
+        // MODIFICADO: Solo redirigir si NO estamos en proceso de facturación
+        if (!procesoFacturacionActivo) {
+          toast.success("Este pedido ya fue cobrado");
+          navigate("/pos");
+          return;
+        }
       }
     } catch {
       toast.error("Error al cargar datos");
     } finally {
       setLoading(false);
     }
-  }, [pedido_id, navigate]);
+  }, [pedido_id, navigate, procesoFacturacionActivo]);
 
   useEffect(() => {
     cargarDatos();
   }, [cargarDatos]);
 
-  // Auto-refresh cada 5 segundos (mas rapido para detectar cierres)
+  // MODIFICADO: Auto-refresh condicionado - se detiene durante facturación
   useEffect(() => {
+    if (procesoFacturacionActivo) {
+      return; // No hacer refresh durante el proceso de facturación
+    }
+
     const interval = setInterval(() => {
       cargarDatos();
     }, 5000);
     return () => clearInterval(interval);
-  }, [cargarDatos]);
+  }, [cargarDatos, procesoFacturacionActivo]);
 
-  // Refresh cuando vuelves a la pestana/app
+  // MODIFICADO: Refresh al volver a la pestaña - también condicionado
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
+      if (document.visibilityState === "visible" && !procesoFacturacionActivo) {
         cargarDatos();
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [cargarDatos]);
+  }, [cargarDatos, procesoFacturacionActivo]);
 
   const handleAgregarProducto = async (producto) => {
     try {
@@ -144,6 +152,9 @@ export default function Pedido() {
 
   const handleCobrar = async () => {
     try {
+      // NUEVO: Activar el proceso de facturación ANTES de cobrar
+      setProcesoFacturacionActivo(true);
+      
       await pedidosService.cerrarPedido(
         pedido_id,
         metodoPago,
@@ -158,6 +169,9 @@ export default function Pedido() {
       
       toast.success("Pedido cobrado!");
     } catch (err) {
+      // NUEVO: Si hay error, desactivar el proceso de facturación
+      setProcesoFacturacionActivo(false);
+      
       if (err.response && err.response.status === 404) {
         toast.success("Este pedido ya fue cobrado desde otro dispositivo");
         navigate("/pos");
@@ -183,15 +197,20 @@ export default function Pedido() {
     // Abrir en nueva ventana para descargar
     window.open(url, '_blank');
     
-    // Mostrar mensaje de confirmación pero NO cerrar el modal
     toast.success("Factura generada! Revisa la nueva ventana", { duration: 3000 });
-    
-    // NO cerramos el modal aquí - dejamos que el usuario decida
-    // setMostrarModalFactura(false);
-    // navigate("/pos");
   };
 
   const finalizarSinFactura = () => {
+    // NUEVO: Desactivar proceso de facturación y navegar al POS
+    setProcesoFacturacionActivo(false);
+    setMostrarModalFactura(false);
+    navigate("/pos");
+  };
+  
+  // NUEVO: Función para cuando se descarga la factura
+  const finalizarConFactura = () => {
+    // NUEVO: Desactivar proceso de facturación y navegar al POS
+    setProcesoFacturacionActivo(false);
     setMostrarModalFactura(false);
     navigate("/pos");
   };
@@ -236,8 +255,8 @@ export default function Pedido() {
     );
   }
 
-  // Si no hay pedido, mostrar mensaje y redirigir
-  if (!pedido) {
+  // Si no hay pedido, mostrar mensaje y redirigir (solo si no estamos en facturación)
+  if (!pedido && !procesoFacturacionActivo) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-center">
@@ -728,7 +747,11 @@ export default function Pedido() {
 
               <div className="space-y-3">
                 <button
-                  onClick={descargarFacturaPDF}
+                  onClick={() => {
+                    descargarFacturaPDF();
+                    // MODIFICADO: Ahora el modal se cierra después de descargar
+                    finalizarConFactura();
+                  }}
                   className="w-full py-4 bg-[#D4B896] text-[#0a0a0a] font-bold rounded-xl hover:bg-[#C4A576] transition flex items-center justify-center gap-2"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -736,10 +759,6 @@ export default function Pedido() {
                   </svg>
                   Descargar Factura PDF
                 </button>
-
-                <p className="text-xs text-gray-500 text-center">
-                  Puedes descargar la factura las veces que necesites
-                </p>
 
                 <button
                   onClick={finalizarSinFactura}
