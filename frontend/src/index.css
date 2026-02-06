@@ -28,3 +28,15 @@ select[class*="bg-white"] option {
   color: #1f2937;
   background-color: #ffffff;
 }
+/* Estilos para impresión */
+@media print {
+  .no-imprimir {
+    display: none !important;
+  }
+  
+  /* Ocultar scrollbars y ajustar para impresión */
+  body {
+    margin: 0;
+    padding: 0;
+  }
+}

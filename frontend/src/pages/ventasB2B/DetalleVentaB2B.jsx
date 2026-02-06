@@ -55,6 +55,10 @@ export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
     return colores[estado] || "bg-gray-100 text-gray-800";
   };
 
+  const handleImprimir = () => {
+    window.print();
+  };
+
   const calcularSubtotalItem = (item) => {
     return item.cantidad * item.precio_unitario;
   };
@@ -339,8 +343,14 @@ export default function DetalleVentaB2B({ venta, onClose, onActualizar }) {
             </div>
             <div className="flex gap-3">
               <button
+                onClick={handleImprimir}
+                className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition no-imprimir"
+              >
+                🖨️ Imprimir
+              </button>
+              <button
                 onClick={onClose}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition no-imprimir"
               >
                 Cerrar
               </button>
