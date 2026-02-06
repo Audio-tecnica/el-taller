@@ -65,6 +65,23 @@ export default function VentasB2B() {
     }
   };
 
+  const handleImprimirFactura = async (venta) => {
+    try {
+      // Cargar detalle completo y abrir modal para imprimir
+      const ventaCompleta = await ventasB2BService.obtenerVentaPorId(venta.id);
+      setVentaSeleccionada(ventaCompleta);
+      setMostrarDetalle(true);
+
+      // Esperar un momento para que el modal se renderice
+      setTimeout(() => {
+        window.print();
+      }, 300);
+    } catch (error) {
+      console.error("Error al cargar factura:", error);
+      alert("Error al cargar la factura para imprimir");
+    }
+  };
+
   const handleNuevaVenta = () => {
     setMostrarFormulario(true);
   };
@@ -852,6 +869,29 @@ export default function VentasB2B() {
                   >
                     👁️ Ver Detalle
                   </button>
+
+                  {/* 👇 AGREGAR BOTÓN DE IMPRIMIR AQUÍ */}
+                  <button
+                    onClick={() => handleImprimirFactura(venta)}
+                    className="px-3 py-2 text-sm bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-all duration-200 font-medium"
+                    title="Imprimir factura"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                      />
+                    </svg>
+                  </button>
+
+                  {/* Registrar Pago - Solo si no está pagado ni anulado */}
 
                   {venta.estado_pago !== "Pagado" &&
                     venta.estado_pago !== "Anulado" && (
