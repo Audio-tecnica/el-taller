@@ -41,7 +41,6 @@ export default function Pedido() {
     
     // Si no hay local definido, retornar valores por defecto
     if (!localId) {
-      console.warn('⚠️ No hay local definido, retornando valores por defecto');
       return {
         barrilActivo: null,
         vasosDisponibles: 0,
@@ -49,16 +48,15 @@ export default function Pedido() {
       };
     }
 
-    // Determinar el sufijo correcto según el local
-    const sufijo = localId === 1 ? '_local1' : '_local2';
+    // ✅ CORREGIDO: Determinar el sufijo según el NOMBRE del local
+    // Ya que los IDs son UUIDs, usamos el nombre del local
+    const localNombre = pedido?.local?.nombre?.toLowerCase() || '';
+    const sufijo = localNombre.includes('castellana') ? '_local1' : '_local2';
     
-    console.log('📦 Obteniendo datos del producto:', {
-      productoNombre: producto.nombre,
+    console.log('🔍 DEBUG SUFIJO:', {
       localId,
-      sufijo,
-      barrilActivo: producto[`barril_activo${sufijo}`],
-      vasosDisponibles: producto[`vasos_disponibles${sufijo}`],
-      stockDisponible: producto[`stock${sufijo}`]
+      localNombre: pedido?.local?.nombre,
+      sufijoUsado: sufijo
     });
     
     return {
@@ -66,7 +64,7 @@ export default function Pedido() {
       vasosDisponibles: producto[`vasos_disponibles${sufijo}`] || 0,
       stockDisponible: producto[`stock${sufijo}`] || 0
     };
-  }, [getLocalActivo]);
+  }, [getLocalActivo, pedido]);
 
   const cargarDatos = useCallback(async () => {
     try {
@@ -152,12 +150,14 @@ export default function Pedido() {
   }, [navigate]);
 
   const handleAgregarProducto = async (producto) => {
+    console.log('➕ AGREGANDO PRODUCTO:', producto.nombre, 'cantidad: 1');
     try {
       const pedidoActualizado = await pedidosService.agregarItem(
         pedido_id,
         producto.id,
         1
       );
+      console.log('✅ Producto agregado, nuevo subtotal:', pedidoActualizado.subtotal);
       setPedido((prev) => ({
         ...prev,
         items: pedidoActualizado.items,
