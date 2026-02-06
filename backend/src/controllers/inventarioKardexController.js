@@ -748,7 +748,7 @@ getInventarioValorizado: async (req, res) => {
       // ⭐ ANÁLISIS DE ROTACIÓN - Últimos 90 días
       const whereMovimientos = {
         producto_id: p.id,
-        tipo_movimiento: 'venta',
+        tipo: 'venta', // ✅ CORRECTO: usar 'tipo' con valor 'venta'
         fecha_movimiento: {
           [Op.gte]: fecha90DiasAtras
         }
@@ -764,7 +764,8 @@ getInventarioValorizado: async (req, res) => {
         const sumResult = await MovimientoInventario.sum('cantidad', {
           where: whereMovimientos
         });
-        ventasUltimos90Dias = sumResult || 0;
+        // ✅ Usar Math.abs porque las cantidades de venta son negativas
+        ventasUltimos90Dias = Math.abs(sumResult || 0);
       } catch (error) {
         console.log(`⚠️ No se pudo calcular rotación para ${p.nombre}:`, error.message);
         ventasUltimos90Dias = 0;

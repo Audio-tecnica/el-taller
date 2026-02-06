@@ -6,6 +6,7 @@ const {
   Local,
   Usuario,
   Categoria,
+  MovimientoInventario,
 } = require("../models");
 const sequelize = require("../config/database");
 
@@ -190,11 +191,31 @@ const pedidosController = {
         }
         
         // Descontar vasos del barril activo
+        const vasosAntes = producto[vasosKey];
         await producto.update({ 
           [vasosKey]: producto[vasosKey] - cantidad 
         }, { transaction: t });
         
         console.log(`✅ Vasos descontados: ${producto[vasosKey] + cantidad} → ${producto[vasosKey]} (${local.nombre})`);
+        
+        // ⭐ NUEVO: Registrar movimiento de inventario para barriles
+        await MovimientoInventario.create({
+          producto_id: producto.id,
+          local_id: local.id,
+          tipo: 'venta',
+          cantidad: -cantidad, // Negativo porque es salida
+          stock_anterior: vasosAntes,
+          stock_nuevo: producto[vasosKey],
+          costo_unitario: producto.costo_promedio || 0,
+          costo_total: (producto.costo_promedio || 0) * cantidad,
+          valor_venta: parseFloat(producto.precio_venta) * cantidad,
+          motivo: `Venta POS Barril - Mesa ${pedido.mesa?.numero || 'N/A'}`,
+          pedido_id: pedido.id,
+          usuario_id: req.usuario.id,
+          fecha_movimiento: new Date()
+        }, { transaction: t });
+        
+        console.log(`📝 Movimiento de barril registrado para ${producto.nombre}`);
         
       } else {
         // ⭐ LÓGICA PARA PRODUCTOS NORMALES (BOTELLAS, LATAS, ETC)
@@ -221,6 +242,25 @@ const pedidosController = {
         }, { transaction: t });
         
         console.log(`✅ Stock actualizado: ${producto.nombre} - ${stockDisponible} → ${nuevoStock} (${local.nombre} - ${stockKey})`);
+        
+        // ⭐ NUEVO: Registrar movimiento de inventario para el reporte valorizado
+        await MovimientoInventario.create({
+          producto_id: producto.id,
+          local_id: local.id,
+          tipo: 'venta',
+          cantidad: -cantidad, // Negativo porque es salida
+          stock_anterior: stockDisponible,
+          stock_nuevo: nuevoStock,
+          costo_unitario: producto.costo_promedio || 0,
+          costo_total: (producto.costo_promedio || 0) * cantidad,
+          valor_venta: parseFloat(producto.precio_venta) * cantidad,
+          motivo: `Venta POS - Mesa ${pedido.mesa?.numero || 'N/A'}`,
+          pedido_id: pedido.id,
+          usuario_id: req.usuario.id,
+          fecha_movimiento: new Date()
+        }, { transaction: t });
+        
+        console.log(`📝 Movimiento de inventario registrado para ${producto.nombre}`);
       }
 
       // Buscar o crear el item en el pedido
@@ -495,46 +535,9 @@ const pedidosController = {
         return res.status(400).json({ error: "Pedido no válido o ya cerrado" });
       }
 
-      // ⭐ DESCONTAR INVENTARIO AL COBRAR
-      let local = null;
-      if (pedido.mesa && pedido.mesa.local) {
-        local = pedido.mesa.local;
-      } else {
-        local = await Local.findByPk(pedido.local_id);
-      }
-      
-      const localNum = getLocalNumber(local);
-      const stockKey = `stock_local${localNum}`;
-      
-      console.log(`💰 Cobrando pedido - Descontando inventario de ${local.nombre} (${stockKey})`);
-      
-      for (const item of pedido.items) {
-        const producto = item.producto;
-        
-        if (producto.unidad_medida === 'barriles') {
-          // Descontar vasos del barril
-          const vasosKey = `vasos_disponibles_local${localNum}`;
-          const vasosActuales = producto[vasosKey] || 0;
-          const vasosNuevos = Math.max(0, vasosActuales - item.cantidad);
-          
-          await producto.update({ 
-            [vasosKey]: vasosNuevos 
-          }, { transaction: t });
-          
-          console.log(`✅ Vasos descontados: ${producto.nombre} - ${vasosActuales} → ${vasosNuevos} (${vasosKey})`);
-          
-        } else {
-          // Descontar stock regular
-          const stockActual = producto[stockKey] || 0;
-          const nuevoStock = Math.max(0, stockActual - item.cantidad);
-          
-          await producto.update({ 
-            [stockKey]: nuevoStock 
-          }, { transaction: t });
-          
-          console.log(`✅ Stock descontado: ${producto.nombre} - ${stockActual} → ${nuevoStock} (${stockKey})`);
-        }
-      }
+      // ⭐ NOTA: El inventario ya fue descontado al agregar cada item en la función agregarItem
+      // No es necesario descontar nuevamente aquí para evitar el doble descuento
+      console.log(`💰 Cobrando pedido ${pedido_id} - El inventario ya fue descontado previamente`);
 
       const subtotal = parseFloat(pedido.subtotal);
       const cortesia = parseFloat(monto_cortesia) || 0;
