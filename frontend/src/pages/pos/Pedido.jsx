@@ -22,7 +22,11 @@ export default function Pedido() {
   const [mostrarModalFactura, setMostrarModalFactura] = useState(false);
   const [pedidoCobrado, setPedidoCobrado] = useState(null);
   // NUEVO: Estado para controlar el refresh durante el proceso de facturación
-  const [procesoFacturacionActivo, setProcesoFacturacionActivo] = useState(false);
+  const [procesoFacturacionActivo, setProcesoFacturacionActivo] =
+    useState(false);
+  // Detectar si es Local 1 (Castellana) o Local 2 (Avenida 1ra)
+  const nombreLocal = pedido?.mesa?.local?.nombre || "";
+  const esLocal1 = nombreLocal.toLowerCase().includes("castellana");
 
   const cargarDatos = useCallback(async () => {
     try {
@@ -36,7 +40,7 @@ export default function Pedido() {
       // Buscar el pedido actual
       const pedidosAbiertos = await pedidosService.getPedidosAbiertos();
       const pedidoActual = pedidosAbiertos.find((p) => p.id === pedido_id);
-      
+
       if (pedidoActual) {
         setPedido(pedidoActual);
       } else {
@@ -78,7 +82,8 @@ export default function Pedido() {
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [cargarDatos, procesoFacturacionActivo]);
 
   // ⭐ VERIFICACIÓN PERIÓDICA DEL TURNO (CRÍTICO PARA SEGURIDAD)
@@ -88,31 +93,31 @@ export default function Pedido() {
         // Importar el servicio dinámicamente
         const { turnosService } = await import("../../services/turnosService");
         const { authService } = await import("../../services/authService");
-        
+
         const usuario = authService.getCurrentUser();
-        
+
         // Solo verificar si es cajero
-        if (usuario?.rol !== 'cajero') return;
-        
+        if (usuario?.rol !== "cajero") return;
+
         try {
           await turnosService.getMiTurnoActivo();
-          console.log('✅ Turno activo verificado en Pedido');
-        } catch  {
-          console.error('❌ TURNO CERRADO - Expulsando del pedido');
-          toast.error('Tu turno ha sido cerrado por administración');
-          navigate('/dashboard');
+          console.log("✅ Turno activo verificado en Pedido");
+        } catch {
+          console.error("❌ TURNO CERRADO - Expulsando del pedido");
+          toast.error("Tu turno ha sido cerrado por administración");
+          navigate("/dashboard");
         }
       } catch (error) {
-        console.error('Error al verificar turno:', error);
+        console.error("Error al verificar turno:", error);
       }
     };
-    
+
     // Verificar cada 10 segundos
     const turnoInterval = setInterval(verificarTurnoActivo, 10000);
-    
+
     // También verificar al montar el componente
     verificarTurnoActivo();
-    
+
     return () => clearInterval(turnoInterval);
   }, [navigate]);
 
@@ -121,7 +126,7 @@ export default function Pedido() {
       const pedidoActualizado = await pedidosService.agregarItem(
         pedido_id,
         producto.id,
-        1
+        1,
       );
       setPedido((prev) => ({
         ...prev,
@@ -145,7 +150,7 @@ export default function Pedido() {
       const pedidoActualizado = await pedidosService.quitarItem(
         pedido_id,
         item.id,
-        1
+        1,
       );
       setPedido((prev) => ({
         ...prev,
@@ -167,7 +172,7 @@ export default function Pedido() {
     try {
       const pedidoActualizado = await pedidosService.quitarItem(
         pedido_id,
-        item.id
+        item.id,
       );
       setPedido((prev) => ({
         ...prev,
@@ -189,24 +194,24 @@ export default function Pedido() {
     try {
       // NUEVO: Activar el proceso de facturación ANTES de cobrar
       setProcesoFacturacionActivo(true);
-      
+
       await pedidosService.cerrarPedido(
         pedido_id,
         metodoPago,
         montoCortesia,
-        razonCortesia
+        razonCortesia,
       );
-      
+
       // Guardar el pedido_id para generar la factura
       setPedidoCobrado(pedido_id);
       setModalCobrar(false);
       setMostrarModalFactura(true);
-      
+
       toast.success("Pedido cobrado!");
     } catch (err) {
       // NUEVO: Si hay error, desactivar el proceso de facturación
       setProcesoFacturacionActivo(false);
-      
+
       if (err.response && err.response.status === 404) {
         toast.success("Este pedido ya fue cobrado desde otro dispositivo");
         navigate("/pos");
@@ -218,21 +223,23 @@ export default function Pedido() {
 
   const descargarFacturaPDF = () => {
     const token = localStorage.getItem("token");
-    
+
     // Usar la URL base del servicio API que ya está configurado correctamente
     const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
-    
+
     // Construir la URL completa
     // Nota: Si VITE_API_URL ya termina con /api, no duplicar
-    const baseUrl = API_BASE.replace(/\/api$/, ''); // Remover /api final si existe
+    const baseUrl = API_BASE.replace(/\/api$/, ""); // Remover /api final si existe
     const url = `${baseUrl}/api/facturas/pdf/${pedidoCobrado}?token=${token}`;
-    
+
     console.log("Descargando factura desde:", url); // Para debug
-    
+
     // Abrir en nueva ventana para descargar
-    window.open(url, '_blank');
-    
-    toast.success("Factura generada! Revisa la nueva ventana", { duration: 3000 });
+    window.open(url, "_blank");
+
+    toast.success("Factura generada! Revisa la nueva ventana", {
+      duration: 3000,
+    });
   };
 
   const finalizarSinFactura = () => {
@@ -241,7 +248,7 @@ export default function Pedido() {
     setMostrarModalFactura(false);
     navigate("/pos");
   };
-  
+
   // NUEVO: Función para cuando se descarga la factura
   const finalizarConFactura = () => {
     // NUEVO: Desactivar proceso de facturación y navegar al POS
@@ -277,7 +284,8 @@ export default function Pedido() {
     if (nombre.includes("barril")) return "border-amber-500";
     if (nombre.includes("botella")) return "border-green-500";
     if (nombre.includes("lata")) return "border-blue-500";
-    if (nombre.includes("comida") || nombre.includes("piqueo")) return "border-orange-500";
+    if (nombre.includes("comida") || nombre.includes("piqueo"))
+      return "border-orange-500";
     if (nombre.includes("bebida")) return "border-purple-500";
     return "border-gray-700";
   };
@@ -411,25 +419,40 @@ export default function Pedido() {
 
                 {/* Barra de progreso para barriles */}
                 {producto.unidad_medida === "barriles" &&
-                  producto.barril_activo_local1 && (
+                  (esLocal1
+                    ? producto.barril_activo_local1
+                    : producto.barril_activo_local2) && (
                     <div className="mt-1">
                       <div className="w-full bg-gray-700 rounded-full h-1.5">
                         <div
                           className={
                             "h-1.5 rounded-full transition-all " +
-                            (producto.vasos_disponibles_local1 <= 15
+                            ((esLocal1
+                              ? producto.vasos_disponibles_local1
+                              : producto.vasos_disponibles_local2) <= 15
                               ? "bg-red-500"
-                              : producto.vasos_disponibles_local1 <= 30
+                              : (esLocal1
+                                    ? producto.vasos_disponibles_local1
+                                    : producto.vasos_disponibles_local2) <= 30
                                 ? "bg-yellow-500"
                                 : "bg-emerald-500")
                           }
                           style={{
-                            width: ((producto.vasos_disponibles_local1 / producto.capacidad_barril) * 100) + "%",
+                            width:
+                              ((esLocal1
+                                ? producto.vasos_disponibles_local1
+                                : producto.vasos_disponibles_local2) /
+                                producto.capacidad_barril) *
+                                100 +
+                              "%",
                           }}
                         />
                       </div>
                       <p className="text-[9px] text-gray-500 text-center mt-0.5">
-                        {producto.vasos_disponibles_local1}/{producto.capacidad_barril} vasos
+                        {esLocal1
+                          ? producto.vasos_disponibles_local1
+                          : producto.vasos_disponibles_local2}
+                        /{producto.capacidad_barril} vasos
                       </p>
                     </div>
                   )}
@@ -447,7 +470,9 @@ export default function Pedido() {
       <div
         className={
           "fixed lg:relative lg:w-80 xl:w-96 w-full bottom-0 lg:bottom-auto left-0 lg:left-auto bg-[#141414] border-l border-[#2a2a2a] flex flex-col transition-transform duration-300 z-40 max-h-[80vh] lg:max-h-full lg:h-full " +
-          (mostrarCuentaMovil ? "translate-y-0" : "translate-y-full lg:translate-y-0")
+          (mostrarCuentaMovil
+            ? "translate-y-0"
+            : "translate-y-full lg:translate-y-0")
         }
       >
         {/* Botón para cerrar en móvil */}
@@ -566,7 +591,7 @@ export default function Pedido() {
                   const subtotalConImpuesto = Number(pedido?.subtotal || 0);
                   const baseGravable = subtotalConImpuesto / 1.08;
                   const impoconsumo = subtotalConImpuesto - baseGravable;
-                  
+
                   return (
                     <>
                       <div className="flex justify-between text-sm">
@@ -590,7 +615,9 @@ export default function Pedido() {
                       {montoCortesia > 0 && (
                         <div className="flex justify-between text-emerald-500">
                           <span>Cortesía</span>
-                          <span>-${Number(montoCortesia).toLocaleString()}</span>
+                          <span>
+                            -${Number(montoCortesia).toLocaleString()}
+                          </span>
                         </div>
                       )}
                       <div className="flex justify-between border-t border-[#2a2a2a] pt-2 mt-2">
@@ -598,7 +625,11 @@ export default function Pedido() {
                           Total a cobrar
                         </span>
                         <span className="text-[#D4B896] font-bold text-xl">
-                          ${Math.max(0, subtotalConImpuesto - montoCortesia).toLocaleString()}
+                          $
+                          {Math.max(
+                            0,
+                            subtotalConImpuesto - montoCortesia,
+                          ).toLocaleString()}
                         </span>
                       </div>
                     </>
@@ -629,8 +660,8 @@ export default function Pedido() {
                         setMontoCortesia(
                           Math.min(
                             parseFloat(e.target.value) || 0,
-                            pedido?.subtotal || 0
-                          )
+                            pedido?.subtotal || 0,
+                          ),
                         )
                       }
                       className="w-full px-4 py-2 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white focus:ring-2 focus:ring-[#D4B896]"
@@ -651,7 +682,9 @@ export default function Pedido() {
                       <option value="cumpleanos">Cumpleanos</option>
                       <option value="cliente_vip">Cliente VIP</option>
                       <option value="promocion">Promocion</option>
-                      <option value="disculpa">Disculpa por inconveniente</option>
+                      <option value="disculpa">
+                        Disculpa por inconveniente
+                      </option>
                       <option value="fidelizacion">Fidelizacion</option>
                       <option value="cortesia_casa">Cortesia de la casa</option>
                       <option value="otro">Otro</option>
@@ -662,7 +695,9 @@ export default function Pedido() {
                     <button
                       type="button"
                       onClick={() =>
-                        setMontoCortesia(Math.round((pedido?.subtotal || 0) * 0.1))
+                        setMontoCortesia(
+                          Math.round((pedido?.subtotal || 0) * 0.1),
+                        )
                       }
                       className="flex-1 py-2 bg-[#2a2a2a] text-gray-300 rounded-lg text-sm hover:bg-[#3a3a3a]"
                     >
@@ -671,7 +706,9 @@ export default function Pedido() {
                     <button
                       type="button"
                       onClick={() =>
-                        setMontoCortesia(Math.round((pedido?.subtotal || 0) * 0.2))
+                        setMontoCortesia(
+                          Math.round((pedido?.subtotal || 0) * 0.2),
+                        )
                       }
                       className="flex-1 py-2 bg-[#2a2a2a] text-gray-300 rounded-lg text-sm hover:bg-[#3a3a3a]"
                     >
@@ -750,7 +787,11 @@ export default function Pedido() {
                   onClick={handleCobrar}
                   className="flex-1 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-500 transition"
                 >
-                  Cobrar ${Math.max(0, Number(pedido?.subtotal || 0) - montoCortesia).toLocaleString()}
+                  Cobrar $
+                  {Math.max(
+                    0,
+                    Number(pedido?.subtotal || 0) - montoCortesia,
+                  ).toLocaleString()}
                 </button>
               </div>
             </div>
@@ -763,20 +804,32 @@ export default function Pedido() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl w-full max-w-md">
             <div className="p-6 border-b border-[#2a2a2a]">
-              <h2 className="text-xl font-bold text-white text-center">¡Pedido Cobrado!</h2>
-              <p className="text-gray-400 text-center mt-2">Mesa {pedido?.mesa?.numero}</p>
+              <h2 className="text-xl font-bold text-white text-center">
+                ¡Pedido Cobrado!
+              </h2>
+              <p className="text-gray-400 text-center mt-2">
+                Mesa {pedido?.mesa?.numero}
+              </p>
             </div>
 
             <div className="p-6 space-y-4">
               <div className="bg-emerald-900/30 border border-emerald-500/50 rounded-xl p-4 text-center">
                 <div className="text-4xl mb-2">✅</div>
-                <p className="text-emerald-400 font-semibold">Pago registrado exitosamente</p>
+                <p className="text-emerald-400 font-semibold">
+                  Pago registrado exitosamente
+                </p>
               </div>
 
               <div className="bg-[#1a1a1a] rounded-xl p-4 text-center">
-                <p className="text-gray-400 text-sm mb-2">¿Desea generar una factura?</p>
+                <p className="text-gray-400 text-sm mb-2">
+                  ¿Desea generar una factura?
+                </p>
                 <p className="text-white font-bold text-2xl">
-                  ${Math.max(0, Number(pedido?.subtotal || 0) - montoCortesia).toLocaleString()}
+                  $
+                  {Math.max(
+                    0,
+                    Number(pedido?.subtotal || 0) - montoCortesia,
+                  ).toLocaleString()}
                 </p>
               </div>
 
@@ -789,8 +842,17 @@ export default function Pedido() {
                   }}
                   className="w-full py-4 bg-[#D4B896] text-[#0a0a0a] font-bold rounded-xl hover:bg-[#C4A576] transition flex items-center justify-center gap-2"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z"
+                      clipRule="evenodd"
+                    />
                   </svg>
                   Descargar Factura PDF
                 </button>
