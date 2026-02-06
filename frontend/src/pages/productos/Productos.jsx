@@ -674,7 +674,6 @@ function TabCatalogo({
             </button>
           )}
         </div>
-
         <div className="flex flex-col gap-1">
           <button
             onClick={() => handleEditar(producto)}
@@ -682,6 +681,14 @@ function TabCatalogo({
           >
             Editar
           </button>
+          {(producto.stock_local1 > 0 || producto.stock_local2 > 0) && (
+            <button
+              onClick={() => setModalTransferencia({ open: true, producto })}
+              className="py-1.5 px-3 bg-purple-500/20 text-purple-400 rounded text-[10px] font-semibold hover:bg-purple-500/30"
+            >
+              🔄 Transferir
+            </button>
+          )}
           <button
             onClick={() => handleEliminar(producto.id)}
             className="py-1.5 px-3 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
