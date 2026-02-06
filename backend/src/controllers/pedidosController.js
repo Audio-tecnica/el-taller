@@ -270,6 +270,7 @@ const pedidosController = {
           console.error(`⚠️ Error registrando movimiento (continuando): ${errorMov.message}`);
           // No detenemos la operación si falla el registro del movimiento
         }
+      } // Cierre del else de productos normales
 
       // Buscar o crear el item en el pedido
       let item = await ItemPedido.findOne({ where: { pedido_id, producto_id } });
