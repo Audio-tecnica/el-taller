@@ -142,7 +142,7 @@ const pedidosController = {
         return res.status(400).json({ error: "Pedido no válido o cerrado" });
       }
 
-      const producto = await Producto.findByPk(producto_id, { include: [{ model: Categoria, as: 'categoria' }] });
+      const producto = await Producto.findByPk(producto_id);
       if (!producto) {
         await t.rollback();
         return res.status(404).json({ error: "Producto no encontrado" });

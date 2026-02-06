@@ -41,6 +41,12 @@ const ClienteImpuesto = require('./ClienteImpuesto');
 const VentaImpuesto = require('./VentaImpuesto');
 
 // ==========================================
+// IMPORTAR MODELOS DE COMPRAS MEJORADOS
+// ==========================================
+const CompraImpuesto = require('./CompraImpuesto');
+const PagoCompra = require('./PagoCompra');
+
+// ==========================================
 // RELACIONES EXISTENTES
 // ==========================================
 
@@ -221,6 +227,48 @@ VentaImpuesto.belongsTo(Impuesto, { foreignKey: 'impuesto_id', as: 'impuesto' })
 Impuesto.hasMany(VentaImpuesto, { foreignKey: 'impuesto_id', as: 'ventas_impuesto' });
 
 // ==========================================
+// RELACIONES DE COMPRAS CON IMPUESTOS Y PAGOS
+// ==========================================
+
+// Relaciones de CompraImpuesto
+Compra.hasMany(CompraImpuesto, { 
+  foreignKey: 'compra_id', 
+  as: 'impuestosAplicados' 
+});
+CompraImpuesto.belongsTo(Compra, { 
+  foreignKey: 'compra_id', 
+  as: 'compra' 
+});
+
+Impuesto.hasMany(CompraImpuesto, { 
+  foreignKey: 'impuesto_id', 
+  as: 'compras_impuesto' 
+});
+CompraImpuesto.belongsTo(Impuesto, { 
+  foreignKey: 'impuesto_id', 
+  as: 'impuesto' 
+});
+
+// Relaciones de PagoCompra
+Compra.hasMany(PagoCompra, { 
+  foreignKey: 'compra_id', 
+  as: 'pagos' 
+});
+PagoCompra.belongsTo(Compra, { 
+  foreignKey: 'compra_id', 
+  as: 'compra' 
+});
+
+Usuario.hasMany(PagoCompra, { 
+  foreignKey: 'usuario_id', 
+  as: 'pagos_compras_realizados' 
+});
+PagoCompra.belongsTo(Usuario, { 
+  foreignKey: 'usuario_id', 
+  as: 'usuario' 
+});
+
+// ==========================================
 // EXPORTAR MODELOS
 // ==========================================
 module.exports = {
@@ -254,55 +302,9 @@ module.exports = {
   // Modelos de Impuestos
   Impuesto,
   ClienteImpuesto,
-  VentaImpuesto
-};
-// Agregar después de las líneas existentes
-const CompraImpuesto = require('./CompraImpuesto');
-const PagoCompra = require('./PagoCompra');
-
-// Agregar a las relaciones (después de las relaciones existentes de Compra)
-
-// Relaciones de CompraImpuesto
-Compra.hasMany(CompraImpuesto, { 
-  foreignKey: 'compra_id', 
-  as: 'impuestosAplicados' 
-});
-CompraImpuesto.belongsTo(Compra, { 
-  foreignKey: 'compra_id', 
-  as: 'compra' 
-});
-
-Impuesto.hasMany(CompraImpuesto, { 
-  foreignKey: 'impuesto_id', 
-  as: 'compras_aplicadas' 
-});
-CompraImpuesto.belongsTo(Impuesto, { 
-  foreignKey: 'impuesto_id', 
-  as: 'impuesto' 
-});
-
-// Relaciones de PagoCompra
-Compra.hasMany(PagoCompra, { 
-  foreignKey: 'compra_id', 
-  as: 'pagos' 
-});
-PagoCompra.belongsTo(Compra, { 
-  foreignKey: 'compra_id', 
-  as: 'compra' 
-});
-
-Usuario.hasMany(PagoCompra, { 
-  foreignKey: 'usuario_id', 
-  as: 'pagos_compras_realizados' 
-});
-PagoCompra.belongsTo(Usuario, { 
-  foreignKey: 'usuario_id', 
-  as: 'usuario' 
-});
-
-// Agregar a las exportaciones
-module.exports = {
-  // ... modelos existentes ...
+  VentaImpuesto,
+  
+  // ⭐ Modelos de Compras Mejorados
   CompraImpuesto,
   PagoCompra
 };
