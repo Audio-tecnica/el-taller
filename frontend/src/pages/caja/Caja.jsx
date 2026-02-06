@@ -66,48 +66,11 @@ export default function Caja() {
     }
   };
 
-  // ⭐ MEJORADO: Usar contexto primero, localStorage como fallback
+  // ⭐ SIMPLIFICADO: El backend ahora incluye administradores automáticamente
   const cargarCajeros = async () => {
     console.log('🔄 ===== INICIANDO CARGA DE CAJEROS =====');
     try {
-      // 1. Intentar obtener usuario del contexto PRIMERO
-      let usuarioActual = user;
-      console.log('👤 Usuario del contexto:', usuarioActual);
-
-      // 2. Si no hay usuario en contexto, intentar localStorage como fallback
-      if (!usuarioActual) {
-        console.log('⚠️ No hay usuario en contexto, intentando localStorage...');
-        const userStr = localStorage.getItem('user');
-        console.log('📦 localStorage.user:', userStr);
-        
-        if (userStr) {
-          try {
-            usuarioActual = JSON.parse(userStr);
-            console.log('✅ Usuario recuperado de localStorage:', usuarioActual);
-          } catch (parseError) {
-            console.error('❌ Error parseando usuario de localStorage:', parseError);
-          }
-        }
-      }
-
-      // 3. Si aún no hay usuario, no podemos continuar
-      if (!usuarioActual) {
-        console.error('❌ ===== NO SE ENCONTRÓ USUARIO =====');
-        console.error('No hay usuario en contexto ni en localStorage');
-        console.error('Por favor, cierra sesión y vuelve a iniciar sesión');
-        toast.error("Error: No se encontró usuario. Por favor, vuelve a iniciar sesión.");
-        setCajeros([]);
-        return;
-      }
-
-      console.log('👤 Usuario actual identificado:', {
-        id: usuarioActual.id,
-        nombre: usuarioActual.nombre,
-        email: usuarioActual.email,
-        rol: usuarioActual.rol
-      });
-      
-      // 4. Cargar cajeros del backend
+      // Cargar usuarios disponibles del backend (incluye cajeros + administradores)
       console.log(`📡 Haciendo fetch a: ${import.meta.env.VITE_API_URL}/auth/cajeros?local_id=${localSeleccionado}`);
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/auth/cajeros?local_id=${localSeleccionado}`,
@@ -124,56 +87,18 @@ export default function Caja() {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
-      const cajerosData = await response.json();
-      console.log('📋 Cajeros del backend:', cajerosData);
-      console.log('📊 Cantidad de cajeros del backend:', cajerosData.length);
+      const usuariosData = await response.json();
+      console.log('📋 Usuarios del backend:', usuariosData);
+      console.log('📊 Cantidad de usuarios:', usuariosData.length);
       
-      // 5. Verificar si el usuario es administrador
-      console.log('🔍 Verificando rol del usuario:', usuarioActual.rol);
-      console.log('🔍 ¿Es administrador?:', usuarioActual.rol === 'administrador');
+      // El backend ya incluye administradores, simplemente usar los datos
+      setCajeros(usuariosData);
+      console.log('✅ setCajeros ejecutado con', usuariosData.length, 'usuarios');
       
-      if (usuarioActual.rol === 'administrador') {
-        console.log('👑 ¡USUARIO ES ADMINISTRADOR! - Procediendo a agregarlo');
-        
-        // Verificar si el admin ya está en la lista de cajeros
-        const adminYaEnLista = cajerosData.find(c => c.id === usuarioActual.id);
-        console.log('🔍 Admin ya en lista?:', adminYaEnLista ? 'SÍ' : 'NO');
-        
-        // Filtrar el admin de la lista original si existe para evitar duplicados
-        const cajerosFiltrados = adminYaEnLista 
-          ? cajerosData.filter(c => c.id !== usuarioActual.id)
-          : cajerosData;
-        
-        console.log('📊 Cajeros filtrados (sin admin):', cajerosFiltrados.length);
-        
-        // Crear objeto admin
-        const adminCajero = {
-          id: usuarioActual.id,
-          nombre: `${usuarioActual.nombre} (Yo - Admin)`,
-          email: usuarioActual.email,
-          rol: usuarioActual.rol,
-          esAdmin: true
-        };
-        console.log('👑 Objeto admin creado:', adminCajero);
-        
-        // Agregar el admin al inicio
-        const listaCajeros = [adminCajero, ...cajerosFiltrados];
-        console.log('📊 Lista final de cajeros:', listaCajeros);
-        console.log('📊 Total cajeros en lista final:', listaCajeros.length);
-        
-        setCajeros(listaCajeros);
-        console.log('✅ setCajeros ejecutado con', listaCajeros.length, 'cajeros');
-        
-        // Auto-seleccionar al admin si es el único
-        if (listaCajeros.length === 1) {
-          setCajeroSeleccionado(usuarioActual.id);
-          console.log('🎯 Admin auto-seleccionado');
-        }
-      } else {
-        // Si es cajero, solo mostrar la lista normal
-        console.log('👷 Usuario es CAJERO - mostrando lista normal');
-        setCajeros(cajerosData);
-        console.log('✅ setCajeros ejecutado con', cajerosData.length, 'cajeros');
+      // Auto-seleccionar si hay usuario en contexto y es el único disponible
+      if (user && usuariosData.length === 1 && usuariosData[0].id === user.id) {
+        setCajeroSeleccionado(user.id);
+        console.log('🎯 Usuario auto-seleccionado');
       }
       
       console.log('✅ ===== CARGA DE CAJEROS COMPLETADA =====');
@@ -181,34 +106,8 @@ export default function Caja() {
     } catch (error) {
       console.error('❌ ===== ERROR EN CARGA DE CAJEROS =====');
       console.error('Error completo:', error);
-      toast.error("Error al cargar cajeros: " + error.message);
-      
-      // ⭐ FALLBACK MEJORADO: Intentar con usuario del contexto o localStorage
-      try {
-        const usuarioActual = user || JSON.parse(localStorage.getItem('user') || 'null');
-        console.log('🆘 Ejecutando FALLBACK para usuario:', usuarioActual?.nombre);
-        
-        if (usuarioActual?.rol === 'administrador') {
-          const fallbackCajeros = [
-            {
-              id: usuarioActual.id,
-              nombre: `${usuarioActual.nombre} (Yo - Admin)`,
-              email: usuarioActual.email,
-              rol: usuarioActual.rol,
-              esAdmin: true
-            }
-          ];
-          setCajeros(fallbackCajeros);
-          setCajeroSeleccionado(usuarioActual.id);
-          console.log('✅ FALLBACK exitoso - Admin agregado como único cajero');
-        } else {
-          setCajeros([]);
-          console.log('⚠️ FALLBACK - No es admin o no hay usuario, lista vacía');
-        }
-      } catch (fallbackError) {
-        console.error('❌ Error en fallback:', fallbackError);
-        setCajeros([]);
-      }
+      toast.error("Error al cargar usuarios: " + error.message);
+      setCajeros([]);
     }
   };
 
@@ -540,36 +439,51 @@ export default function Caja() {
                   required
                 >
                   <option value="">Seleccionar cajero...</option>
-                  {cajeros.map((cajero) => (
-                    <option 
-                      key={cajero.id} 
-                      value={cajero.id}
-                      className={cajero.esAdmin ? "font-semibold" : ""}
-                    >
-                      {cajero.nombre}
-                    </option>
-                  ))}
+                  {cajeros.map((cajero) => {
+                    const esAdmin = cajero.rol === 'administrador';
+                    const esYo = cajero.id === user?.id;
+                    
+                    let nombreDisplay = cajero.nombre;
+                    if (esYo) {
+                      nombreDisplay = `${cajero.nombre} (Yo${esAdmin ? ' - Admin' : ''})`;
+                    } else if (esAdmin) {
+                      nombreDisplay = `${cajero.nombre} (Admin)`;
+                    }
+                    
+                    return (
+                      <option 
+                        key={cajero.id} 
+                        value={cajero.id}
+                        className={esAdmin ? "font-semibold" : ""}
+                      >
+                        {nombreDisplay}
+                      </option>
+                    );
+                  })}
                 </select>
                 
                 {/* Mensajes de ayuda */}
                 {cajeros.length === 0 && (
                   <div className="mt-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
                     <p className="text-xs text-red-400 font-semibold mb-1">
-                      ⚠️ No hay cajeros disponibles
+                      ⚠️ No hay usuarios disponibles
                     </p>
                     <p className="text-xs text-red-300">
                       Por favor, cierra sesión y vuelve a iniciar sesión, luego intenta de nuevo.
                     </p>
                   </div>
                 )}
-                {cajeros.length === 1 && cajeros[0].esAdmin && (
+                {cajeros.length === 1 && (
                   <p className="text-xs text-[#D4B896] mt-2 bg-[#D4B896]/10 p-2 rounded">
                     💡 Eres el único usuario autorizado para abrir turno en este local
                   </p>
                 )}
                 {cajeros.length > 1 && (
                   <p className="text-xs text-gray-500 mt-1">
-                    Selecciona quién operará este turno
+                    {cajeros.filter(c => c.rol === 'administrador').length > 0 
+                      ? 'Los administradores pueden abrir turno en cualquier local'
+                      : 'Selecciona quién operará este turno'
+                    }
                   </p>
                 )}
               </div>
