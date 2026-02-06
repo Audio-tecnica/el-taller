@@ -483,10 +483,57 @@ const pedidosController = {
       const { metodo_pago, monto_cortesia, razon_cortesia, descripcion_cortesia } = req.body;
       const usuario_id = req.usuario.id;
 
-      const pedido = await Pedido.findByPk(pedido_id, { include: [{ model: Mesa, as: "mesa" }] });
+      const pedido = await Pedido.findByPk(pedido_id, { 
+        include: [
+          { model: Mesa, as: "mesa", include: [{ model: Local, as: 'local' }] },
+          { model: ItemPedido, as: "items", include: [{ model: Producto, as: "producto" }] }
+        ] 
+      });
+      
       if (!pedido || pedido.estado !== "abierto") {
         await t.rollback();
         return res.status(400).json({ error: "Pedido no válido o ya cerrado" });
+      }
+
+      // ⭐ DESCONTAR INVENTARIO AL COBRAR
+      let local = null;
+      if (pedido.mesa && pedido.mesa.local) {
+        local = pedido.mesa.local;
+      } else {
+        local = await Local.findByPk(pedido.local_id);
+      }
+      
+      const localNum = getLocalNumber(local);
+      const stockKey = `stock_local${localNum}`;
+      
+      console.log(`💰 Cobrando pedido - Descontando inventario de ${local.nombre} (${stockKey})`);
+      
+      for (const item of pedido.items) {
+        const producto = item.producto;
+        
+        if (producto.unidad_medida === 'barriles') {
+          // Descontar vasos del barril
+          const vasosKey = `vasos_disponibles_local${localNum}`;
+          const vasosActuales = producto[vasosKey] || 0;
+          const vasosNuevos = Math.max(0, vasosActuales - item.cantidad);
+          
+          await producto.update({ 
+            [vasosKey]: vasosNuevos 
+          }, { transaction: t });
+          
+          console.log(`✅ Vasos descontados: ${producto.nombre} - ${vasosActuales} → ${vasosNuevos} (${vasosKey})`);
+          
+        } else {
+          // Descontar stock regular
+          const stockActual = producto[stockKey] || 0;
+          const nuevoStock = Math.max(0, stockActual - item.cantidad);
+          
+          await producto.update({ 
+            [stockKey]: nuevoStock 
+          }, { transaction: t });
+          
+          console.log(`✅ Stock descontado: ${producto.nombre} - ${stockActual} → ${nuevoStock} (${stockKey})`);
+        }
       }
 
       const subtotal = parseFloat(pedido.subtotal);

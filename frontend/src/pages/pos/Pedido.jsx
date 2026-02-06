@@ -97,7 +97,7 @@ export default function Pedido() {
         try {
           await turnosService.getMiTurnoActivo();
           console.log('✅ Turno activo verificado en Pedido');
-        } catch {
+        } catch  {
           console.error('❌ TURNO CERRADO - Expulsando del pedido');
           toast.error('Tu turno ha sido cerrado por administración');
           navigate('/dashboard');
