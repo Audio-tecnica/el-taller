@@ -252,7 +252,9 @@ export default function Pedido() {
     return "border-gray-700";
   };
   
-  const localId = pedido?.local?.id || pedido?.local_id;
+  // Determinar si es local 1 (Avenida 1ra) o local 2 (La Castellana)
+const nombreLocal = pedido?.local?.nombre || "";
+const esLocal1 = nombreLocal.toLowerCase().includes("avenida");
 
   if (loading) {
     return (
@@ -383,7 +385,7 @@ export default function Pedido() {
 
                 {/* Barra de progreso para barriles */}
                 {producto.unidad_medida === "barriles" &&
-                  (localId === 1
+                  (esLocal1
                     ? producto.barril_activo_local1
                     : producto.barril_activo_local2) && (
                     <div className="mt-1">
@@ -391,11 +393,11 @@ export default function Pedido() {
                         <div
                           className={
                             "h-1.5 rounded-full transition-all " +
-                            ((localId === 1
+                            ((esLocal1
                               ? producto.vasos_disponibles_local1
                               : producto.vasos_disponibles_local2) <= 15
                               ? "bg-red-500"
-                              : (localId === 1
+                              : (esLocal1
                                     ? producto.vasos_disponibles_local1
                                     : producto.vasos_disponibles_local2) <= 30
                                 ? "bg-yellow-500"
@@ -403,7 +405,7 @@ export default function Pedido() {
                           }
                           style={{
                             width:
-                              ((localId === 1
+                              ((esLocal1
                                 ? producto.vasos_disponibles_local1
                                 : producto.vasos_disponibles_local2) /
                                 producto.capacidad_barril) *
@@ -413,7 +415,7 @@ export default function Pedido() {
                         />
                       </div>
                       <p className="text-[9px] text-gray-500 text-center mt-0.5">
-                        {localId === 1
+                        {esLocal1
                           ? producto.vasos_disponibles_local1
                           : producto.vasos_disponibles_local2}
                         /{producto.capacidad_barril} vasos
@@ -425,7 +427,7 @@ export default function Pedido() {
                 {producto.unidad_medida !== "barriles" && (
                   <p className="text-[9px] text-gray-400 mt-1">
                     Stock:{" "}
-                    {localId === 1
+                    {esLocal1
                       ? producto.stock_local1
                       : producto.stock_local2}
                   </p>
