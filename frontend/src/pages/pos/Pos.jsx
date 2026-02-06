@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext"; // ⭐ NUEVO: Importar contexto
 import { mesasService } from "../../services/mesasService";
 import { pedidosService } from "../../services/pedidosService";
 import { turnosService } from "../../services/turnosService";
@@ -9,6 +10,7 @@ import ModalCambiarMesa from "./ModalCambiarMesa";
 
 export default function POS() {
   const navigate = useNavigate();
+  const { user } = useAuth(); // ⭐ NUEVO: Obtener usuario del contexto
   
   
   const [mesas, setMesas] = useState([]);
@@ -43,54 +45,73 @@ export default function POS() {
     }
   };
 
-  // ⭐ EFECTO PRINCIPAL: Detectar si tiene turno (cajero) o no (admin)
+  // ⭐ EFECTO PRINCIPAL: Verificar ROL primero, luego turno
   useEffect(() => {
     const inicializar = async () => {
       try {
-        console.log('🔍 Verificando si el usuario tiene un turno activo...');
+        console.log('🔍 ===== INICIALIZANDO POS =====');
+        console.log('👤 Usuario:', user?.nombre, '| Rol:', user?.rol);
         
-        // Intentar obtener turno activo
-        const turno = await turnosService.getMiTurnoActivo();
-        
-        // ⭐ TIENE TURNO = ES CAJERO con local asignado
-        const localId = turno.local?.id || turno.local_id || turno.localId;
-        
-        console.log('✅ USUARIO CON TURNO ACTIVO (Cajero)', {
-          local: turno.local?.nombre,
-          localId: localId
-        });
-        
-        if (!localId) {
-          console.error('❌ Turno sin local_id');
-          throw new Error('Turno sin local_id');
+        // ⭐ VERIFICAR ROL PRIMERO
+        if (user?.rol === 'administrador') {
+          console.log('👑 USUARIO ES ADMINISTRADOR');
+          console.log('✅ Admin tiene acceso a TODOS los locales (con o sin turno)');
+          
+          setEsAdmin(true);
+          setTurnoActivo(null);
+          setLocalDelTurno(null);
+          
+          // ⭐ Admin SIEMPRE ve TODAS las mesas
+          await cargarMesas(null);
+          
+        } else {
+          // ⭐ NO ES ADMIN = Debe ser cajero con turno
+          console.log('👷 Usuario es CAJERO - verificando turno...');
+          
+          try {
+            const turno = await turnosService.getMiTurnoActivo();
+            const localId = turno.local?.id || turno.local_id || turno.localId;
+            
+            console.log('✅ Cajero con turno activo:', {
+              local: turno.local?.nombre,
+              localId: localId
+            });
+            
+            if (!localId) {
+              throw new Error('Turno sin local_id');
+            }
+            
+            setEsAdmin(false);
+            setTurnoActivo(turno);
+            setLocalDelTurno(localId);
+            
+            // ⭐ Cajero solo ve mesas de su local
+            await cargarMesas(localId);
+            
+          } catch  {
+            console.error('❌ Cajero sin turno activo');
+            toast.error('No tienes un turno abierto. Contacta al administrador.');
+            navigate('/dashboard');
+            return;
+          }
         }
         
-        setTurnoActivo(turno);
-        setLocalDelTurno(localId);
-        setEsAdmin(false); // ⭐ No es admin
+        console.log('✅ ===== INICIALIZACIÓN COMPLETADA =====');
         
-        // Cargar SOLO mesas de su local
-        await cargarMesas(localId);
-        
-      } catch  {
-        // ⭐ NO TIENE TURNO = ES ADMIN
-        console.log('ℹ️ Usuario sin turno activo = ADMIN con acceso total');
-        
-        setTurnoActivo(null);
-        setLocalDelTurno(null);
-        setEsAdmin(true); // ⭐ Es admin
-        
-        // Cargar TODAS las mesas
-        await cargarMesas(null);
+      } catch (error) {
+        console.error('❌ Error en inicialización:', error);
+        toast.error('Error al inicializar el POS');
       }
       
       setInicializado(true);
     };
 
-    inicializar();
-  }, []); // ⭐ Solo ejecutar una vez al montar
+    if (user) {
+      inicializar();
+    }
+  }, [user, navigate]); // ⭐ Depende de user
 
-  // ⭐ VERIFICACIÓN PERIÓDICA DEL TURNO (CRÍTICO PARA SEGURIDAD)
+  // ⭐ VERIFICACIÓN PERIÓDICA DEL TURNO (solo para cajeros)
   useEffect(() => {
     if (!inicializado || esAdmin) return; // Solo verificar para cajeros
     
