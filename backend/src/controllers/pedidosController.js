@@ -128,36 +128,52 @@ const pedidosController = {
   agregarItem: async (req, res) => {
     const t = await sequelize.transaction();
     try {
+      console.log('🚀 ===== INICIO AGREGAR ITEM =====');
       const { pedido_id } = req.params;
       const { producto_id, cantidad, notas } = req.body;
+      
+      console.log('📥 Datos recibidos:', { pedido_id, producto_id, cantidad, notas });
+      console.log('👤 Usuario autenticado:', req.usuario);
 
+      console.log('🔍 Paso 1: Buscando pedido...');
       const pedido = await Pedido.findByPk(pedido_id, { 
         include: [
           { model: Mesa, as: 'mesa', include: [{ model: Local, as: 'local' }] }
         ] 
       });
+      console.log('✅ Pedido encontrado:', pedido ? `ID: ${pedido.id}, Estado: ${pedido.estado}` : 'NULL');
       
       if (!pedido || pedido.estado !== "abierto") {
         await t.rollback();
+        console.log('❌ Pedido no válido o cerrado');
         return res.status(400).json({ error: "Pedido no válido o cerrado" });
       }
 
+      console.log('🔍 Paso 2: Buscando producto...');
       const producto = await Producto.findByPk(producto_id);
+      console.log('✅ Producto encontrado:', producto ? producto.nombre : 'NULL');
+      
       if (!producto) {
         await t.rollback();
+        console.log('❌ Producto no encontrado');
         return res.status(404).json({ error: "Producto no encontrado" });
       }
 
+      console.log('🔍 Paso 3: Determinando local...');
       // ⭐ OBTENER INFORMACIÓN DEL LOCAL CORRECTAMENTE
       let local = null;
       if (pedido.mesa && pedido.mesa.local) {
         local = pedido.mesa.local;
+        console.log('✅ Local obtenido de pedido.mesa.local');
       } else {
         local = await Local.findByPk(pedido.local_id);
+        console.log('✅ Local obtenido de findByPk');
       }
+      console.log('📍 Local:', local ? `${local.nombre} (${local.id})` : 'NULL');
       
       if (!local) {
         await t.rollback();
+        console.log('❌ No se pudo determinar el local');
         return res.status(500).json({ error: "No se pudo determinar el local del pedido" });
       }
 
@@ -272,16 +288,21 @@ const pedidosController = {
         }
       } // Cierre del else de productos normales
 
+      console.log('🔍 Paso 4: Buscando o creando item en pedido...');
       // Buscar o crear el item en el pedido
       let item = await ItemPedido.findOne({ where: { pedido_id, producto_id } });
+      console.log('Item existente:', item ? `Sí (cantidad actual: ${item.cantidad})` : 'No');
 
       if (item) {
+        console.log('🔄 Actualizando item existente...');
         const nuevaCantidad = item.cantidad + cantidad;
         await item.update({ 
           cantidad: nuevaCantidad, 
           subtotal: nuevaCantidad * parseFloat(producto.precio_venta) 
         }, { transaction: t });
+        console.log('✅ Item actualizado');
       } else {
+        console.log('➕ Creando nuevo item...');
         item = await ItemPedido.create({
           pedido_id, 
           producto_id, 
@@ -290,15 +311,21 @@ const pedidosController = {
           subtotal: cantidad * parseFloat(producto.precio_venta),
           notas,
         }, { transaction: t });
+        console.log('✅ Item creado');
       }
 
+      console.log('🔍 Paso 5: Actualizando subtotal del pedido...');
       // Actualizar subtotal del pedido
       const items = await ItemPedido.findAll({ where: { pedido_id }, transaction: t });
       const nuevoSubtotal = items.reduce((sum, i) => sum + parseFloat(i.subtotal), 0);
       await pedido.update({ subtotal: nuevoSubtotal }, { transaction: t });
+      console.log(`✅ Subtotal actualizado: $${nuevoSubtotal}`);
 
+      console.log('🔍 Paso 6: Haciendo commit de la transacción...');
       await t.commit();
+      console.log('✅ Transacción confirmada');
 
+      console.log('🔍 Paso 7: Obteniendo pedido actualizado...');
       // Obtener pedido actualizado
       const pedidoActualizado = await Pedido.findByPk(pedido_id, {
         include: [
@@ -306,7 +333,9 @@ const pedidosController = {
           { model: ItemPedido, as: "items", include: [{ model: Producto, as: "producto" }] },
         ],
       });
+      console.log('✅ Pedido actualizado obtenido');
 
+      console.log('🔍 Paso 8: Emitiendo eventos de socket...');
       // 📌 SOCKET: Emitir actualizaciones
       const io = req.app.get('io');
       if (io) {
@@ -320,8 +349,10 @@ const pedidosController = {
         } else {
           io.emit('producto_actualizado', { tipo: 'venta', producto: prodActualizado });
         }
+        console.log('✅ Eventos de socket emitidos');
       }
 
+      console.log('✅ ===== FIN AGREGAR ITEM (EXITOSO) =====');
       res.json(pedidoActualizado);
     } catch (error) {
       if (!t.finished) await t.rollback();
