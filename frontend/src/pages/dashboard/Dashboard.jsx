@@ -22,9 +22,6 @@ export default function Dashboard() {
     mesasActivas: 0,
     stockBajo: 0
   });
-  const [statsGlobales, setStatsGlobales] = useState({
-    totalProductos: 0
-  });
   const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
@@ -98,7 +95,6 @@ export default function Dashboard() {
       
       const { mesasService } = await import("../../services/mesasService");
       const { productosService } = await import("../../services/productosService");
-     
       
       // Obtener locales
       const localesData = await mesasService.getLocales();
@@ -181,20 +177,9 @@ export default function Dashboard() {
         }
       }
 
-      // ========== ESTADÍSTICAS GLOBALES ==========
-      let totalProductos = 0;
-      try {
-        const productosData = await productosService.getProductos();
-        totalProductos = Array.isArray(productosData) ? productosData.length : 0;
-        console.log('✅ Total productos globales:', totalProductos);
-      } catch (error) {
-        console.error('⚠️ Error al cargar productos:', error);
-      }
-
       console.log('📊 Estadísticas finales por local:', {
         local1: { ventasLocal1, mesasActivasLocal1, stockBajoLocal1 },
-        local2: { ventasLocal2, mesasActivasLocal2, stockBajoLocal2 },
-        globales: { totalProductos }
+        local2: { ventasLocal2, mesasActivasLocal2, stockBajoLocal2 }
       });
 
       setStatsLocal1({
@@ -207,10 +192,6 @@ export default function Dashboard() {
         ventasHoy: ventasLocal2,
         mesasActivas: mesasActivasLocal2,
         stockBajo: stockBajoLocal2
-      });
-
-      setStatsGlobales({
-        totalProductos
       });
 
     } catch (error) {
@@ -542,7 +523,7 @@ export default function Dashboard() {
           <h3 className="text-lg font-bold text-white mb-4">
             Módulos Principales
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-8 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
             {modulos.map((modulo) => (
               <button
                 key={modulo.nombre}
@@ -648,31 +629,6 @@ export default function Dashboard() {
                     <p className="text-sm font-bold text-red-500">
                       {statsLocal2.stockBajo}
                     </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* ⭐ STATS GLOBALES - PRODUCTOS */}
-            <div className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/30 rounded-xl p-3">
-              <div className="mb-2">
-                <p className="text-amber-400 text-xs font-bold mb-1">📦 Global</p>
-              </div>
-              {loadingStats ? (
-                <div className="flex items-center justify-center h-24">
-                  <p className="text-gray-500 text-xs">...</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-gray-500 text-[10px]">Productos</p>
-                    <p className="text-2xl font-bold text-white">
-                      {statsGlobales.totalProductos}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500 text-[10px]">Activos</p>
-                    <p className="text-xs text-gray-400">en catálogo</p>
                   </div>
                 </div>
               )}
