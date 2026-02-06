@@ -25,7 +25,14 @@ export default function Pedido() {
 
   // ✅ NUEVO: Función helper para obtener el ID del local activo
   const getLocalActivo = useCallback(() => {
-    return pedido?.local?.id || pedido?.local_id || null;
+    const localId = pedido?.local?.id || pedido?.local_id || null;
+    console.log('🏪 PEDIDO.JSX - Local detectado:', {
+      localId,
+      pedidoLocalId: pedido?.local?.id,
+      pedidoLocalNombre: pedido?.local?.nombre,
+      pedidoCompleto: pedido
+    });
+    return localId;
   }, [pedido]);
 
   // ✅ NUEVO: Función helper para obtener datos del producto según el local activo
@@ -34,6 +41,7 @@ export default function Pedido() {
     
     // Si no hay local definido, retornar valores por defecto
     if (!localId) {
+      console.warn('⚠️ No hay local definido, retornando valores por defecto');
       return {
         barrilActivo: null,
         vasosDisponibles: 0,
@@ -43,6 +51,15 @@ export default function Pedido() {
 
     // Determinar el sufijo correcto según el local
     const sufijo = localId === 1 ? '_local1' : '_local2';
+    
+    console.log('📦 Obteniendo datos del producto:', {
+      productoNombre: producto.nombre,
+      localId,
+      sufijo,
+      barrilActivo: producto[`barril_activo${sufijo}`],
+      vasosDisponibles: producto[`vasos_disponibles${sufijo}`],
+      stockDisponible: producto[`stock${sufijo}`]
+    });
     
     return {
       barrilActivo: producto[`barril_activo${sufijo}`],

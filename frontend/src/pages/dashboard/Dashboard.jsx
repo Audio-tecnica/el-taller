@@ -34,6 +34,14 @@ export default function Dashboard() {
     // ⭐ CARGAR ESTADÍSTICAS
     if (usuario?.rol === "administrador") {
       cargarEstadisticasPorLocal();
+      
+      // ⭐ AUTO-REFRESH cada 10 segundos
+      const statsInterval = setInterval(() => {
+        console.log('🔄 Actualizando estadísticas del dashboard...');
+        cargarEstadisticasPorLocal();
+      }, 10000); // 10 segundos
+      
+      return () => clearInterval(statsInterval);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
