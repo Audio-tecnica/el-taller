@@ -25,6 +25,8 @@ const inventarioKardexController = {
         fecha_factura,
         productos,
         observaciones,
+        iva_porcentaje, // NUEVO: porcentaje de IVA
+        incluir_iva,     // NUEVO: si se debe calcular IVA
       } = req.body;
       const usuario_id = req.usuario.id;
 
@@ -137,6 +139,11 @@ const inventarioKardexController = {
         movimientos.push(movimiento);
       }
 
+      // Calcular impuestos y total
+      const porcentajeIVA = incluir_iva ? (parseFloat(iva_porcentaje) || 0) : 0;
+      const valorIVA = (subtotal * porcentajeIVA) / 100;
+      const totalCompra = subtotal + valorIVA;
+
       const compra = await Compra.create(
         {
           numero_compra,
@@ -145,7 +152,9 @@ const inventarioKardexController = {
           numero_factura,
           fecha_factura,
           subtotal,
-          total: subtotal,
+          iva_porcentaje: porcentajeIVA,
+          impuestos: valorIVA,
+          total: totalCompra,
           estado: "recibida",
           observaciones,
           usuario_id,

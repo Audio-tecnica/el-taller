@@ -27,6 +27,11 @@ export default function RegistrarCompra() {
   const [productosCompra, setProductosCompra] = useState([]);
   const [busquedaProducto, setBusquedaProducto] = useState("");
   const [mostrarBusqueda, setMostrarBusqueda] = useState(false);
+  
+  // Estados para IVA
+  const [incluirIVA, setIncluirIVA] = useState(false);
+  const [ivaPorcentaje, setIvaPorcentaje] = useState(19); // 19% por defecto
+
 
   useEffect(() => {
     cargarDatos();
@@ -92,8 +97,17 @@ export default function RegistrarCompra() {
     setProductosCompra(productosCompra.filter((_, i) => i !== index));
   };
 
-  const calcularTotal = () => {
+  const calcularSubtotal = () => {
     return productosCompra.reduce((sum, p) => sum + p.subtotal, 0);
+  };
+
+  const calcularIVA = () => {
+    if (!incluirIVA) return 0;
+    return (calcularSubtotal() * ivaPorcentaje) / 100;
+  };
+
+  const calcularTotal = () => {
+    return calcularSubtotal() + calcularIVA();
   };
 
   const handleSubmit = async (e) => {
@@ -118,6 +132,8 @@ export default function RegistrarCompra() {
     try {
       await inventarioKardexService.registrarCompra({
         ...compra,
+        incluir_iva: incluirIVA,
+        iva_porcentaje: incluirIVA ? ivaPorcentaje : 0,
         productos: productosCompra.map(p => ({
           producto_id: p.producto_id,
           cantidad: p.cantidad,
@@ -474,12 +490,54 @@ export default function RegistrarCompra() {
                   </span>
                 </div>
 
-                <div className="pt-3 border-t border-[#2a2a2a]">
+                <div className="pt-3 border-t border-[#2a2a2a] space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-white font-medium">Total:</span>
-                    <span className="text-2xl font-black text-[#D4B896]">
-                      ${calcularTotal().toLocaleString()}
+                    <span className="text-gray-400">Subtotal:</span>
+                    <span className="text-white font-medium">
+                      ${calcularSubtotal().toLocaleString()}
                     </span>
+                  </div>
+
+                  {/* Checkbox para incluir IVA */}
+                  <div className="bg-[#1a1a1a] rounded-lg p-3 space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={incluirIVA}
+                        onChange={(e) => setIncluirIVA(e.target.checked)}
+                        className="w-4 h-4 rounded border-[#2a2a2a] bg-[#0a0a0a] text-[#D4B896] focus:ring-[#D4B896] focus:ring-offset-0"
+                      />
+                      <span className="text-sm text-gray-300">Incluir IVA</span>
+                    </label>
+
+                    {incluirIVA && (
+                      <div className="space-y-2 pl-6">
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs text-gray-400">%:</label>
+                          <input
+                            type="number"
+                            value={ivaPorcentaje}
+                            onChange={(e) => setIvaPorcentaje(parseFloat(e.target.value) || 0)}
+                            className="w-20 px-2 py-1 bg-[#0a0a0a] border border-[#2a2a2a] rounded text-white text-sm focus:outline-none focus:border-[#D4B896]"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                          />
+                          <span className="text-xs text-gray-500">
+                            = ${calcularIVA().toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-2 border-t border-[#2a2a2a]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-white font-bold">TOTAL:</span>
+                      <span className="text-2xl font-black text-[#D4B896]">
+                        ${calcularTotal().toLocaleString()}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

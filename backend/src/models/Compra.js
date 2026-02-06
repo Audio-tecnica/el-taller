@@ -45,6 +45,12 @@ const Compra = sequelize.define('Compra', {
     allowNull: false,
     defaultValue: 0
   },
+  iva_porcentaje: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: true,
+    defaultValue: 0,
+    comment: 'Porcentaje de IVA aplicado (ej: 19.00 para 19%)'
+  },
   impuestos: {
     type: DataTypes.DECIMAL(14, 4),
     defaultValue: 0
