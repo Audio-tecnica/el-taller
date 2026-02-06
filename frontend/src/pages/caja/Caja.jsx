@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext"; // ⭐ NUEVO: Usar contexto
 import { turnosService } from "../../services/turnosService";
 import { mesasService } from "../../services/mesasService";
 import toast from "react-hot-toast";
@@ -7,6 +8,7 @@ import logo from "../../assets/logo.jpeg";
 
 export default function Caja() {
   const navigate = useNavigate();
+  const { user } = useAuth(); // ⭐ NUEVO: Obtener usuario del contexto
   const [locales, setLocales] = useState([]);
   const [localSeleccionado, setLocalSeleccionado] = useState("");
   const [turnoActivo, setTurnoActivo] = useState(null);
@@ -33,6 +35,14 @@ export default function Caja() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localSeleccionado]);
 
+  // ⭐ NUEVO: Efecto para auto-seleccionar cajero si el user está disponible
+  useEffect(() => {
+    if (user && cajeros.length === 0 && localSeleccionado) {
+      console.log('👤 Usuario detectado del contexto, recargando cajeros...');
+      cargarCajeros();
+    }
+  }, [user, localSeleccionado]);
+
   const cargarLocales = async () => {
     try {
       const data = await mesasService.getLocales();
@@ -56,30 +66,48 @@ export default function Caja() {
     }
   };
 
-  // ⭐ CORREGIDO: Cargar cajeros del local + el admin SIEMPRE
+  // ⭐ MEJORADO: Usar contexto primero, localStorage como fallback
   const cargarCajeros = async () => {
     console.log('🔄 ===== INICIANDO CARGA DE CAJEROS =====');
     try {
-      // 1. Obtener usuario actual de localStorage
-      const userStr = localStorage.getItem('user');
-      console.log('📦 localStorage.user:', userStr);
-      
-      if (!userStr) {
-        console.error('❌ No hay usuario en localStorage');
-        toast.error("Error: No se encontró usuario en sesión");
+      // 1. Intentar obtener usuario del contexto PRIMERO
+      let usuarioActual = user;
+      console.log('👤 Usuario del contexto:', usuarioActual);
+
+      // 2. Si no hay usuario en contexto, intentar localStorage como fallback
+      if (!usuarioActual) {
+        console.log('⚠️ No hay usuario en contexto, intentando localStorage...');
+        const userStr = localStorage.getItem('user');
+        console.log('📦 localStorage.user:', userStr);
+        
+        if (userStr) {
+          try {
+            usuarioActual = JSON.parse(userStr);
+            console.log('✅ Usuario recuperado de localStorage:', usuarioActual);
+          } catch (parseError) {
+            console.error('❌ Error parseando usuario de localStorage:', parseError);
+          }
+        }
+      }
+
+      // 3. Si aún no hay usuario, no podemos continuar
+      if (!usuarioActual) {
+        console.error('❌ ===== NO SE ENCONTRÓ USUARIO =====');
+        console.error('No hay usuario en contexto ni en localStorage');
+        console.error('Por favor, cierra sesión y vuelve a iniciar sesión');
+        toast.error("Error: No se encontró usuario. Por favor, vuelve a iniciar sesión.");
         setCajeros([]);
         return;
       }
 
-      const usuarioActual = JSON.parse(userStr);
-      console.log('👤 Usuario parseado:', {
+      console.log('👤 Usuario actual identificado:', {
         id: usuarioActual.id,
         nombre: usuarioActual.nombre,
         email: usuarioActual.email,
         rol: usuarioActual.rol
       });
       
-      // 2. Cargar cajeros del backend
+      // 4. Cargar cajeros del backend
       console.log(`📡 Haciendo fetch a: ${import.meta.env.VITE_API_URL}/auth/cajeros?local_id=${localSeleccionado}`);
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/auth/cajeros?local_id=${localSeleccionado}`,
@@ -91,11 +119,16 @@ export default function Caja() {
       );
       
       console.log('📡 Response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const cajerosData = await response.json();
       console.log('📋 Cajeros del backend:', cajerosData);
       console.log('📊 Cantidad de cajeros del backend:', cajerosData.length);
       
-      // 3. Verificar si el usuario es administrador
+      // 5. Verificar si el usuario es administrador
       console.log('🔍 Verificando rol del usuario:', usuarioActual.rol);
       console.log('🔍 ¿Es administrador?:', usuarioActual.rol === 'administrador');
       
@@ -148,11 +181,11 @@ export default function Caja() {
     } catch (error) {
       console.error('❌ ===== ERROR EN CARGA DE CAJEROS =====');
       console.error('Error completo:', error);
-      toast.error("Error al cargar cajeros");
+      toast.error("Error al cargar cajeros: " + error.message);
       
-      // ⭐ FALLBACK: Si falla la carga pero el usuario es admin, mostrar solo al admin
+      // ⭐ FALLBACK MEJORADO: Intentar con usuario del contexto o localStorage
       try {
-        const usuarioActual = JSON.parse(localStorage.getItem('user'));
+        const usuarioActual = user || JSON.parse(localStorage.getItem('user') || 'null');
         console.log('🆘 Ejecutando FALLBACK para usuario:', usuarioActual?.nombre);
         
         if (usuarioActual?.rol === 'administrador') {
@@ -170,7 +203,7 @@ export default function Caja() {
           console.log('✅ FALLBACK exitoso - Admin agregado como único cajero');
         } else {
           setCajeros([]);
-          console.log('⚠️ FALLBACK - No es admin, lista vacía');
+          console.log('⚠️ FALLBACK - No es admin o no hay usuario, lista vacía');
         }
       } catch (fallbackError) {
         console.error('❌ Error en fallback:', fallbackError);
@@ -197,6 +230,8 @@ export default function Caja() {
     
     if (cajeros.length === 0) {
       console.warn('⚠️ ¡ADVERTENCIA! No hay cajeros en la lista');
+      console.warn('Usuario del contexto:', user);
+      console.warn('Usuario de localStorage:', localStorage.getItem('user'));
     }
     
     cajeros.forEach((cajero, index) => {
@@ -213,6 +248,8 @@ export default function Caja() {
       return;
     }
 
+    console.log('💰 Abriendo turno para cajero:', cajeroSeleccionado);
+
     try {
       await turnosService.abrirTurno(
         localSeleccionado,
@@ -225,6 +262,7 @@ export default function Caja() {
       setCajeroSeleccionado("");
       cargarTurno();
     } catch (error) {
+      console.error('❌ Error al abrir turno:', error);
       toast.error(error.response?.data?.error || "Error al abrir turno");
     }
   };
@@ -490,11 +528,14 @@ export default function Caja() {
               {/* Selector de Cajero */}
               <div>
                 <label className="block text-sm text-gray-400 mb-2">
-                  Cajero
+                  Cajero {cajeros.length > 0 && `(${cajeros.length} disponible${cajeros.length > 1 ? 's' : ''})`}
                 </label>
                 <select
                   value={cajeroSeleccionado}
-                  onChange={(e) => setCajeroSeleccionado(e.target.value)}
+                  onChange={(e) => {
+                    console.log('📌 Cajero seleccionado:', e.target.value);
+                    setCajeroSeleccionado(e.target.value);
+                  }}
                   className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white"
                   required
                 >
@@ -503,20 +544,32 @@ export default function Caja() {
                     <option 
                       key={cajero.id} 
                       value={cajero.id}
-                      className={cajero.esAdmin ? "bg-[#D4B896]/20 font-semibold" : ""}
+                      className={cajero.esAdmin ? "font-semibold" : ""}
                     >
-                      {cajero.nombre} {cajero.email ? `- ${cajero.email}` : ''}
+                      {cajero.nombre}
                     </option>
                   ))}
                 </select>
+                
+                {/* Mensajes de ayuda */}
                 {cajeros.length === 0 && (
-                  <p className="text-xs text-red-400 mt-1">
-                    ⚠️ No hay cajeros asignados a este local
-                  </p>
+                  <div className="mt-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                    <p className="text-xs text-red-400 font-semibold mb-1">
+                      ⚠️ No hay cajeros disponibles
+                    </p>
+                    <p className="text-xs text-red-300">
+                      Por favor, cierra sesión y vuelve a iniciar sesión, luego intenta de nuevo.
+                    </p>
+                  </div>
                 )}
                 {cajeros.length === 1 && cajeros[0].esAdmin && (
-                  <p className="text-xs text-[#D4B896] mt-1">
-                    💡 Solo tú puedes abrir turno en este local
+                  <p className="text-xs text-[#D4B896] mt-2 bg-[#D4B896]/10 p-2 rounded">
+                    💡 Eres el único usuario autorizado para abrir turno en este local
+                  </p>
+                )}
+                {cajeros.length > 1 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Selecciona quién operará este turno
                   </p>
                 )}
               </div>
@@ -542,13 +595,18 @@ export default function Caja() {
                     setCajeroSeleccionado("");
                     setEfectivoInicial("");
                   }}
-                  className="flex-1 py-3 bg-[#1a1a1a] text-gray-300 rounded-lg border border-[#2a2a2a]"
+                  className="flex-1 py-3 bg-[#1a1a1a] text-gray-300 rounded-lg border border-[#2a2a2a] hover:bg-[#2a2a2a]"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleAbrirTurno}
-                  className="flex-1 py-3 bg-[#D4B896] text-[#0a0a0a] font-semibold rounded-lg"
+                  disabled={!cajeroSeleccionado}
+                  className={`flex-1 py-3 font-semibold rounded-lg transition ${
+                    cajeroSeleccionado 
+                      ? 'bg-[#D4B896] text-[#0a0a0a] hover:bg-[#C4A576]' 
+                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  }`}
                 >
                   Abrir Turno
                 </button>
