@@ -21,8 +21,35 @@ export default function Pedido() {
   const [mostrarCuentaMovil, setMostrarCuentaMovil] = useState(false);
   const [mostrarModalFactura, setMostrarModalFactura] = useState(false);
   const [pedidoCobrado, setPedidoCobrado] = useState(null);
-  // NUEVO: Estado para controlar el refresh durante el proceso de facturación
   const [procesoFacturacionActivo, setProcesoFacturacionActivo] = useState(false);
+
+  // ✅ NUEVO: Función helper para obtener el ID del local activo
+  const getLocalActivo = useCallback(() => {
+    return pedido?.local?.id || pedido?.local_id || null;
+  }, [pedido]);
+
+  // ✅ NUEVO: Función helper para obtener datos del producto según el local activo
+  const getProductoDataPorLocal = useCallback((producto) => {
+    const localId = getLocalActivo();
+    
+    // Si no hay local definido, retornar valores por defecto
+    if (!localId) {
+      return {
+        barrilActivo: null,
+        vasosDisponibles: 0,
+        stockDisponible: 0
+      };
+    }
+
+    // Determinar el sufijo correcto según el local
+    const sufijo = localId === 1 ? '_local1' : '_local2';
+    
+    return {
+      barrilActivo: producto[`barril_activo${sufijo}`],
+      vasosDisponibles: producto[`vasos_disponibles${sufijo}`] || 0,
+      stockDisponible: producto[`stock${sufijo}`] || 0
+    };
+  }, [getLocalActivo]);
 
   const cargarDatos = useCallback(async () => {
     try {
@@ -40,7 +67,6 @@ export default function Pedido() {
       if (pedidoActual) {
         setPedido(pedidoActual);
       } else {
-        // MODIFICADO: Solo redirigir si NO estamos en proceso de facturación
         if (!procesoFacturacionActivo) {
           toast.success("Este pedido ya fue cobrado");
           navigate("/pos");
@@ -58,10 +84,9 @@ export default function Pedido() {
     cargarDatos();
   }, [cargarDatos]);
 
-  // MODIFICADO: Auto-refresh condicionado - se detiene durante facturación
   useEffect(() => {
     if (procesoFacturacionActivo) {
-      return; // No hacer refresh durante el proceso de facturación
+      return;
     }
 
     const interval = setInterval(() => {
@@ -70,7 +95,6 @@ export default function Pedido() {
     return () => clearInterval(interval);
   }, [cargarDatos, procesoFacturacionActivo]);
 
-  // MODIFICADO: Refresh al volver a la pestaña - también condicionado
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible" && !procesoFacturacionActivo) {
@@ -81,17 +105,14 @@ export default function Pedido() {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [cargarDatos, procesoFacturacionActivo]);
 
-  // ⭐ VERIFICACIÓN PERIÓDICA DEL TURNO (CRÍTICO PARA SEGURIDAD)
   useEffect(() => {
     const verificarTurnoActivo = async () => {
       try {
-        // Importar el servicio dinámicamente
         const { turnosService } = await import("../../services/turnosService");
         const { authService } = await import("../../services/authService");
         
         const usuario = authService.getCurrentUser();
         
-        // Solo verificar si es cajero
         if (usuario?.rol !== 'cajero') return;
         
         try {
@@ -107,10 +128,7 @@ export default function Pedido() {
       }
     };
     
-    // Verificar cada 10 segundos
     const turnoInterval = setInterval(verificarTurnoActivo, 10000);
-    
-    // También verificar al montar el componente
     verificarTurnoActivo();
     
     return () => clearInterval(turnoInterval);
@@ -130,7 +148,6 @@ export default function Pedido() {
       }));
       toast.success("+1 " + producto.nombre, { duration: 1000 });
     } catch (err) {
-      // Verificar si el pedido ya fue cerrado
       if (err.response && err.response.status === 404) {
         toast.success("Este pedido ya fue cobrado");
         navigate("/pos");
@@ -187,7 +204,6 @@ export default function Pedido() {
 
   const handleCobrar = async () => {
     try {
-      // NUEVO: Activar el proceso de facturación ANTES de cobrar
       setProcesoFacturacionActivo(true);
       
       await pedidosService.cerrarPedido(
@@ -197,14 +213,12 @@ export default function Pedido() {
         razonCortesia
       );
       
-      // Guardar el pedido_id para generar la factura
       setPedidoCobrado(pedido_id);
       setModalCobrar(false);
       setMostrarModalFactura(true);
       
       toast.success("Pedido cobrado!");
     } catch (err) {
-      // NUEVO: Si hay error, desactivar el proceso de facturación
       setProcesoFacturacionActivo(false);
       
       if (err.response && err.response.status === 404) {
@@ -218,33 +232,22 @@ export default function Pedido() {
 
   const descargarFacturaPDF = () => {
     const token = localStorage.getItem("token");
-    
-    // Usar la URL base del servicio API que ya está configurado correctamente
     const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
-    
-    // Construir la URL completa
-    // Nota: Si VITE_API_URL ya termina con /api, no duplicar
-    const baseUrl = API_BASE.replace(/\/api$/, ''); // Remover /api final si existe
+    const baseUrl = API_BASE.replace(/\/api$/, '');
     const url = `${baseUrl}/api/facturas/pdf/${pedidoCobrado}?token=${token}`;
     
-    console.log("Descargando factura desde:", url); // Para debug
-    
-    // Abrir en nueva ventana para descargar
+    console.log("Descargando factura desde:", url);
     window.open(url, '_blank');
-    
     toast.success("Factura generada! Revisa la nueva ventana", { duration: 3000 });
   };
 
   const finalizarSinFactura = () => {
-    // NUEVO: Desactivar proceso de facturación y navegar al POS
     setProcesoFacturacionActivo(false);
     setMostrarModalFactura(false);
     navigate("/pos");
   };
   
-  // NUEVO: Función para cuando se descarga la factura
   const finalizarConFactura = () => {
-    // NUEVO: Desactivar proceso de facturación y navegar al POS
     setProcesoFacturacionActivo(false);
     setMostrarModalFactura(false);
     navigate("/pos");
@@ -290,7 +293,6 @@ export default function Pedido() {
     );
   }
 
-  // Si no hay pedido, mostrar mensaje y redirigir (solo si no estamos en facturación)
   if (!pedido && !procesoFacturacionActivo) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
@@ -385,60 +387,83 @@ export default function Pedido() {
         {/* Grid de productos - con scroll */}
         <div className="flex-1 overflow-y-auto p-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {productosFiltrados.map((producto) => (
-              <button
-                key={producto.id}
-                onClick={() => handleAgregarProducto(producto)}
-                className={
-                  "bg-[#141414] rounded-lg p-3 text-left hover:bg-[#1a1a1a] transition-all active:scale-95 border-2 " +
-                  getCategoriaColor(producto.categoria)
-                }
-              >
-                <p className="text-xs font-semibold truncate leading-tight">
-                  <span className="text-white">{producto.nombre}</span>
-                  {producto.presentacion && (
-                    <span className="text-[#D4B896] ml-1">
-                      ({producto.presentacion})
-                    </span>
-                  )}
-                </p>
-                <p className="text-[#D4B896] font-bold text-sm mt-0.5">
-                  ${Number(producto.precio_venta).toLocaleString()}
-                  {producto.unidad_medida === "barriles" && (
-                    <span className="text-[9px] text-gray-500"> /vaso</span>
-                  )}
-                </p>
+            {productosFiltrados.map((producto) => {
+              // ✅ CORREGIDO: Obtener datos según el local activo
+              const { barrilActivo, vasosDisponibles, stockDisponible } = getProductoDataPorLocal(producto);
 
-                {/* Barra de progreso para barriles */}
-                {producto.unidad_medida === "barriles" &&
-                  producto.barril_activo_local1 && (
+              return (
+                <button
+                  key={producto.id}
+                  onClick={() => handleAgregarProducto(producto)}
+                  className={
+                    "bg-[#141414] rounded-lg p-3 text-left hover:bg-[#1a1a1a] transition-all active:scale-95 border-2 " +
+                    getCategoriaColor(producto.categoria)
+                  }
+                >
+                  <p className="text-xs font-semibold truncate leading-tight">
+                    <span className="text-white">{producto.nombre}</span>
+                    {producto.presentacion && (
+                      <span className="text-[#D4B896] ml-1">
+                        ({producto.presentacion})
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-[#D4B896] font-bold text-sm mt-0.5">
+                    ${Number(producto.precio_venta).toLocaleString()}
+                    {producto.unidad_medida === "barriles" && (
+                      <span className="text-[9px] text-gray-500"> /vaso</span>
+                    )}
+                  </p>
+
+                  {/* ✅ CORREGIDO: Barra de progreso para barriles - usa datos del local activo */}
+                  {producto.unidad_medida === "barriles" && barrilActivo && (
                     <div className="mt-1">
                       <div className="w-full bg-gray-700 rounded-full h-1.5">
                         <div
                           className={
                             "h-1.5 rounded-full transition-all " +
-                            (producto.vasos_disponibles_local1 <= 15
+                            (vasosDisponibles <= 15
                               ? "bg-red-500"
-                              : producto.vasos_disponibles_local1 <= 30
+                              : vasosDisponibles <= 30
                                 ? "bg-yellow-500"
                                 : "bg-emerald-500")
                           }
                           style={{
-                            width: ((producto.vasos_disponibles_local1 / producto.capacidad_barril) * 100) + "%",
+                            width: ((vasosDisponibles / producto.capacidad_barril) * 100) + "%",
                           }}
                         />
                       </div>
                       <p className="text-[9px] text-gray-500 text-center mt-0.5">
-                        {producto.vasos_disponibles_local1}/{producto.capacidad_barril} vasos
+                        {vasosDisponibles}/{producto.capacidad_barril} vasos
                       </p>
                     </div>
                   )}
 
-                <p className="text-[9px] text-gray-500 mt-0.5 truncate">
-                  {producto.categoria?.icono} {producto.categoria?.nombre}
-                </p>
-              </button>
-            ))}
+                  {/* ✅ NUEVO: Mostrar stock para productos que NO son barriles */}
+                  {producto.unidad_medida !== "barriles" && (
+                    <div className="mt-1">
+                      <p className={
+                        "text-[10px] font-medium text-center " +
+                        (stockDisponible === 0
+                          ? "text-red-500"
+                          : stockDisponible <= 5
+                            ? "text-yellow-500"
+                            : "text-emerald-500")
+                      }>
+                        {stockDisponible === 0 
+                          ? "SIN STOCK" 
+                          : `Stock: ${stockDisponible} ${producto.unidad_medida || 'unid'}`
+                        }
+                      </p>
+                    </div>
+                  )}
+
+                  <p className="text-[9px] text-gray-500 mt-0.5 truncate">
+                    {producto.categoria?.icono} {producto.categoria?.nombre}
+                  </p>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -450,7 +475,6 @@ export default function Pedido() {
           (mostrarCuentaMovil ? "translate-y-0" : "translate-y-full lg:translate-y-0")
         }
       >
-        {/* Botón para cerrar en móvil */}
         <button
           onClick={() => setMostrarCuentaMovil(false)}
           className="lg:hidden absolute top-2 right-2 w-8 h-8 bg-gray-700 rounded-full text-white flex items-center justify-center"
@@ -458,13 +482,11 @@ export default function Pedido() {
           X
         </button>
 
-        {/* Header cuenta */}
         <div className="p-4 border-b border-[#2a2a2a] flex-shrink-0">
           <h2 className="text-lg font-bold text-white">Cuenta</h2>
           <p className="text-sm text-gray-500">Mesa {pedido?.mesa?.numero}</p>
         </div>
 
-        {/* Items */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {(!pedido?.items || pedido.items.length === 0) && (
             <div className="text-center py-8">
@@ -520,7 +542,6 @@ export default function Pedido() {
           ))}
         </div>
 
-        {/* Total y cobrar */}
         <div className="p-4 border-t border-[#2a2a2a] space-y-4 flex-shrink-0">
           <div className="flex justify-between items-center">
             <span className="text-gray-400">Subtotal</span>
@@ -559,10 +580,8 @@ export default function Pedido() {
             </div>
 
             <div className="p-6 space-y-4">
-              {/* Resumen con desglose de impuestos */}
               <div className="bg-[#1a1a1a] rounded-xl p-4 space-y-2">
                 {(() => {
-                  // Cálculo del Impoconsumo (8%)
                   const subtotalConImpuesto = Number(pedido?.subtotal || 0);
                   const baseGravable = subtotalConImpuesto / 1.08;
                   const impoconsumo = subtotalConImpuesto - baseGravable;
@@ -606,7 +625,6 @@ export default function Pedido() {
                 })()}
               </div>
 
-              {/* Botón para mostrar/ocultar cortesía */}
               <button
                 type="button"
                 onClick={() => setMostrarCortesia(!mostrarCortesia)}
@@ -615,7 +633,6 @@ export default function Pedido() {
                 {mostrarCortesia ? "X Cancelar cortesia" : "Aplicar cortesia"}
               </button>
 
-              {/* Campos de cortesía */}
               {mostrarCortesia && (
                 <div className="bg-[#1a1a1a] rounded-xl p-4 space-y-3 border border-[#D4B896]/30">
                   <div>
@@ -657,7 +674,6 @@ export default function Pedido() {
                       <option value="otro">Otro</option>
                     </select>
                   </div>
-                  {/* Botones rápidos de cortesía */}
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -688,7 +704,6 @@ export default function Pedido() {
                 </div>
               )}
 
-              {/* Método de pago */}
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-3">
                   Metodo de pago
@@ -733,7 +748,6 @@ export default function Pedido() {
                 </div>
               </div>
 
-              {/* Botones */}
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => {
@@ -758,7 +772,7 @@ export default function Pedido() {
         </div>
       )}
 
-      {/* Modal Factura - Mostrar después de cobrar */}
+      {/* Modal Factura */}
       {mostrarModalFactura && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl w-full max-w-md">
@@ -784,7 +798,6 @@ export default function Pedido() {
                 <button
                   onClick={() => {
                     descargarFacturaPDF();
-                    // MODIFICADO: Ahora el modal se cierra después de descargar
                     finalizarConFactura();
                   }}
                   className="w-full py-4 bg-[#D4B896] text-[#0a0a0a] font-bold rounded-xl hover:bg-[#C4A576] transition flex items-center justify-center gap-2"
