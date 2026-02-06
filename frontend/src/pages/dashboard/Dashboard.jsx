@@ -106,10 +106,17 @@ export default function Dashboard() {
       
       // Obtener locales
       const localesData = await mesasService.getLocales();
-      const local1 = localesData.find(l => l.id === 1);
-      const local2 = localesData.find(l => l.id === 2);
+      
+      // ✅ CORREGIDO: Buscar por nombre en lugar de ID numérico
+      const local1 = localesData.find(l => l.nombre?.toLowerCase().includes('castellana'));
+      const local2 = localesData.find(l => l.nombre?.toLowerCase().includes('avenida'));
 
-      console.log('🏪 Locales encontrados:', { local1: local1?.nombre, local2: local2?.nombre });
+      console.log('🏪 Locales encontrados:', { 
+        local1: local1?.nombre, 
+        local2: local2?.nombre,
+        local1Id: local1?.id,
+        local2Id: local2?.id
+      });
 
       // ========== ESTADÍSTICAS LOCAL 1 ==========
       let ventasLocal1 = 0;
@@ -119,7 +126,7 @@ export default function Dashboard() {
       if (local1) {
         // Ventas Local 1
         try {
-          const turnoLocal1 = await turnosService.getTurnoActivo(1);
+          const turnoLocal1 = await turnosService.getTurnoActivo(local1.id);
           ventasLocal1 = parseFloat(turnoLocal1.resumen?.total_ventas || 0);
           console.log('💰 Ventas Local 1 (Castellana):', ventasLocal1);
         } catch {
@@ -128,7 +135,7 @@ export default function Dashboard() {
 
         // Mesas activas Local 1
         try {
-          const mesasLocal1 = await mesasService.getMesas(1);
+          const mesasLocal1 = await mesasService.getMesas(local1.id);
           mesasActivasLocal1 = mesasLocal1.filter(m => m.estado === 'ocupada').length;
           console.log('🪑 Mesas activas Local 1:', mesasActivasLocal1);
         } catch (err) {
@@ -156,7 +163,7 @@ export default function Dashboard() {
       if (local2) {
         // Ventas Local 2
         try {
-          const turnoLocal2 = await turnosService.getTurnoActivo(2);
+          const turnoLocal2 = await turnosService.getTurnoActivo(local2.id);
           ventasLocal2 = parseFloat(turnoLocal2.resumen?.total_ventas || 0);
           console.log('💰 Ventas Local 2 (Avenida 1ra):', ventasLocal2);
         } catch {
@@ -165,7 +172,7 @@ export default function Dashboard() {
 
         // Mesas activas Local 2
         try {
-          const mesasLocal2 = await mesasService.getMesas(2);
+          const mesasLocal2 = await mesasService.getMesas(local2.id);
           mesasActivasLocal2 = mesasLocal2.filter(m => m.estado === 'ocupada').length;
           console.log('🪑 Mesas activas Local 2:', mesasActivasLocal2);
         } catch (err) {
