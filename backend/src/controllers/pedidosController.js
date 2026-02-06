@@ -199,24 +199,28 @@ const pedidosController = {
         console.log(`✅ Vasos descontados: ${producto[vasosKey] + cantidad} → ${producto[vasosKey]} (${local.nombre})`);
         
         // ⭐ NUEVO: Registrar movimiento de inventario para barriles
-        await MovimientoInventario.create({
-          producto_id: producto.id,
-          local_id: local.id,
-          tipo: 'venta',
-          cantidad: -cantidad, // Negativo porque es salida
-          stock_anterior: vasosAntes,
-          stock_nuevo: producto[vasosKey],
-          costo_unitario: producto.costo_promedio || 0,
-          costo_total: (producto.costo_promedio || 0) * cantidad,
-          valor_venta: parseFloat(producto.precio_venta) * cantidad,
-          motivo: `Venta POS Barril - Mesa ${pedido.mesa?.numero || 'N/A'}`,
-          pedido_id: pedido.id,
-          usuario_id: req.usuario.id,
-          fecha_movimiento: new Date()
-        }, { transaction: t });
-        
-        console.log(`📝 Movimiento de barril registrado para ${producto.nombre}`);
-        
+        try {
+          await MovimientoInventario.create({
+            producto_id: producto.id,
+            local_id: local.id,
+            tipo: 'venta',
+            cantidad: -cantidad, // Negativo porque es salida
+            stock_anterior: vasosAntes,
+            stock_nuevo: producto[vasosKey],
+            costo_unitario: producto.costo_promedio || 0,
+            costo_total: (producto.costo_promedio || 0) * cantidad,
+            valor_venta: parseFloat(producto.precio_venta) * cantidad,
+            motivo: `Venta POS Barril - Mesa ${pedido.mesa?.numero || 'N/A'}`,
+            pedido_id: pedido.id,
+            usuario_id: req.usuario?.id || null,
+            fecha_movimiento: new Date()
+          }, { transaction: t });
+          
+          console.log(`📝 Movimiento de barril registrado para ${producto.nombre}`);
+        } catch (errorMov) {
+          console.error(`⚠️ Error registrando movimiento (continuando): ${errorMov.message}`);
+          // No detenemos la operación si falla el registro del movimiento
+        }
       } else {
         // ⭐ LÓGICA PARA PRODUCTOS NORMALES (BOTELLAS, LATAS, ETC)
         
@@ -244,24 +248,28 @@ const pedidosController = {
         console.log(`✅ Stock actualizado: ${producto.nombre} - ${stockDisponible} → ${nuevoStock} (${local.nombre} - ${stockKey})`);
         
         // ⭐ NUEVO: Registrar movimiento de inventario para el reporte valorizado
-        await MovimientoInventario.create({
-          producto_id: producto.id,
-          local_id: local.id,
-          tipo: 'venta',
-          cantidad: -cantidad, // Negativo porque es salida
-          stock_anterior: stockDisponible,
-          stock_nuevo: nuevoStock,
-          costo_unitario: producto.costo_promedio || 0,
-          costo_total: (producto.costo_promedio || 0) * cantidad,
-          valor_venta: parseFloat(producto.precio_venta) * cantidad,
-          motivo: `Venta POS - Mesa ${pedido.mesa?.numero || 'N/A'}`,
-          pedido_id: pedido.id,
-          usuario_id: req.usuario.id,
-          fecha_movimiento: new Date()
-        }, { transaction: t });
-        
-        console.log(`📝 Movimiento de inventario registrado para ${producto.nombre}`);
-      }
+        try {
+          await MovimientoInventario.create({
+            producto_id: producto.id,
+            local_id: local.id,
+            tipo: 'venta',
+            cantidad: -cantidad, // Negativo porque es salida
+            stock_anterior: stockDisponible,
+            stock_nuevo: nuevoStock,
+            costo_unitario: producto.costo_promedio || 0,
+            costo_total: (producto.costo_promedio || 0) * cantidad,
+            valor_venta: parseFloat(producto.precio_venta) * cantidad,
+            motivo: `Venta POS - Mesa ${pedido.mesa?.numero || 'N/A'}`,
+            pedido_id: pedido.id,
+            usuario_id: req.usuario?.id || null,
+            fecha_movimiento: new Date()
+          }, { transaction: t });
+          
+          console.log(`📝 Movimiento de inventario registrado para ${producto.nombre}`);
+        } catch (errorMov) {
+          console.error(`⚠️ Error registrando movimiento (continuando): ${errorMov.message}`);
+          // No detenemos la operación si falla el registro del movimiento
+        }
 
       // Buscar o crear el item en el pedido
       let item = await ItemPedido.findOne({ where: { pedido_id, producto_id } });
@@ -294,7 +302,7 @@ const pedidosController = {
       const pedidoActualizado = await Pedido.findByPk(pedido_id, {
         include: [
           { model: Mesa, as: "mesa" },
-          { model: ItemPedido, as: "items", include: [{ model: Producto, as: "producto", include: [{ model: Categoria, as: "categoria" }] }] },
+          { model: ItemPedido, as: "items", include: [{ model: Producto, as: "producto" }] },
         ],
       });
 
@@ -304,9 +312,7 @@ const pedidosController = {
         io.emit('pedido_actualizado', { pedido: pedidoActualizado, accion: 'item_agregado' });
         
         // Emitir actualización de producto (para reflejar cambio de stock)
-        const prodActualizado = await Producto.findByPk(producto_id, { 
-          include: [{ model: Categoria, as: 'categoria' }] 
-        });
+        const prodActualizado = await Producto.findByPk(producto_id);
         
         if (producto.unidad_medida === 'barriles') {
           io.emit('barril_actualizado', { tipo: 'venta', producto: prodActualizado });
@@ -318,8 +324,12 @@ const pedidosController = {
       res.json(pedidoActualizado);
     } catch (error) {
       if (!t.finished) await t.rollback();
-      console.error('❌ Error en agregarItem:', error);
-      res.status(500).json({ error: error.message });
+      console.error('❌ ERROR COMPLETO en agregarItem:', error);
+      console.error('Stack trace:', error.stack);
+      res.status(500).json({ 
+        error: error.message,
+        detalles: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
     }
   },
 
