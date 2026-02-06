@@ -265,7 +265,7 @@ const PagoCompra = require('./PagoCompra');
 // Relaciones de CompraImpuesto
 Compra.hasMany(CompraImpuesto, { 
   foreignKey: 'compra_id', 
-  as: 'impuestos' 
+  as: 'impuestosAplicados' 
 });
 CompraImpuesto.belongsTo(Compra, { 
   foreignKey: 'compra_id', 
