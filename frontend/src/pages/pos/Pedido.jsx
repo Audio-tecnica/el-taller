@@ -254,7 +254,7 @@ export default function Pedido() {
   
   // Determinar si es local 1 (Avenida 1ra) o local 2 (La Castellana)
 const nombreLocal = pedido?.local?.nombre || "";
-const esLocal1 = nombreLocal.toLowerCase().includes("avenida");
+const esLocal1 = nombreLocal.toLowerCase().includes("castellana");
 
   if (loading) {
     return (
