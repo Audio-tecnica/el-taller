@@ -28,7 +28,7 @@ export default function Caja() {
   useEffect(() => {
     if (localSeleccionado) {
       cargarTurno();
-      cargarCajeros(); // ⭐ Cargar cajeros cuando cambie el local
+      cargarCajeros();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localSeleccionado]);
@@ -56,9 +56,10 @@ export default function Caja() {
     }
   };
 
-  // ⭐ NUEVA FUNCIÓN: Cargar cajeros del local
+  // ⭐ MODIFICADO: Cargar cajeros del local + el admin
   const cargarCajeros = async () => {
     try {
+      // Cargar cajeros del local
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/auth/cajeros?local_id=${localSeleccionado}`,
         {
@@ -67,11 +68,52 @@ export default function Caja() {
           },
         },
       );
-      const data = await response.json();
-      setCajeros(data);
+      const cajerosData = await response.json();
+      
+      // ⭐ NUEVO: Obtener el usuario actual
+      const usuarioActual = JSON.parse(localStorage.getItem('user'));
+      
+      // ⭐ NUEVO: Si el usuario es admin, agregarlo a la lista de cajeros
+      if (usuarioActual?.rol === 'administrador') {
+        const adminEnLista = cajerosData.find(c => c.id === usuarioActual.id);
+        
+        if (!adminEnLista) {
+          // Agregar el admin al inicio de la lista con un indicador visual
+          setCajeros([
+            {
+              id: usuarioActual.id,
+              nombre: `${usuarioActual.nombre} (Yo - Admin)`,
+              email: usuarioActual.email,
+              esAdmin: true
+            },
+            ...cajerosData
+          ]);
+          
+          console.log('✅ Admin agregado a la lista de cajeros:', usuarioActual.nombre);
+        } else {
+          setCajeros(cajerosData);
+        }
+      } else {
+        setCajeros(cajerosData);
+      }
+      
     } catch {
       toast.error("Error al cargar cajeros");
-      setCajeros([]);
+      
+      // ⭐ FALLBACK: Si falla la carga de cajeros pero el usuario es admin, al menos mostrar al admin
+      const usuarioActual = JSON.parse(localStorage.getItem('user'));
+      if (usuarioActual?.rol === 'administrador') {
+        setCajeros([
+          {
+            id: usuarioActual.id,
+            nombre: `${usuarioActual.nombre} (Yo - Admin)`,
+            email: usuarioActual.email,
+            esAdmin: true
+          }
+        ]);
+      } else {
+        setCajeros([]);
+      }
     }
   };
 
@@ -86,7 +128,6 @@ export default function Caja() {
   };
 
   const handleOpenModalAbrir = () => {
-    // Ya no necesitamos cargar cajeros aquí porque se cargan automáticamente
     setModalAbrir(true);
   };
 
@@ -372,7 +413,9 @@ export default function Caja() {
             <div className="p-6 space-y-4">
               {/* Selector de Cajero */}
               <div>
-                <label className="block text-sm text-gray-400 mb-2">Cajero</label>
+                <label className="block text-sm text-gray-400 mb-2">
+                  Cajero
+                </label>
                 <select
                   value={cajeroSeleccionado}
                   onChange={(e) => setCajeroSeleccionado(e.target.value)}
@@ -381,14 +424,23 @@ export default function Caja() {
                 >
                   <option value="">Seleccionar cajero...</option>
                   {cajeros.map((cajero) => (
-                    <option key={cajero.id} value={cajero.id}>
-                      {cajero.nombre} - {cajero.email}
+                    <option 
+                      key={cajero.id} 
+                      value={cajero.id}
+                      className={cajero.esAdmin ? "bg-[#D4B896]/20 font-semibold" : ""}
+                    >
+                      {cajero.nombre} {cajero.email ? `- ${cajero.email}` : ''}
                     </option>
                   ))}
                 </select>
                 {cajeros.length === 0 && (
                   <p className="text-xs text-red-400 mt-1">
                     ⚠️ No hay cajeros asignados a este local
+                  </p>
+                )}
+                {cajeros.length === 1 && cajeros[0].esAdmin && (
+                  <p className="text-xs text-[#D4B896] mt-1">
+                    💡 Solo tú puedes abrir turno en este local
                   </p>
                 )}
               </div>
