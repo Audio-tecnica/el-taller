@@ -111,35 +111,36 @@ export default function Dashboard() {
         console.error('Error al cargar ventas:', error);
       }
 
-      // 2. Mesas activas (con pedidos)
+      // 2. Mesas activas (con pedidos) - CORREGIDO: 'ocupada' en minúscula
       let mesasActivas = 0;
       try {
         const localesData = await mesasService.getLocales();
         for (const local of localesData) {
           const mesasData = await mesasService.getMesas(local.id);
-          mesasActivas += mesasData.filter(m => m.estado === 'Ocupada').length;
+          mesasActivas += mesasData.filter(m => m.estado === 'ocupada').length;
         }
       } catch (error) {
         console.error('Error al cargar mesas:', error);
       }
 
-      // 3. Total de productos
+      // 3. Total de productos activos
       let totalProductos = 0;
       try {
         const productosData = await productosService.getProductos();
-        totalProductos = Array.isArray(productosData) ? productosData.length : (productosData.total || 0);
+        totalProductos = Array.isArray(productosData) ? productosData.length : 0;
       } catch (error) {
         console.error('Error al cargar productos:', error);
       }
 
-      // 4. Stock bajo (productos con stock <= stock_minimo)
+      // 4. Stock bajo - CORREGIDO: usar alerta_stock y stock_total
       let stockBajo = 0;
       try {
         const productosData = await productosService.getProductos();
-        const lista = Array.isArray(productosData) ? productosData : (productosData.productos || []);
-        stockBajo = lista.filter(p => 
-          p.stock_minimo && p.stock_minimo > 0 && p.stock <= p.stock_minimo
-        ).length || 0;
+        const lista = Array.isArray(productosData) ? productosData : [];
+        stockBajo = lista.filter(p => {
+          const stockTotal = (p.stock_local1 || 0) + (p.stock_local2 || 0);
+          return stockTotal <= (p.alerta_stock || 0);
+        }).length;
       } catch (error) {
         console.error('Error al cargar stock bajo:', error);
       }
