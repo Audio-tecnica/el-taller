@@ -90,7 +90,44 @@ export default function POS() {
     inicializar();
   }, []); // ⭐ Solo ejecutar una vez al montar
 
-  // Refrescar periódicamente
+  // ⭐ VERIFICACIÓN PERIÓDICA DEL TURNO (CRÍTICO PARA SEGURIDAD)
+  useEffect(() => {
+    if (!inicializado || esAdmin) return; // Solo verificar para cajeros
+    
+    console.log('🔒 Iniciando verificación periódica de turno para cajero');
+    
+    const verificarTurno = async () => {
+      try {
+        const turno = await turnosService.getMiTurnoActivo();
+        const localId = turno.local?.id || turno.local_id || turno.localId;
+        
+        // Verificar que el local sigue siendo el mismo
+        if (localId !== localDelTurno) {
+          console.error('⚠️ ALERTA: Local del turno cambió');
+          toast.error('El local de tu turno ha cambiado. Redirigiendo...');
+          navigate('/dashboard');
+          return;
+        }
+        
+        console.log('✅ Turno verificado - sigue activo');
+      } catch  {
+        // El turno fue cerrado
+        console.error('❌ TURNO CERRADO - Expulsando del POS');
+        toast.error('Tu turno ha sido cerrado por administración');
+        navigate('/dashboard');
+      }
+    };
+    
+    // Verificar cada 10 segundos
+    const turnoInterval = setInterval(verificarTurno, 10000);
+    
+    return () => {
+      console.log('🛑 Limpiando verificación de turno');
+      clearInterval(turnoInterval);
+    };
+  }, [inicializado, esAdmin, localDelTurno, navigate]);
+
+  // Refrescar periódicamente las mesas
   useEffect(() => {
     if (!inicializado) return;
     
