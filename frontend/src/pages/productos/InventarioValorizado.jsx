@@ -23,7 +23,7 @@ export default function InventarioValorizado() {
   const [filtroTipoEnvase, setFiltroTipoEnvase] = useState("todos");
   
   // Vista activa
-  const [vistaActiva, setVistaActiva] = useState("tabla"); // dashboard, tabla, analisis
+  const [vistaActiva, setVistaActiva] = useState("dashboard");
 
   useEffect(() => {
     cargarDatos();
@@ -72,24 +72,20 @@ export default function InventarioValorizado() {
 
   // Aplicar filtros a productos
   let productosFiltrados = datos.productos.filter(p => {
-    // Filtro de búsqueda
     const matchBusqueda = !busqueda || 
       p.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
       p.codigo?.toLowerCase().includes(busqueda.toLowerCase()) ||
       p.categoria?.toLowerCase().includes(busqueda.toLowerCase());
     
-    // Filtro de rotación
     const matchRotacion = filtroRotacion === "todos" || 
       p.clasificacion_rotacion === filtroRotacion;
     
-    // Filtro de stock
     let matchStock = true;
     if (filtroStock === "critico") matchStock = p.stock_critico;
     else if (filtroStock === "bajo") matchStock = p.stock_bajo;
     else if (filtroStock === "sin_stock") matchStock = p.sin_stock;
     else if (filtroStock === "disponible") matchStock = p.stock > 0;
     
-    // ⭐ Filtro de tipo de envase
     const matchTipoEnvase = filtroTipoEnvase === "todos" || 
       p.tipo_envase === filtroTipoEnvase;
     
@@ -178,7 +174,7 @@ export default function InventarioValorizado() {
               </div>
 
               <button
-                onClick={() => navigate("/inventario")}
+                onClick={() => navigate("/dashboard")}
                 className="px-4 py-2 bg-[#1a1a1a] text-gray-400 rounded-lg hover:bg-[#2a2a2a] transition border border-[#2a2a2a]"
               >
                 Volver
@@ -219,7 +215,248 @@ export default function InventarioValorizado() {
           </div>
         )}
 
+        {/* ============================================ */}
+        {/* VISTA DASHBOARD */}
+        {/* ============================================ */}
+        {vistaActiva === "dashboard" && (
+          <div className="space-y-6">
+            {/* Métricas Principales */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/30 rounded-2xl p-5">
+                <p className="text-blue-400 text-sm mb-1">Total Productos</p>
+                <p className="text-3xl font-black text-white">{datos.totales.total_productos || 0}</p>
+                <p className="text-xs text-blue-300 mt-1">
+                  {datos.totales.total_productos_activos || 0} con stock
+                </p>
+              </div>
+
+              <div className="bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30 rounded-2xl p-5">
+                <p className="text-emerald-400 text-sm mb-1">Valor Inventario</p>
+                <p className="text-3xl font-black text-white">{formatMoney(datos.totales.valor_total_costo)}</p>
+                <p className="text-xs text-emerald-300 mt-1">Capital invertido</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30 rounded-2xl p-5">
+                <p className="text-purple-400 text-sm mb-1">Valor Potencial</p>
+                <p className="text-3xl font-black text-white">{formatMoney(datos.totales.valor_total_venta)}</p>
+                <p className="text-xs text-purple-300 mt-1">Si se vende todo</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/30 rounded-2xl p-5">
+                <p className="text-amber-400 text-sm mb-1">Utilidad Potencial</p>
+                <p className="text-3xl font-black text-white">{formatMoney(datos.totales.utilidad_potencial_total)}</p>
+                <p className="text-xs text-amber-300 mt-1">
+                  Margen: {datos.totales.margen_promedio_ponderado}%
+                </p>
+              </div>
+            </div>
+
+            {/* Alertas y Rotación */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Alertas de Stock */}
+              <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="text-2xl">⚠️</span>
+                  Alertas de Stock
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                    <div>
+                      <p className="text-sm text-gray-400">Sin Stock</p>
+                      <p className="text-2xl font-bold text-red-400">{datos.totales.productos_sin_stock || 0}</p>
+                    </div>
+                    <span className="text-3xl">🚨</span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                    <div>
+                      <p className="text-sm text-gray-400">Stock Crítico</p>
+                      <p className="text-2xl font-bold text-orange-400">{datos.totales.productos_stock_critico || 0}</p>
+                    </div>
+                    <span className="text-3xl">⚡</span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <div>
+                      <p className="text-sm text-gray-400">Stock Bajo</p>
+                      <p className="text-2xl font-bold text-yellow-400">{datos.totales.productos_stock_bajo || 0}</p>
+                    </div>
+                    <span className="text-3xl">⚠️</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Análisis de Rotación */}
+              <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="text-2xl">🔄</span>
+                  Análisis de Rotación (90 días)
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                    <div>
+                      <p className="text-sm text-gray-400">Alta Rotación</p>
+                      <p className="text-2xl font-bold text-emerald-400">{datos.totales.productos_alta_rotacion || 0}</p>
+                    </div>
+                    <span className="text-3xl">🚀</span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                    <div>
+                      <p className="text-sm text-gray-400">Rotación Media</p>
+                      <p className="text-2xl font-bold text-blue-400">{datos.totales.productos_media_rotacion || 0}</p>
+                    </div>
+                    <span className="text-3xl">📊</span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                    <div>
+                      <p className="text-sm text-gray-400">Sin Movimiento</p>
+                      <p className="text-2xl font-bold text-red-400">{datos.totales.productos_sin_movimiento || 0}</p>
+                    </div>
+                    <span className="text-3xl">💤</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Desglose por Local */}
+            {datos.desglosePorLocal && (
+              <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="text-2xl">🏢</span>
+                  Desglose por Local
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Castellana */}
+                  <div className="border border-[#3a3a3a] rounded-xl p-4">
+                    <h4 className="text-md font-bold text-[#D4B896] mb-3">Castellana</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-400">Productos con stock:</span>
+                        <span className="text-sm font-bold text-white">
+                          {datos.desglosePorLocal.castellana.productos_con_stock}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-400">Valor costo:</span>
+                        <span className="text-sm font-bold text-emerald-400">
+                          {formatMoney(datos.desglosePorLocal.castellana.valor_costo)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-400">Valor venta:</span>
+                        <span className="text-sm font-bold text-purple-400">
+                          {formatMoney(datos.desglosePorLocal.castellana.valor_venta)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between pt-2 border-t border-[#2a2a2a]">
+                        <span className="text-sm text-gray-400">Utilidad potencial:</span>
+                        <span className="text-sm font-bold text-amber-400">
+                          {formatMoney(datos.desglosePorLocal.castellana.utilidad_potencial)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Avenida 1ra */}
+                  <div className="border border-[#3a3a3a] rounded-xl p-4">
+                    <h4 className="text-md font-bold text-[#D4B896] mb-3">Avenida 1ra</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-400">Productos con stock:</span>
+                        <span className="text-sm font-bold text-white">
+                          {datos.desglosePorLocal.avenida_1ra.productos_con_stock}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-400">Valor costo:</span>
+                        <span className="text-sm font-bold text-emerald-400">
+                          {formatMoney(datos.desglosePorLocal.avenida_1ra.valor_costo)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-400">Valor venta:</span>
+                        <span className="text-sm font-bold text-purple-400">
+                          {formatMoney(datos.desglosePorLocal.avenida_1ra.valor_venta)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between pt-2 border-t border-[#2a2a2a]">
+                        <span className="text-sm text-gray-400">Utilidad potencial:</span>
+                        <span className="text-sm font-bold text-amber-400">
+                          {formatMoney(datos.desglosePorLocal.avenida_1ra.utilidad_potencial)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Top Productos */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Mayor Valor en Inventario */}
+              <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
+                <h3 className="text-md font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="text-xl">💰</span>
+                  Top 5 - Mayor Valor en Inventario
+                </h3>
+                <div className="space-y-2">
+                  {datos.topProductos.mayor_valor && datos.topProductos.mayor_valor.length > 0 ? (
+                    datos.topProductos.mayor_valor.map((p, i) => (
+                      <div key={p.producto_id} className="flex items-center justify-between p-3 bg-[#1a1a1a] rounded-lg border border-[#2a2a2a]">
+                        <div className="flex items-center gap-3 flex-1">
+                          <span className="text-2xl font-black text-emerald-500/50">#{i + 1}</span>
+                          <div>
+                            <p className="text-sm font-medium text-white">{p.nombre}</p>
+                            <p className="text-xs text-gray-500">{p.stock} unidades</p>
+                          </div>
+                        </div>
+                        <span className="text-sm font-bold text-emerald-400">
+                          {formatMoney(p.valor_inventario_costo)}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-center text-gray-500 py-8">Sin datos disponibles</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Mayor Rotación */}
+              <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
+                <h3 className="text-md font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="text-xl">🔥</span>
+                  Top 5 - Mayor Rotación (90 días)
+                </h3>
+                <div className="space-y-2">
+                  {datos.topProductos.mayor_rotacion && datos.topProductos.mayor_rotacion.length > 0 ? (
+                    datos.topProductos.mayor_rotacion.map((p, i) => (
+                      <div key={p.producto_id} className="flex items-center justify-between p-3 bg-[#1a1a1a] rounded-lg border border-[#2a2a2a]">
+                        <div className="flex items-center gap-3 flex-1">
+                          <span className="text-2xl font-black text-orange-500/50">#{i + 1}</span>
+                          <div>
+                            <p className="text-sm font-medium text-white">{p.nombre}</p>
+                            <p className="text-xs text-gray-500">Stock: {p.stock}</p>
+                          </div>
+                        </div>
+                        <span className="text-sm font-bold text-orange-400">
+                          {p.ventas_90_dias} ventas
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-center text-gray-500 py-8">Sin datos de ventas aún</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================ */}
         {/* VISTA TABLA */}
+        {/* ============================================ */}
         {vistaActiva === "tabla" && (
           <div className="space-y-6">
             {/* Métricas Principales - Compactas */}
@@ -466,7 +703,90 @@ export default function InventarioValorizado() {
           </div>
         )}
 
-        {/* Dashboard y Análisis aquí... (código existente) */}
+        {/* ============================================ */}
+        {/* VISTA ANÁLISIS */}
+        {/* ============================================ */}
+        {vistaActiva === "analisis" && (
+          <div className="space-y-6">
+            {/* Productos Críticos */}
+            <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <span className="text-2xl">🚨</span>
+                Productos Sin Movimiento (Capital Inmovilizado)
+              </h3>
+              <div className="space-y-2">
+                {datos.topProductos.sin_movimiento && datos.topProductos.sin_movimiento.length > 0 ? (
+                  datos.topProductos.sin_movimiento.map((p) => (
+                    <div key={p.producto_id} className="flex items-center justify-between p-4 bg-[#1a1a1a] rounded-lg border border-red-500/30">
+                      <div>
+                        <p className="text-sm font-medium text-white">{p.nombre}</p>
+                        <p className="text-xs text-gray-500">{p.stock} unidades • {p.categoria}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-red-400">{formatMoney(p.valor_inventario_costo)}</p>
+                        <p className="text-xs text-gray-500">Capital inmovilizado</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center text-gray-500 py-8">¡Excelente! No hay productos sin movimiento</p>
+                )}
+              </div>
+            </div>
+
+            {/* Productos con Mayor Utilidad */}
+            <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <span className="text-2xl">💎</span>
+                Top 5 - Mayor Utilidad Potencial
+              </h3>
+              <div className="space-y-2">
+                {datos.topProductos.mayor_utilidad && datos.topProductos.mayor_utilidad.length > 0 ? (
+                  datos.topProductos.mayor_utilidad.map((p, i) => (
+                    <div key={p.producto_id} className="flex items-center justify-between p-4 bg-[#1a1a1a] rounded-lg border border-emerald-500/30">
+                      <div className="flex items-center gap-3 flex-1">
+                        <span className="text-3xl font-black text-emerald-500/50">#{i + 1}</span>
+                        <div>
+                          <p className="text-sm font-medium text-white">{p.nombre}</p>
+                          <p className="text-xs text-gray-500">
+                            {p.stock} uds × {formatMoney(p.margen_absoluto)} margen/ud
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-emerald-400">{formatMoney(p.utilidad_potencial)}</p>
+                        <p className="text-xs text-emerald-300">{p.margen_porcentaje}% margen</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center text-gray-500 py-8">Sin datos disponibles</p>
+                )}
+              </div>
+            </div>
+
+            {/* Resumen Total */}
+            <div className="bg-gradient-to-br from-[#D4B896]/10 to-[#D4B896]/5 border border-[#D4B896]/30 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-[#D4B896] mb-4">📊 Resumen Global</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-400 mb-2">Capital Total Invertido</p>
+                  <p className="text-3xl font-black text-white mb-1">{formatMoney(datos.totales.valor_total_costo)}</p>
+                  <p className="text-xs text-gray-500">
+                    En {datos.totales.total_productos_activos} productos con stock
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400 mb-2">Utilidad Potencial Total</p>
+                  <p className="text-3xl font-black text-emerald-400 mb-1">{formatMoney(datos.totales.utilidad_potencial_total)}</p>
+                  <p className="text-xs text-gray-500">
+                    Margen promedio ponderado: {datos.totales.margen_promedio_ponderado}%
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
