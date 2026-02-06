@@ -11,12 +11,19 @@ export default function Dashboard() {
   const [turnoActivo, setTurnoActivo] = useState(null);
   const [loadingTurno, setLoadingTurno] = useState(true);
   
-  // ⭐ NUEVOS ESTADOS PARA ESTADÍSTICAS
-  const [stats, setStats] = useState({
+  // ⭐ NUEVOS ESTADOS PARA ESTADÍSTICAS POR LOCAL
+  const [statsLocal1, setStatsLocal1] = useState({
     ventasHoy: 0,
     mesasActivas: 0,
-    totalProductos: 0,
     stockBajo: 0
+  });
+  const [statsLocal2, setStatsLocal2] = useState({
+    ventasHoy: 0,
+    mesasActivas: 0,
+    stockBajo: 0
+  });
+  const [statsGlobales, setStatsGlobales] = useState({
+    totalProductos: 0
   });
   const [loadingStats, setLoadingStats] = useState(true);
 
@@ -29,7 +36,7 @@ export default function Dashboard() {
     
     // ⭐ CARGAR ESTADÍSTICAS
     if (usuario?.rol === "administrador") {
-      cargarEstadisticas();
+      cargarEstadisticasPorLocal();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -38,7 +45,6 @@ export default function Dashboard() {
     try {
       console.log("🔍 Buscando turno para cajero:", usuario.id, usuario.nombre);
 
-      // Buscar turno del cajero en TODOS los locales
       const { mesasService } = await import("../../services/mesasService");
       const localesData = await mesasService.getLocales();
 
@@ -56,7 +62,6 @@ export default function Dashboard() {
           console.log(`   - usuario_id: ${turno.usuario_id}`);
           console.log(`   - mi id: ${usuario.id}`);
 
-          // Verificar si este turno es del cajero actual
           const cajeroId = turno.cajero_id || turno.usuario_id;
           if (cajeroId === usuario.id) {
             console.log("🎯 ¡TURNO ENCONTRADO! Este es mi turno");
@@ -67,7 +72,7 @@ export default function Dashboard() {
           }
         } catch {
           console.log(`⚠️ No hay turno en ${local.nombre}`);
-          continue; // No hay turno en este local
+          continue;
         }
       }
 
@@ -86,90 +91,128 @@ export default function Dashboard() {
     }
   };
 
-  // ⭐ FUNCIÓN PARA CARGAR ESTADÍSTICAS
-  const cargarEstadisticas = async () => {
+  // ⭐ FUNCIÓN MEJORADA: CARGAR ESTADÍSTICAS POR LOCAL
+  const cargarEstadisticasPorLocal = async () => {
     try {
       setLoadingStats(true);
       
-      // Importar servicios dinámicamente
       const { mesasService } = await import("../../services/mesasService");
       const { productosService } = await import("../../services/productosService");
-      const { reportesService } = await import("../../services/reportesService");
+     
       
-      // 1. Ventas de hoy - CORREGIDO: usar endpoint de reportes
-      let ventasHoy = 0;
-      try {
-        const reporteHoy = await reportesService.getVentasHoy();
-        ventasHoy = parseFloat(reporteHoy.totalVentas || 0);
-        console.log('✅ Ventas de hoy cargadas:', ventasHoy);
-      } catch (error) {
-        console.error('⚠️ Error al cargar ventas del día:', error);
-        // Si falla, intentar desde turnos como fallback
+      // Obtener locales
+      const localesData = await mesasService.getLocales();
+      const local1 = localesData.find(l => l.id === 1);
+      const local2 = localesData.find(l => l.id === 2);
+
+      console.log('🏪 Locales encontrados:', { local1: local1?.nombre, local2: local2?.nombre });
+
+      // ========== ESTADÍSTICAS LOCAL 1 ==========
+      let ventasLocal1 = 0;
+      let mesasActivasLocal1 = 0;
+      let stockBajoLocal1 = 0;
+
+      if (local1) {
+        // Ventas Local 1
         try {
-          const localesData = await mesasService.getLocales();
-          for (const local of localesData) {
-            try {
-              const turno = await turnosService.getTurnoActivo(local.id);
-              ventasHoy += parseFloat(turno.resumen?.total_ventas || 0);
-            } catch {
-              // Silenciar 404 de turnos sin abrir
-            }
-          }
-          console.log('✅ Ventas desde turnos (fallback):', ventasHoy);
+          const turnoLocal1 = await turnosService.getTurnoActivo(1);
+          ventasLocal1 = parseFloat(turnoLocal1.resumen?.total_ventas || 0);
+          console.log('💰 Ventas Local 1 (Castellana):', ventasLocal1);
+        } catch {
+          console.log('⚠️ No hay turno activo en Local 1');
+        }
+
+        // Mesas activas Local 1
+        try {
+          const mesasLocal1 = await mesasService.getMesas(1);
+          mesasActivasLocal1 = mesasLocal1.filter(m => m.estado === 'ocupada').length;
+          console.log('🪑 Mesas activas Local 1:', mesasActivasLocal1);
         } catch (err) {
-          console.error('⚠️ También falló el fallback de turnos:', err);
+          console.error('⚠️ Error al cargar mesas Local 1:', err);
+        }
+
+        // Stock bajo Local 1
+        try {
+          const productosData = await productosService.getProductos();
+          stockBajoLocal1 = productosData.filter(p => {
+            const stockLocal1 = p.stock_local1 || 0;
+            return p.alerta_stock && stockLocal1 <= p.alerta_stock;
+          }).length;
+          console.log('📦 Stock bajo Local 1:', stockBajoLocal1);
+        } catch (err) {
+          console.error('⚠️ Error al cargar stock Local 1:', err);
         }
       }
 
-      // 2. Mesas activas (con pedidos)
-      let mesasActivas = 0;
-      try {
-        const localesData = await mesasService.getLocales();
-        for (const local of localesData) {
-          try {
-            const mesasData = await mesasService.getMesas(local.id);
-            mesasActivas += mesasData.filter(m => m.estado === 'ocupada').length;
-          } catch (err) {
-            console.error(`⚠️ Error al cargar mesas del local ${local.nombre}:`, err);
-          }
+      // ========== ESTADÍSTICAS LOCAL 2 ==========
+      let ventasLocal2 = 0;
+      let mesasActivasLocal2 = 0;
+      let stockBajoLocal2 = 0;
+
+      if (local2) {
+        // Ventas Local 2
+        try {
+          const turnoLocal2 = await turnosService.getTurnoActivo(2);
+          ventasLocal2 = parseFloat(turnoLocal2.resumen?.total_ventas || 0);
+          console.log('💰 Ventas Local 2 (Avenida 1ra):', ventasLocal2);
+        } catch {
+          console.log('⚠️ No hay turno activo en Local 2');
         }
-        console.log('✅ Mesas activas:', mesasActivas);
-      } catch (error) {
-        console.error('⚠️ Error al cargar mesas:', error);
+
+        // Mesas activas Local 2
+        try {
+          const mesasLocal2 = await mesasService.getMesas(2);
+          mesasActivasLocal2 = mesasLocal2.filter(m => m.estado === 'ocupada').length;
+          console.log('🪑 Mesas activas Local 2:', mesasActivasLocal2);
+        } catch (err) {
+          console.error('⚠️ Error al cargar mesas Local 2:', err);
+        }
+
+        // Stock bajo Local 2
+        try {
+          const productosData = await productosService.getProductos();
+          stockBajoLocal2 = productosData.filter(p => {
+            const stockLocal2 = p.stock_local2 || 0;
+            return p.alerta_stock && stockLocal2 <= p.alerta_stock;
+          }).length;
+          console.log('📦 Stock bajo Local 2:', stockBajoLocal2);
+        } catch (err) {
+          console.error('⚠️ Error al cargar stock Local 2:', err);
+        }
       }
 
-      // 3. Total de productos activos
+      // ========== ESTADÍSTICAS GLOBALES ==========
       let totalProductos = 0;
       try {
         const productosData = await productosService.getProductos();
         totalProductos = Array.isArray(productosData) ? productosData.length : 0;
-        console.log('✅ Total productos:', totalProductos);
+        console.log('✅ Total productos globales:', totalProductos);
       } catch (error) {
         console.error('⚠️ Error al cargar productos:', error);
       }
 
-      // 4. Stock bajo - usar alerta_stock
-      let stockBajo = 0;
-      try {
-        const productosData = await productosService.getProductos();
-        const lista = Array.isArray(productosData) ? productosData : [];
-        stockBajo = lista.filter(p => {
-          const stockTotal = (p.stock_local1 || 0) + (p.stock_local2 || 0);
-          return p.alerta_stock && stockTotal <= p.alerta_stock;
-        }).length;
-        console.log('✅ Productos con stock bajo:', stockBajo);
-      } catch (error) {
-        console.error('⚠️ Error al cargar stock bajo:', error);
-      }
-
-      console.log('📊 Estadísticas finales:', { ventasHoy, mesasActivas, totalProductos, stockBajo });
-
-      setStats({
-        ventasHoy,
-        mesasActivas,
-        totalProductos,
-        stockBajo
+      console.log('📊 Estadísticas finales por local:', {
+        local1: { ventasLocal1, mesasActivasLocal1, stockBajoLocal1 },
+        local2: { ventasLocal2, mesasActivasLocal2, stockBajoLocal2 },
+        globales: { totalProductos }
       });
+
+      setStatsLocal1({
+        ventasHoy: ventasLocal1,
+        mesasActivas: mesasActivasLocal1,
+        stockBajo: stockBajoLocal1
+      });
+
+      setStatsLocal2({
+        ventasHoy: ventasLocal2,
+        mesasActivas: mesasActivasLocal2,
+        stockBajo: stockBajoLocal2
+      });
+
+      setStatsGlobales({
+        totalProductos
+      });
+
     } catch (error) {
       console.error('❌ Error general al cargar estadísticas:', error);
     } finally {
@@ -233,7 +276,6 @@ export default function Dashboard() {
     },
   ];
 
-  // ⭐ NUEVOS MÓDULOS KARDEX PREMIUM (Solo Admin)
   const modulosKardex = [
     {
       nombre: "Proveedores",
@@ -264,7 +306,6 @@ export default function Dashboard() {
     },
   ];
 
-  // ⭐ MÓDULO DE SEGURIDAD (Solo para Administradores)
   const modulosSeguridad = [
     {
       nombre: "Intentos de Acceso",
@@ -290,7 +331,6 @@ export default function Dashboard() {
   if (usuario?.rol === "cajero") {
     return (
       <div className="min-h-screen bg-[#0a0a0a]">
-        {/* Header */}
         <header className="bg-[#0a0a0a] border-b border-[#2a2a2a]">
           <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
             <div className="flex items-center space-x-4">
@@ -326,9 +366,7 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {/* Contenido Cajero */}
         <main className="max-w-6xl mx-auto px-4 py-8">
-          {/* Bienvenida */}
           <div className="bg-gradient-to-r from-[#1a1a1a] to-[#141414] border border-[#2a2a2a] rounded-2xl p-6 mb-8">
             <h2 className="text-2xl font-bold text-white mb-1">
               Bienvenido, {usuario?.nombre}
@@ -339,9 +377,7 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {/* Grid con Punto de Venta e Información del Turno */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            {/* Botón Punto de Venta - 2/3 del ancho */}
             <div className="lg:col-span-2">
               <button
                 onClick={() => navigate("/pos")}
@@ -366,7 +402,6 @@ export default function Dashboard() {
               </button>
             </div>
 
-            {/* Panel de Información del Turno - 1/3 del ancho */}
             <div className="lg:col-span-1">
               {loadingTurno ? (
                 <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6 h-full flex items-center justify-center">
@@ -382,7 +417,6 @@ export default function Dashboard() {
                   </div>
 
                   <div className="space-y-4">
-                    {/* Local */}
                     <div>
                       <p className="text-gray-500 text-xs mb-1">Local</p>
                       <p className="text-white font-medium">
@@ -390,7 +424,6 @@ export default function Dashboard() {
                       </p>
                     </div>
 
-                    {/* Hora de apertura */}
                     <div>
                       <p className="text-gray-500 text-xs mb-1">Apertura</p>
                       <p className="text-white text-sm">
@@ -398,7 +431,6 @@ export default function Dashboard() {
                       </p>
                     </div>
 
-                    {/* Efectivo inicial */}
                     <div>
                       <p className="text-gray-500 text-xs mb-1">
                         Efectivo Inicial
@@ -408,7 +440,6 @@ export default function Dashboard() {
                       </p>
                     </div>
 
-                    {/* Ventas del turno */}
                     <div className="pt-3 border-t border-[#2a2a2a]">
                       <p className="text-gray-500 text-xs mb-1">Ventas Hoy</p>
                       <p className="text-xl font-bold text-white">
@@ -416,7 +447,6 @@ export default function Dashboard() {
                       </p>
                     </div>
 
-                    {/* Pedidos */}
                     <div>
                       <p className="text-gray-500 text-xs mb-1">Pedidos</p>
                       <p className="text-xl font-bold text-emerald-400">
@@ -442,7 +472,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Mensaje de ayuda si no hay turno */}
           {!turnoActivo && !loadingTurno && (
             <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4 flex items-start gap-3">
               <span className="text-2xl">💡</span>
@@ -465,7 +494,6 @@ export default function Dashboard() {
   // 🎯 VISTA PARA ADMINISTRADORES
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
-      {/* Header */}
       <header className="bg-[#0a0a0a] border-b border-[#2a2a2a]">
         <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center space-x-4">
@@ -501,9 +529,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Contenido */}
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Bienvenida */}
         <div className="bg-gradient-to-r from-[#1a1a1a] to-[#141414] border border-[#2a2a2a] rounded-2xl p-6 mb-8">
           <h2 className="text-2xl font-bold text-white mb-1">
             Bienvenido, {usuario?.nombre}
@@ -511,12 +537,12 @@ export default function Dashboard() {
           <p className="text-[#D4B896]">Sistema de gestión El Taller</p>
         </div>
 
-        {/* Grid: Módulos Principales + Stats */}
+        {/* Grid: Módulos Principales + Stats por Local */}
         <div className="mb-8">
           <h3 className="text-lg font-bold text-white mb-4">
             Módulos Principales
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-8 gap-4">
             {modulos.map((modulo) => (
               <button
                 key={modulo.nombre}
@@ -561,39 +587,94 @@ export default function Dashboard() {
               </button>
             ))}
 
-            {/* Stats como UN SOLO CUADRO */}
-            <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4 flex flex-col justify-between gap-3">
+            {/* ⭐ STATS LOCAL 1 - CASTELLANA */}
+            <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/30 rounded-xl p-3">
+              <div className="mb-2">
+                <p className="text-blue-400 text-xs font-bold mb-1">🏪 Castellana</p>
+              </div>
               {loadingStats ? (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-gray-500 text-xs">Cargando...</p>
+                <div className="flex items-center justify-center h-24">
+                  <p className="text-gray-500 text-xs">...</p>
                 </div>
               ) : (
-                <>
+                <div className="space-y-2">
                   <div>
-                    <p className="text-gray-500 text-xs mb-1">Ventas Hoy</p>
-                    <p className="text-xl font-bold text-[#D4B896]">
-                      {formatMoney(stats.ventasHoy)}
+                    <p className="text-gray-500 text-[10px]">Ventas</p>
+                    <p className="text-sm font-bold text-[#D4B896]">
+                      {formatMoney(statsLocal1.ventasHoy)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-500 text-xs mb-1">Mesas Activas</p>
-                    <p className="text-xl font-bold text-emerald-500">
-                      {stats.mesasActivas}
+                    <p className="text-gray-500 text-[10px]">Mesas</p>
+                    <p className="text-sm font-bold text-emerald-500">
+                      {statsLocal1.mesasActivas}
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-500 text-xs mb-1">Productos</p>
-                    <p className="text-xl font-bold text-white">
-                      {stats.totalProductos}
+                    <p className="text-gray-500 text-[10px]">Stock ⚠️</p>
+                    <p className="text-sm font-bold text-red-500">
+                      {statsLocal1.stockBajo}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ⭐ STATS LOCAL 2 - AVENIDA PRIMERA */}
+            <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/30 rounded-xl p-3">
+              <div className="mb-2">
+                <p className="text-purple-400 text-xs font-bold mb-1">🏪 Av. 1ra</p>
+              </div>
+              {loadingStats ? (
+                <div className="flex items-center justify-center h-24">
+                  <p className="text-gray-500 text-xs">...</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-gray-500 text-[10px]">Ventas</p>
+                    <p className="text-sm font-bold text-[#D4B896]">
+                      {formatMoney(statsLocal2.ventasHoy)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-500 text-xs mb-1">Stock Bajo</p>
-                    <p className="text-xl font-bold text-red-500">
-                      {stats.stockBajo}
+                    <p className="text-gray-500 text-[10px]">Mesas</p>
+                    <p className="text-sm font-bold text-emerald-500">
+                      {statsLocal2.mesasActivas}
                     </p>
                   </div>
-                </>
+                  <div>
+                    <p className="text-gray-500 text-[10px]">Stock ⚠️</p>
+                    <p className="text-sm font-bold text-red-500">
+                      {statsLocal2.stockBajo}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ⭐ STATS GLOBALES - PRODUCTOS */}
+            <div className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/30 rounded-xl p-3">
+              <div className="mb-2">
+                <p className="text-amber-400 text-xs font-bold mb-1">📦 Global</p>
+              </div>
+              {loadingStats ? (
+                <div className="flex items-center justify-center h-24">
+                  <p className="text-gray-500 text-xs">...</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-gray-500 text-[10px]">Productos</p>
+                    <p className="text-2xl font-bold text-white">
+                      {statsGlobales.totalProductos}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-[10px]">Activos</p>
+                    <p className="text-xs text-gray-400">en catálogo</p>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -610,7 +691,6 @@ export default function Dashboard() {
             </span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Clientes B2B */}
             <button
               onClick={() => navigate("/clientes-b2b")}
               className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/30 hover:border-blue-500 rounded-2xl p-6 text-left transition-all duration-200 group hover:scale-[1.02]"
@@ -641,7 +721,6 @@ export default function Dashboard() {
               </p>
             </button>
 
-            {/* Ventas B2B */}
             <button
               onClick={() => navigate("/ventas-b2b")}
               className="bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30 hover:border-emerald-500 rounded-2xl p-6 text-left transition-all duration-200 group hover:scale-[1.02]"
@@ -670,7 +749,6 @@ export default function Dashboard() {
               </p>
             </button>
 
-            {/* Pagos B2B */}
             <button
               onClick={() => navigate("/pagos-b2b")}
               className="bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30 hover:border-purple-500 rounded-2xl p-6 text-left transition-all duration-200 group hover:scale-[1.02]"
@@ -700,7 +778,6 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {/* Info adicional B2B */}
           <div className="mt-4 bg-[#141414] border border-[#2a2a2a] rounded-xl p-4 flex items-start gap-3">
             <span className="text-2xl">💼</span>
             <div className="flex-1">
@@ -715,7 +792,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ⭐ Módulos Kardex Premium - SOLO ADMINISTRADORES */}
+        {/* ⭐ Módulos Kardex Premium */}
         {usuario?.rol === "administrador" && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -759,7 +836,6 @@ export default function Dashboard() {
               ))}
             </div>
 
-            {/* Info adicional */}
             <div className="mt-4 bg-[#141414] border border-[#2a2a2a] rounded-xl p-4 flex items-start gap-3">
               <span className="text-2xl">💡</span>
               <div className="flex-1">
@@ -775,7 +851,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ⭐ Módulo de Seguridad - SOLO ADMINISTRADORES */}
+        {/* ⭐ Módulo de Seguridad */}
         {usuario?.rol === "administrador" && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -819,7 +895,6 @@ export default function Dashboard() {
               ))}
             </div>
 
-            {/* Info adicional */}
             <div className="mt-4 bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3">
               <span className="text-2xl">🔒</span>
               <div className="flex-1">
