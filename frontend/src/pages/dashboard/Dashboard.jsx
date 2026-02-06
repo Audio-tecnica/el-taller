@@ -94,33 +94,48 @@ export default function Dashboard() {
       // Importar servicios dinámicamente
       const { mesasService } = await import("../../services/mesasService");
       const { productosService } = await import("../../services/productosService");
+      const { reportesService } = await import("../../services/reportesService");
       
-      // 1. Ventas de hoy (desde turnos activos)
+      // 1. Ventas de hoy - CORREGIDO: usar endpoint de reportes
       let ventasHoy = 0;
       try {
-        const localesData = await mesasService.getLocales();
-        for (const local of localesData) {
-          try {
-            const turno = await turnosService.getTurnoActivo(local.id);
-            ventasHoy += parseFloat(turno.resumen?.total_ventas || 0);
-          } catch {
-            continue;
-          }
-        }
+        const reporteHoy = await reportesService.getVentasHoy();
+        ventasHoy = parseFloat(reporteHoy.totalVentas || 0);
+        console.log('✅ Ventas de hoy cargadas:', ventasHoy);
       } catch (error) {
-        console.error('Error al cargar ventas:', error);
+        console.error('⚠️ Error al cargar ventas del día:', error);
+        // Si falla, intentar desde turnos como fallback
+        try {
+          const localesData = await mesasService.getLocales();
+          for (const local of localesData) {
+            try {
+              const turno = await turnosService.getTurnoActivo(local.id);
+              ventasHoy += parseFloat(turno.resumen?.total_ventas || 0);
+            } catch {
+              // Silenciar 404 de turnos sin abrir
+            }
+          }
+          console.log('✅ Ventas desde turnos (fallback):', ventasHoy);
+        } catch (err) {
+          console.error('⚠️ También falló el fallback de turnos:', err);
+        }
       }
 
-      // 2. Mesas activas (con pedidos) - CORREGIDO: 'ocupada' en minúscula
+      // 2. Mesas activas (con pedidos)
       let mesasActivas = 0;
       try {
         const localesData = await mesasService.getLocales();
         for (const local of localesData) {
-          const mesasData = await mesasService.getMesas(local.id);
-          mesasActivas += mesasData.filter(m => m.estado === 'ocupada').length;
+          try {
+            const mesasData = await mesasService.getMesas(local.id);
+            mesasActivas += mesasData.filter(m => m.estado === 'ocupada').length;
+          } catch (err) {
+            console.error(`⚠️ Error al cargar mesas del local ${local.nombre}:`, err);
+          }
         }
+        console.log('✅ Mesas activas:', mesasActivas);
       } catch (error) {
-        console.error('Error al cargar mesas:', error);
+        console.error('⚠️ Error al cargar mesas:', error);
       }
 
       // 3. Total de productos activos
@@ -128,22 +143,26 @@ export default function Dashboard() {
       try {
         const productosData = await productosService.getProductos();
         totalProductos = Array.isArray(productosData) ? productosData.length : 0;
+        console.log('✅ Total productos:', totalProductos);
       } catch (error) {
-        console.error('Error al cargar productos:', error);
+        console.error('⚠️ Error al cargar productos:', error);
       }
 
-      // 4. Stock bajo - CORREGIDO: usar alerta_stock y stock_total
+      // 4. Stock bajo - usar alerta_stock
       let stockBajo = 0;
       try {
         const productosData = await productosService.getProductos();
         const lista = Array.isArray(productosData) ? productosData : [];
         stockBajo = lista.filter(p => {
           const stockTotal = (p.stock_local1 || 0) + (p.stock_local2 || 0);
-          return stockTotal <= (p.alerta_stock || 0);
+          return p.alerta_stock && stockTotal <= p.alerta_stock;
         }).length;
+        console.log('✅ Productos con stock bajo:', stockBajo);
       } catch (error) {
-        console.error('Error al cargar stock bajo:', error);
+        console.error('⚠️ Error al cargar stock bajo:', error);
       }
+
+      console.log('📊 Estadísticas finales:', { ventasHoy, mesasActivas, totalProductos, stockBajo });
 
       setStats({
         ventasHoy,
@@ -152,7 +171,7 @@ export default function Dashboard() {
         stockBajo
       });
     } catch (error) {
-      console.error('Error al cargar estadísticas:', error);
+      console.error('❌ Error general al cargar estadísticas:', error);
     } finally {
       setLoadingStats(false);
     }
