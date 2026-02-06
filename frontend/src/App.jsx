@@ -21,6 +21,7 @@ import IntentosAcceso from "./pages/admin/IntentosAcceso";
 import GestionUsuarios from "./pages/admin/GestionUsuarios";
 import { useSocket } from './hooks/useSocket';
 import VentasB2B from './pages/ventasB2B/VentasB2B';
+import DetalleProveedor from "./pages/proveedores/DetalleProveedor";
 
 // ⭐ Componente interno que usa useSocket dentro del Router
 function AppContent() {
@@ -50,6 +51,8 @@ function AppContent() {
         <Route path="/compras/nueva" element={<RegistrarCompra />} />
         <Route path="/inventario/valorizado" element={<InventarioValorizado />} />
         <Route path="/inventario" element={<Navigate to="/productos" replace />} />
+        <Route path="/proveedores/:id" element={<DetalleProveedor />} />
+        <Route path="/proveedores" element={<Proveedores />} />
         
         <Route path="/" element={<Login />} />
       </Routes>

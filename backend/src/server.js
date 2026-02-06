@@ -109,6 +109,13 @@ const impuestosRoutes = require('./routes/impuestosRoutes');
 // ⭐ RUTAS FACTURAS POS
 const facturasRoutes = require('./routes/facturasRoutes');
 
+// ⭐ RUTAS FACTURAS DE COMPRA
+const facturasCompraRoutes = require('./routes/facturasCompraRoutes');
+
+// Servir archivos PDF estáticos
+const path = require('path');
+app.use('/pdfs', express.static(path.join(__dirname, '../pdfs')));
+
 // Registrar todas las rutas
 app.use('/api/reportes', reportesRoutes);
 app.use("/api/turnos", turnosRoutes);
@@ -128,7 +135,8 @@ app.use('/api/clientes-b2b', clientesB2BRoutes);
 app.use('/api/ventas-b2b', ventasB2BRoutes);
 app.use('/api/pagos-b2b', pagosB2BRoutes);
 app.use('/api/impuestos', impuestosRoutes);
-app.use('/api/facturas', facturasRoutes); // ⭐ NUEVA RUTA
+app.use('/api/facturas', facturasRoutes); // ⭐ FACTURAS POS
+app.use('/api/facturas-compra', facturasCompraRoutes); // ⭐ FACTURAS DE COMPRA
 
 // Socket.IO - Manejo de conexiones
 io.on('connection', (socket) => {

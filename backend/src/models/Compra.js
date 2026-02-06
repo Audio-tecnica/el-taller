@@ -72,13 +72,18 @@ const Compra = sequelize.define('Compra', {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  usuario_id: {
+usuario_id: {
     type: DataTypes.UUID,
     allowNull: true,
     references: {
       model: 'usuarios',
       key: 'id'
     }
+  },
+  factura_pdf_url: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: 'URL del PDF de factura generado'
   }
 }, {
   tableName: 'compras',
