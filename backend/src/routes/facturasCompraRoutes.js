@@ -1,18 +1,37 @@
 const express = require('express');
 const router = express.Router();
 const { authMiddleware } = require('../middleware/authMiddleware');
-const {
-  generarPDFFactura,
-  descargarPDFFactura,
-  editarFactura,
-  anularFactura
-} = require('../controllers/facturasCompraController');
+const pagosComprasController = require('../controllers/pagosComprasController');
 
-router.use(authMiddleware);
+// ⭐ RUTAS DE PAGOS DE COMPRAS
+router.post(
+  '/compras/:compra_id/pagos',
+  authMiddleware,
+  pagosComprasController.registrarPago
+);
 
-router.post('/:id/generar-pdf', generarPDFFactura);
-router.get('/:id/descargar-pdf', descargarPDFFactura);
-router.put('/:id/editar', editarFactura);
-router.put('/:id/anular', anularFactura);
+router.get(
+  '/compras/:compra_id/pagos',
+  authMiddleware,
+  pagosComprasController.listarPagosCompra
+);
+
+router.get(
+  '/pagos-compras',
+  authMiddleware,
+  pagosComprasController.listarPagos
+);
+
+router.get(
+  '/pagos-compras/resumen',
+  authMiddleware,
+  pagosComprasController.obtenerResumen
+);
+
+router.post(
+  '/pagos-compras/:pago_id/anular',
+  authMiddleware,
+  pagosComprasController.anularPago
+);
 
 module.exports = router;

@@ -15,166 +15,340 @@ const inventarioKardexController = {
   // COMPRAS Y ENTRADAS
   // ==========================================
 
-  registrarCompra: async (req, res) => {
-    const t = await sequelize.transaction();
-    try {
-      const {
-        proveedor_id,
-        local_id,
-        numero_factura,
-        fecha_factura,
-        productos,
-        observaciones,
-        iva_porcentaje, // NUEVO: porcentaje de IVA
-        incluir_iva, // NUEVO: si se debe calcular IVA
-      } = req.body;
-      const usuario_id = req.usuario.id;
+  // FUNCIÓN ACTUALIZADA PARA REEMPLAZAR EN inventarioKardexController.js
+// Reemplazar desde la línea 18 hasta la línea 177
 
-      if (!productos || productos.length === 0) {
+registrarCompra: async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const {
+      proveedor_id,
+      local_id,
+      numero_factura,
+      fecha_factura,
+      productos,
+      observaciones,
+      // ⭐ NUEVOS CAMPOS
+      forma_pago,           // 'contado' o 'credito'
+      impuestos_aplicados,  // Array de impuestos [{impuesto_id, porcentaje}]
+      // Campos para compras a crédito
+      dias_credito,
+      fecha_vencimiento_manual, // Opcional: sobrescribir el cálculo automático
+    } = req.body;
+    const usuario_id = req.usuario.id;
+
+    if (!productos || productos.length === 0) {
+      await t.rollback();
+      return res
+        .status(400)
+        .json({ error: "Debe incluir al menos un producto" });
+    }
+
+    // Validar forma de pago
+    const formaPago = forma_pago || 'contado';
+    if (!['contado', 'credito'].includes(formaPago)) {
+      await t.rollback();
+      return res.status(400).json({ error: 'Forma de pago inválida' });
+    }
+
+    const proveedor = await Proveedor.findByPk(proveedor_id, {
+      transaction: t,
+    });
+    if (!proveedor) {
+      await t.rollback();
+      return res.status(404).json({ error: "Proveedor no encontrado" });
+    }
+
+    // Generar número de compra
+    const anio = new Date().getFullYear();
+    const ultimaCompra = await Compra.findOne({
+      where: { numero_compra: { [Op.like]: `COM-${anio}-%` } },
+      order: [["numero_compra", "DESC"]],
+      transaction: t,
+    });
+
+    let contador = 1;
+    if (ultimaCompra) {
+      contador = parseInt(ultimaCompra.numero_compra.split("-")[2]) + 1;
+    }
+
+    const numero_compra = `COM-${anio}-${String(contador).padStart(5, "0")}`;
+
+    // ================================================
+    // PROCESAR PRODUCTOS Y ACTUALIZAR INVENTARIO
+    // ================================================
+    let subtotal = 0;
+    const movimientos = [];
+
+    for (const item of productos) {
+      if (item.cantidad <= 0) {
         await t.rollback();
-        return res
-          .status(400)
-          .json({ error: "Debe incluir al menos un producto" });
+        return res.status(400).json({ error: "Cantidad inválida" });
       }
 
-      const proveedor = await Proveedor.findByPk(proveedor_id, {
-        transaction: t,
-      }); // FIX
-      if (!proveedor) {
-        await t.rollback();
-        return res.status(404).json({ error: "Proveedor no encontrado" });
-      }
-
-      const anio = new Date().getFullYear();
-      const ultimaCompra = await Compra.findOne({
-        where: { numero_compra: { [Op.like]: `COM-${anio}-%` } },
-        order: [["numero_compra", "DESC"]],
+      const producto = await Producto.findByPk(item.producto_id, {
         transaction: t,
       });
-
-      let contador = 1;
-      if (ultimaCompra) {
-        contador = parseInt(ultimaCompra.numero_compra.split("-")[2]) + 1;
+      if (!producto) {
+        await t.rollback();
+        return res
+          .status(404)
+          .json({ error: `Producto ${item.producto_id} no encontrado` });
       }
 
-      const numero_compra = `COM-${anio}-${String(contador).padStart(5, "0")}`;
+      const stockField =
+        local_id === "00000000-0000-0000-0000-000000000001"
+          ? "stock_local1"
+          : "stock_local2";
 
-      let subtotal = 0;
-      const movimientos = [];
+      const stockAnterior = producto[stockField];
+      const stockNuevo = stockAnterior + item.cantidad;
+      const costoTotal = item.cantidad * item.costo_unitario;
 
-      for (const item of productos) {
-        if (item.cantidad <= 0) {
-          // FIX
-          await t.rollback();
-          return res.status(400).json({ error: "Cantidad inválida" });
-        }
+      subtotal += costoTotal;
 
-        const producto = await Producto.findByPk(item.producto_id, {
-          transaction: t,
-        });
-        if (!producto) {
-          await t.rollback();
-          return res
-            .status(404)
-            .json({ error: `Producto ${item.producto_id} no encontrado` });
-        }
+      // Recalcular costo promedio
+      const stockTotalAnterior =
+        (producto.stock_local1 || 0) + (producto.stock_local2 || 0);
+      const nuevoCostoPromedio =
+        stockTotalAnterior + item.cantidad > 0
+          ? (producto.costo_promedio * stockTotalAnterior + costoTotal) /
+            (stockTotalAnterior + item.cantidad)
+          : item.costo_unitario;
 
-        const stockField =
-          local_id === "00000000-0000-0000-0000-000000000001"
-            ? "stock_local1"
-            : "stock_local2";
-
-        const stockAnterior = producto[stockField];
-        const stockNuevo = stockAnterior + item.cantidad;
-        const costoTotal = item.cantidad * item.costo_unitario;
-
-        subtotal += costoTotal;
-
-        // FIX: recalcular costo promedio
-        const stockTotalAnterior =
-          (producto.stock_local1 || 0) + (producto.stock_local2 || 0);
-        const nuevoCostoPromedio =
-          stockTotalAnterior + item.cantidad > 0
-            ? (producto.costo_promedio * stockTotalAnterior + costoTotal) /
-              (stockTotalAnterior + item.cantidad)
-            : item.costo_unitario;
-
-        await producto.update(
-          {
-            [stockField]: stockNuevo,
-            ultimo_costo: item.costo_unitario,
-            costo_promedio: nuevoCostoPromedio, // FIX
-          },
-          { transaction: t },
-        );
-
-        if (item.precio_venta) {
-          await producto.update(
-            { precio_venta: item.precio_venta },
-            { transaction: t },
-          );
-        }
-
-        const movimiento = await MovimientoInventario.create(
-          {
-            producto_id: item.producto_id,
-            local_id,
-            tipo: "compra",
-            cantidad: item.cantidad,
-            stock_anterior: stockAnterior,
-            stock_nuevo: stockNuevo,
-            costo_unitario: item.costo_unitario,
-            costo_total: costoTotal,
-            proveedor_id,
-            numero_factura,
-            fecha_factura,
-            fecha_movimiento: new Date(), // FIX
-            motivo: `Compra a ${proveedor.nombre}`,
-            observaciones,
-            usuario_id,
-          },
-          { transaction: t },
-        );
-
-        movimientos.push(movimiento);
-      }
-
-      // Calcular impuestos y total
-      const porcentajeIVA = incluir_iva ? parseFloat(iva_porcentaje) || 0 : 0;
-      const valorIVA = (subtotal * porcentajeIVA) / 100;
-      const totalCompra = subtotal + valorIVA;
-
-      const compra = await Compra.create(
+      await producto.update(
         {
-          numero_compra,
-          proveedor_id,
+          [stockField]: stockNuevo,
+          ultimo_costo: item.costo_unitario,
+          costo_promedio: nuevoCostoPromedio,
+        },
+        { transaction: t },
+      );
+
+      if (item.precio_venta) {
+        await producto.update(
+          { precio_venta: item.precio_venta },
+          { transaction: t },
+        );
+      }
+
+      const movimiento = await MovimientoInventario.create(
+        {
+          producto_id: item.producto_id,
           local_id,
+          tipo: "compra",
+          cantidad: item.cantidad,
+          stock_anterior: stockAnterior,
+          stock_nuevo: stockNuevo,
+          costo_unitario: item.costo_unitario,
+          costo_total: costoTotal,
+          proveedor_id,
           numero_factura,
           fecha_factura,
-          subtotal,
-          iva_porcentaje: porcentajeIVA,
-          impuestos: valorIVA,
-          total: totalCompra,
-          estado: "recibida",
+          fecha_movimiento: new Date(),
+          motivo: `Compra a ${proveedor.nombre}`,
           observaciones,
           usuario_id,
         },
         { transaction: t },
       );
 
-      await t.commit();
-
-      res.json({
-        mensaje: "Compra registrada exitosamente",
-        compra,
-        movimientos: movimientos.length,
-      });
-    } catch (error) {
-      await t.rollback();
-      console.error("Error en registrarCompra:", error);
-      res.status(500).json({ error: error.message });
+      movimientos.push(movimiento);
     }
-  },
+
+    // ================================================
+    // CALCULAR IMPUESTOS
+    // ================================================
+    const { Impuesto, CompraImpuesto } = require('../models');
+    
+    let totalImpuestos = 0;
+    let totalRetenciones = 0;
+    const impuestosRegistrados = [];
+    
+    if (impuestos_aplicados && impuestos_aplicados.length > 0) {
+      // Ordenar impuestos por orden de aplicación
+      const impuestosOrdenados = [];
+      
+      for (const impAplicado of impuestos_aplicados) {
+        const impuesto = await Impuesto.findByPk(impAplicado.impuesto_id, { transaction: t });
+        if (!impuesto) {
+          await t.rollback();
+          return res.status(404).json({ error: `Impuesto ${impAplicado.impuesto_id} no encontrado` });
+        }
+        impuestosOrdenados.push({
+          ...impAplicado,
+          impuesto
+        });
+      }
+      
+      // Ordenar: primero impuestos, luego retenciones
+      impuestosOrdenados.sort((a, b) => {
+        if (a.impuesto.tipo === 'Impuesto' && b.impuesto.tipo === 'Retencion') return -1;
+        if (a.impuesto.tipo === 'Retencion' && b.impuesto.tipo === 'Impuesto') return 1;
+        return a.impuesto.orden - b.impuesto.orden;
+      });
+      
+      // Calcular cada impuesto
+      let baseCalculo = subtotal;
+      
+      for (let i = 0; i < impuestosOrdenados.length; i++) {
+        const impAplicado = impuestosOrdenados[i];
+        const impuesto = impAplicado.impuesto;
+        
+        // Determinar base de cálculo según configuración
+        if (impuesto.base_calculo === 'Total' && i > 0) {
+          // Si es base Total, usar subtotal + impuestos ya aplicados
+          baseCalculo = subtotal + totalImpuestos;
+        } else {
+          baseCalculo = subtotal;
+        }
+        
+        const porcentajeAplicado = impAplicado.porcentaje || impuesto.porcentaje;
+        const montoImpuesto = (baseCalculo * parseFloat(porcentajeAplicado)) / 100;
+        
+        if (impuesto.tipo === 'Impuesto') {
+          totalImpuestos += montoImpuesto;
+        } else {
+          totalRetenciones += montoImpuesto;
+        }
+        
+        impuestosRegistrados.push({
+          impuesto_id: impuesto.id,
+          base_calculo: baseCalculo,
+          monto_impuesto: montoImpuesto,
+          tipo: impuesto.tipo,
+          porcentaje_aplicado: porcentajeAplicado,
+          orden_aplicacion: i + 1
+        });
+      }
+    }
+
+    const totalCompra = subtotal + totalImpuestos - totalRetenciones;
+
+    // ================================================
+    // CALCULAR FECHA DE VENCIMIENTO PARA CRÉDITO
+    // ================================================
+    let fechaVencimiento = null;
+    let diasCreditoFinal = null;
+    
+    if (formaPago === 'credito') {
+      if (fecha_vencimiento_manual) {
+        fechaVencimiento = fecha_vencimiento_manual;
+      } else {
+        // Obtener días de crédito del proveedor o usar el especificado
+        diasCreditoFinal = dias_credito || proveedor.terminos_pago_dias || 30;
+        
+        const fechaBase = fecha_factura ? new Date(fecha_factura) : new Date();
+        fechaVencimiento = new Date(fechaBase);
+        fechaVencimiento.setDate(fechaVencimiento.getDate() + diasCreditoFinal);
+      }
+    }
+
+    // ================================================
+    // CREAR REGISTRO DE COMPRA
+    // ================================================
+    const compra = await Compra.create(
+      {
+        numero_compra,
+        proveedor_id,
+        local_id,
+        numero_factura,
+        fecha_factura,
+        subtotal,
+        impuestos: totalImpuestos - totalRetenciones,
+        total: totalCompra,
+        estado: "recibida",
+        observaciones,
+        usuario_id,
+        // ⭐ NUEVOS CAMPOS
+        forma_pago: formaPago,
+        estado_pago: formaPago === 'contado' ? 'pagado' : 'pendiente',
+        fecha_vencimiento: fechaVencimiento,
+        dias_credito: diasCreditoFinal,
+        monto_pagado: formaPago === 'contado' ? totalCompra : 0,
+        saldo_pendiente: formaPago === 'contado' ? 0 : totalCompra
+      },
+      { transaction: t },
+    );
+
+    // ================================================
+    // REGISTRAR IMPUESTOS APLICADOS
+    // ================================================
+    if (impuestosRegistrados.length > 0) {
+      for (const impReg of impuestosRegistrados) {
+        await CompraImpuesto.create({
+          compra_id: compra.id,
+          ...impReg
+        }, { transaction: t });
+      }
+    }
+
+    // ================================================
+    // SI ES AL CONTADO, CREAR PAGO AUTOMÁTICO
+    // ================================================
+    if (formaPago === 'contado') {
+      const { PagoCompra } = require('../models');
+      
+      // Generar número de pago
+      const ultimoPago = await PagoCompra.findOne({
+        where: { numero_pago: { [Op.like]: `PAG-${anio}-%` } },
+        order: [['numero_pago', 'DESC']],
+        transaction: t
+      });
+      
+      let contadorPago = 1;
+      if (ultimoPago) {
+        contadorPago = parseInt(ultimoPago.numero_pago.split('-')[2]) + 1;
+      }
+      
+      const numeroPago = `PAG-${anio}-${String(contadorPago).padStart(5, '0')}`;
+      
+      await PagoCompra.create({
+        compra_id: compra.id,
+        numero_pago: numeroPago,
+        fecha_pago: new Date(),
+        monto_pago: totalCompra,
+        forma_pago: 'efectivo',
+        observaciones: 'Pago automático - Compra al contado',
+        usuario_id
+      }, { transaction: t });
+    }
+
+    await t.commit();
+
+    // Obtener compra completa con relaciones
+    const compraCompleta = await Compra.findByPk(compra.id, {
+      include: [
+        { model: Proveedor, as: 'proveedor' },
+        { 
+          model: CompraImpuesto, 
+          as: 'impuestos',
+          include: [{ model: Impuesto, as: 'impuesto' }]
+        }
+      ]
+    });
+
+    res.json({
+      mensaje: "Compra registrada exitosamente",
+      compra: compraCompleta,
+      movimientos: movimientos.length,
+      resumen: {
+        subtotal,
+        total_impuestos: totalImpuestos,
+        total_retenciones: totalRetenciones,
+        total: totalCompra,
+        forma_pago: formaPago,
+        estado_pago: compra.estado_pago,
+        fecha_vencimiento: fechaVencimiento,
+        saldo_pendiente: compra.saldo_pendiente
+      }
+    });
+  } catch (error) {
+    await t.rollback();
+    console.error("Error en registrarCompra:", error);
+    res.status(500).json({ error: error.message });
+  }
+},
 
   // Registrar devolución a proveedor (salida)
   registrarDevolucionProveedor: async (req, res) => {

@@ -256,3 +256,53 @@ module.exports = {
   ClienteImpuesto,
   VentaImpuesto
 };
+// Agregar después de las líneas existentes
+const CompraImpuesto = require('./CompraImpuesto');
+const PagoCompra = require('./PagoCompra');
+
+// Agregar a las relaciones (después de las relaciones existentes de Compra)
+
+// Relaciones de CompraImpuesto
+Compra.hasMany(CompraImpuesto, { 
+  foreignKey: 'compra_id', 
+  as: 'impuestos' 
+});
+CompraImpuesto.belongsTo(Compra, { 
+  foreignKey: 'compra_id', 
+  as: 'compra' 
+});
+
+Impuesto.hasMany(CompraImpuesto, { 
+  foreignKey: 'impuesto_id', 
+  as: 'compras_aplicadas' 
+});
+CompraImpuesto.belongsTo(Impuesto, { 
+  foreignKey: 'impuesto_id', 
+  as: 'impuesto' 
+});
+
+// Relaciones de PagoCompra
+Compra.hasMany(PagoCompra, { 
+  foreignKey: 'compra_id', 
+  as: 'pagos' 
+});
+PagoCompra.belongsTo(Compra, { 
+  foreignKey: 'compra_id', 
+  as: 'compra' 
+});
+
+Usuario.hasMany(PagoCompra, { 
+  foreignKey: 'usuario_id', 
+  as: 'pagos_compras_realizados' 
+});
+PagoCompra.belongsTo(Usuario, { 
+  foreignKey: 'usuario_id', 
+  as: 'usuario' 
+});
+
+// Agregar a las exportaciones
+module.exports = {
+  // ... modelos existentes ...
+  CompraImpuesto,
+  PagoCompra
+};
