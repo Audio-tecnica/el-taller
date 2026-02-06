@@ -146,7 +146,7 @@ export default function InventarioValorizado() {
               </div>
 
               <button
-                onClick={() => navigate("/inventario")}
+                onClick={() => navigate("/dashboard")}
                 className="px-4 py-2 bg-[#1a1a1a] text-gray-400 rounded-lg hover:bg-[#2a2a2a] transition border border-[#2a2a2a]"
               >
                 Volver
