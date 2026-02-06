@@ -26,7 +26,7 @@ const inventarioKardexController = {
         productos,
         observaciones,
         iva_porcentaje, // NUEVO: porcentaje de IVA
-        incluir_iva,     // NUEVO: si se debe calcular IVA
+        incluir_iva, // NUEVO: si se debe calcular IVA
       } = req.body;
       const usuario_id = req.usuario.id;
 
@@ -140,7 +140,7 @@ const inventarioKardexController = {
       }
 
       // Calcular impuestos y total
-      const porcentajeIVA = incluir_iva ? (parseFloat(iva_porcentaje) || 0) : 0;
+      const porcentajeIVA = incluir_iva ? parseFloat(iva_porcentaje) || 0 : 0;
       const valorIVA = (subtotal * porcentajeIVA) / 100;
       const totalCompra = subtotal + valorIVA;
 
@@ -683,77 +683,305 @@ const inventarioKardexController = {
     }
   },
 
-  // Obtener inventario valorizado
+  // ==========================================
+  // INVENTARIO VALORIZADO MEJORADO
+  // Con análisis de rotación, métricas avanzadas y más información
+  // ==========================================
+
   getInventarioValorizado: async (req, res) => {
     try {
-      const { local_id } = req.query;
+      const { local_id, categoria_id, proveedor_id } = req.query;
+
+      // Construir filtros dinámicos
+      const whereProducto = { activo: true };
+      if (categoria_id) {
+        whereProducto.categoria_id = categoria_id;
+      }
+      if (proveedor_id) {
+        whereProducto.proveedor_id = proveedor_id;
+      }
 
       const productos = await Producto.findAll({
-        where: { activo: true },
-        include: [{ model: Categoria, as: "categoria" }],
+        where: whereProducto,
+        include: [
+          { model: Categoria, as: "categoria" },
+          { model: Proveedor, as: "proveedor" },
+        ],
         order: [["nombre", "ASC"]],
       });
 
-      const inventarioValorizado = productos.map((p) => {
-        const stockLocal1 = p.stock_local1 || 0;
-        const stockLocal2 = p.stock_local2 || 0;
-        const stockTotal = stockLocal1 + stockLocal2;
+      // Calcular fecha de 90 días atrás para análisis de rotación
+      const fecha90DiasAtras = new Date();
+      fecha90DiasAtras.setDate(fecha90DiasAtras.getDate() - 90);
 
-        let stock = stockTotal;
-        if (local_id === "00000000-0000-0000-0000-000000000001")
-          stock = stockLocal1;
-        if (local_id === "00000000-0000-0000-0000-000000000002")
-          stock = stockLocal2;
+      const inventarioValorizado = await Promise.all(
+        productos.map(async (p) => {
+          const stockLocal1 = p.stock_local1 || 0;
+          const stockLocal2 = p.stock_local2 || 0;
+          const stockTotal = stockLocal1 + stockLocal2;
 
-        const valorCosto = stock * parseFloat(p.costo_promedio || 0);
-        const valorVenta = stock * parseFloat(p.precio_venta || 0);
-        const utilidadPotencial = valorVenta - valorCosto;
-        const margen =
-          p.costo_promedio > 0
-            ? ((parseFloat(p.precio_venta || 0) -
-                parseFloat(p.costo_promedio || 0)) /
-                parseFloat(p.costo_promedio || 0)) *
-              100
-            : 0;
+          // Determinar stock según filtro de local
+          let stock = stockTotal;
+          let nombreLocal = "Todos los locales";
+          if (local_id === "00000000-0000-0000-0000-000000000001") {
+            stock = stockLocal1;
+            nombreLocal = "Castellana";
+          }
+          if (local_id === "00000000-0000-0000-0000-000000000002") {
+            stock = stockLocal2;
+            nombreLocal = "Avenida 1ra";
+          }
 
-        return {
-          producto_id: p.id,
-          codigo: p.codigo,
-          nombre: p.nombre,
-          categoria: p.categoria?.nombre,
-          stock,
-          costo_promedio: parseFloat(p.costo_promedio || 0),
-          ultimo_costo: parseFloat(p.ultimo_costo || 0),
-          precio_venta: parseFloat(p.precio_venta || 0),
-          valor_inventario_costo: valorCosto,
-          valor_inventario_venta: valorVenta,
-          utilidad_potencial: utilidadPotencial,
-          margen_porcentaje: margen.toFixed(2),
-          stock_bajo: stockTotal <= p.alerta_stock,
-        };
-      });
+          // Calcular valores financieros
+          const costoPromedio = parseFloat(p.costo_promedio || 0);
+          const ultimoCosto = parseFloat(p.ultimo_costo || 0);
+          const precioVenta = parseFloat(p.precio_venta || 0);
 
+          const valorCosto = stock * costoPromedio;
+          const valorVenta = stock * precioVenta;
+          const utilidadPotencial = valorVenta - valorCosto;
+
+          const margenPorcentaje =
+            costoPromedio > 0
+              ? ((precioVenta - costoPromedio) / costoPromedio) * 100
+              : 0;
+
+          const margenAbsoluto = precioVenta - costoPromedio;
+
+          // ⭐ ANÁLISIS DE ROTACIÓN - Últimos 90 días
+          const whereMovimientos = {
+            producto_id: p.id,
+            tipo_movimiento: "venta",
+            fecha_movimiento: {
+              [Op.gte]: fecha90DiasAtras,
+            },
+          };
+
+          // Si hay filtro de local, aplicarlo a los movimientos
+          if (local_id) {
+            whereMovimientos.local_id = local_id;
+          }
+
+          const ventasUltimos90Dias =
+            (await MovimientoInventario.sum("cantidad", {
+              where: whereMovimientos,
+            })) || 0;
+
+          // Calcular rotación diaria promedio
+          const rotacionDiaria = ventasUltimos90Dias / 90;
+
+          // Días de inventario disponible (a este ritmo de venta)
+          const diasInventario =
+            rotacionDiaria > 0 ? Math.round(stock / rotacionDiaria) : 999; // Sin ventas = inventario eterno
+
+          // Clasificación de rotación
+          let clasificacionRotacion = "Sin movimiento";
+          let colorRotacion = "red";
+
+          if (ventasUltimos90Dias === 0) {
+            clasificacionRotacion = "Sin movimiento";
+            colorRotacion = "red";
+          } else if (diasInventario <= 30) {
+            clasificacionRotacion = "Alta rotación";
+            colorRotacion = "green";
+          } else if (diasInventario <= 90) {
+            clasificacionRotacion = "Rotación media";
+            colorRotacion = "yellow";
+          } else {
+            clasificacionRotacion = "Baja rotación";
+            colorRotacion = "orange";
+          }
+
+          // Estado del stock
+          const stockBajo = stockTotal <= p.alerta_stock;
+          const stockCritico = stockTotal <= p.alerta_stock / 2;
+          const sinStock = stockTotal === 0;
+
+          return {
+            // Información básica
+            producto_id: p.id,
+            codigo: p.codigo,
+            nombre: p.nombre,
+            categoria: p.categoria?.nombre || "Sin categoría",
+            categoria_id: p.categoria_id,
+            proveedor: p.proveedor?.nombre || "Sin proveedor",
+            proveedor_id: p.proveedor_id,
+
+            // Stock
+            stock,
+            stock_local1: stockLocal1,
+            stock_local2: stockLocal2,
+            stock_total: stockTotal,
+            local_filtrado: nombreLocal,
+            alerta_stock: p.alerta_stock,
+
+            // Estados de stock
+            stock_bajo: stockBajo,
+            stock_critico: stockCritico,
+            sin_stock: sinStock,
+
+            // Precios y costos
+            costo_promedio: costoPromedio,
+            ultimo_costo: ultimoCosto,
+            precio_venta: precioVenta,
+
+            // Valores calculados
+            valor_inventario_costo: valorCosto,
+            valor_inventario_venta: valorVenta,
+            utilidad_potencial: utilidadPotencial,
+            margen_porcentaje: margenPorcentaje.toFixed(2),
+            margen_absoluto: margenAbsoluto,
+
+            // ⭐ DATOS DE ROTACIÓN
+            ventas_90_dias: ventasUltimos90Dias,
+            rotacion_diaria: rotacionDiaria.toFixed(2),
+            dias_inventario: diasInventario === 999 ? "∞" : diasInventario,
+            clasificacion_rotacion: clasificacionRotacion,
+            color_rotacion: colorRotacion,
+          };
+        }),
+      );
+
+      // Filtrar productos con stock 0 si no hay filtro de local
+      // (cuando se filtra por local, mantener todos para mostrar qué falta en ese local)
+      const inventarioFiltrado = local_id
+        ? inventarioValorizado
+        : inventarioValorizado.filter((p) => p.stock > 0);
+
+      // ⭐ CALCULAR TOTALES Y MÉTRICAS GLOBALES
       const totales = {
-        total_productos: inventarioValorizado.length,
-        valor_total_costo: inventarioValorizado.reduce(
+        // Totales básicos
+        total_productos: inventarioFiltrado.length,
+        total_productos_activos: inventarioFiltrado.filter((p) => p.stock > 0)
+          .length,
+
+        // Valores financieros
+        valor_total_costo: inventarioFiltrado.reduce(
           (sum, p) => sum + p.valor_inventario_costo,
           0,
         ),
-        valor_total_venta: inventarioValorizado.reduce(
+        valor_total_venta: inventarioFiltrado.reduce(
           (sum, p) => sum + p.valor_inventario_venta,
           0,
         ),
-        utilidad_potencial_total: inventarioValorizado.reduce(
+        utilidad_potencial_total: inventarioFiltrado.reduce(
           (sum, p) => sum + p.utilidad_potencial,
           0,
         ),
-        productos_stock_bajo: inventarioValorizado.filter((p) => p.stock_bajo)
+        margen_promedio_ponderado: 0, // Calculado abajo
+
+        // Alertas de stock
+        productos_sin_stock: inventarioFiltrado.filter((p) => p.sin_stock)
           .length,
+        productos_stock_critico: inventarioFiltrado.filter(
+          (p) => p.stock_critico,
+        ).length,
+        productos_stock_bajo: inventarioFiltrado.filter((p) => p.stock_bajo)
+          .length,
+
+        // ⭐ ANÁLISIS DE ROTACIÓN
+        productos_alta_rotacion: inventarioFiltrado.filter(
+          (p) => p.clasificacion_rotacion === "Alta rotación",
+        ).length,
+        productos_media_rotacion: inventarioFiltrado.filter(
+          (p) => p.clasificacion_rotacion === "Rotación media",
+        ).length,
+        productos_baja_rotacion: inventarioFiltrado.filter(
+          (p) => p.clasificacion_rotacion === "Baja rotación",
+        ).length,
+        productos_sin_movimiento: inventarioFiltrado.filter(
+          (p) => p.clasificacion_rotacion === "Sin movimiento",
+        ).length,
+
+        // Totales de ventas
+        ventas_90_dias_total: inventarioFiltrado.reduce(
+          (sum, p) => sum + p.ventas_90_dias,
+          0,
+        ),
+      };
+
+      // Calcular margen promedio ponderado (por valor, no por producto)
+      totales.margen_promedio_ponderado =
+        totales.valor_total_costo > 0
+          ? (
+              (totales.utilidad_potencial_total / totales.valor_total_costo) *
+              100
+            ).toFixed(2)
+          : 0;
+
+      // ⭐ DESGLOSE POR LOCAL (solo si no hay filtro de local)
+      let desglosePorLocal = null;
+      if (!local_id) {
+        desglosePorLocal = {
+          castellana: {
+            valor_costo: 0,
+            valor_venta: 0,
+            utilidad_potencial: 0,
+            productos_con_stock: 0,
+          },
+          avenida_1ra: {
+            valor_costo: 0,
+            valor_venta: 0,
+            utilidad_potencial: 0,
+            productos_con_stock: 0,
+          },
+        };
+
+        inventarioValorizado.forEach((p) => {
+          // Castellana
+          const valorCostoL1 = p.stock_local1 * p.costo_promedio;
+          const valorVentaL1 = p.stock_local1 * p.precio_venta;
+          desglosePorLocal.castellana.valor_costo += valorCostoL1;
+          desglosePorLocal.castellana.valor_venta += valorVentaL1;
+          desglosePorLocal.castellana.utilidad_potencial +=
+            valorVentaL1 - valorCostoL1;
+          if (p.stock_local1 > 0)
+            desglosePorLocal.castellana.productos_con_stock++;
+
+          // Avenida 1ra
+          const valorCostoL2 = p.stock_local2 * p.costo_promedio;
+          const valorVentaL2 = p.stock_local2 * p.precio_venta;
+          desglosePorLocal.avenida_1ra.valor_costo += valorCostoL2;
+          desglosePorLocal.avenida_1ra.valor_venta += valorVentaL2;
+          desglosePorLocal.avenida_1ra.utilidad_potencial +=
+            valorVentaL2 - valorCostoL2;
+          if (p.stock_local2 > 0)
+            desglosePorLocal.avenida_1ra.productos_con_stock++;
+        });
+      }
+
+      // ⭐ TOP PRODUCTOS (para el dashboard)
+      const topProductos = {
+        mayor_valor: [...inventarioFiltrado]
+          .sort((a, b) => b.valor_inventario_costo - a.valor_inventario_costo)
+          .slice(0, 5),
+
+        mayor_utilidad: [...inventarioFiltrado]
+          .sort((a, b) => b.utilidad_potencial - a.utilidad_potencial)
+          .slice(0, 5),
+
+        mayor_rotacion: [...inventarioFiltrado]
+          .filter((p) => p.ventas_90_dias > 0)
+          .sort((a, b) => b.ventas_90_dias - a.ventas_90_dias)
+          .slice(0, 5),
+
+        sin_movimiento: [...inventarioFiltrado]
+          .filter((p) => p.ventas_90_dias === 0 && p.stock > 0)
+          .sort((a, b) => b.valor_inventario_costo - a.valor_inventario_costo)
+          .slice(0, 5),
       };
 
       res.json({
-        productos: inventarioValorizado,
+        productos: inventarioFiltrado,
         totales,
+        desglosePorLocal,
+        topProductos,
+        filtros_aplicados: {
+          local_id: local_id || null,
+          categoria_id: categoria_id || null,
+          proveedor_id: proveedor_id || null,
+        },
+        fecha_calculo: new Date().toISOString(),
       });
     } catch (error) {
       console.error("Error en getInventarioValorizado:", error);
