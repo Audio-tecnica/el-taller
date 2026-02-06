@@ -290,9 +290,7 @@ export default function RegistrarCompra() {
                   
                   {busquedaProducto && productosFiltrados.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden z-10 max-h-96 overflow-y-auto shadow-2xl">
-                      {productosFiltrados.map(producto => {
-                        const stockTotal = (producto.stock_local1 || 0) + (producto.stock_local2 || 0);
-                        return (
+                      {productosFiltrados.map(producto => (
                           <button
                             key={producto.id}
                             type="button"
@@ -316,12 +314,22 @@ export default function RegistrarCompra() {
                                       {producto.categoria.nombre}
                                     </span>
                                   )}
-                                  <span className="text-xs text-gray-500 font-mono">
-                                    {producto.codigo}
-                                  </span>
-                                  <span className={`text-xs ${stockTotal > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                    Stock: {stockTotal}
-                                  </span>
+                                  {producto.codigo && (
+                                    <span className="text-xs text-gray-500 font-mono">
+                                      {producto.codigo}
+                                    </span>
+                                  )}
+                                  {/* Desglose de stock por local */}
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="text-gray-400">📍</span>
+                                    <span className={`${(producto.stock_local1 || 0) > 0 ? 'text-emerald-400' : 'text-gray-600'}`}>
+                                      Castellana: {producto.stock_local1 || 0}
+                                    </span>
+                                    <span className="text-gray-600">|</span>
+                                    <span className={`${(producto.stock_local2 || 0) > 0 ? 'text-emerald-400' : 'text-gray-600'}`}>
+                                      Avenida 1ra: {producto.stock_local2 || 0}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                               
@@ -337,8 +345,7 @@ export default function RegistrarCompra() {
                               </div>
                             </div>
                           </button>
-                        );
-                      })}
+                        ))}
                     </div>
                   )}
                   
