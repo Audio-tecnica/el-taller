@@ -58,11 +58,29 @@ export default function Caja() {
 
   // ⭐ CORREGIDO: Cargar cajeros del local + el admin SIEMPRE
   const cargarCajeros = async () => {
+    console.log('🔄 ===== INICIANDO CARGA DE CAJEROS =====');
     try {
-      // Obtener el usuario actual PRIMERO
-      const usuarioActual = JSON.parse(localStorage.getItem('user'));
+      // 1. Obtener usuario actual de localStorage
+      const userStr = localStorage.getItem('user');
+      console.log('📦 localStorage.user:', userStr);
       
-      // Cargar cajeros del local
+      if (!userStr) {
+        console.error('❌ No hay usuario en localStorage');
+        toast.error("Error: No se encontró usuario en sesión");
+        setCajeros([]);
+        return;
+      }
+
+      const usuarioActual = JSON.parse(userStr);
+      console.log('👤 Usuario parseado:', {
+        id: usuarioActual.id,
+        nombre: usuarioActual.nombre,
+        email: usuarioActual.email,
+        rol: usuarioActual.rol
+      });
+      
+      // 2. Cargar cajeros del backend
+      console.log(`📡 Haciendo fetch a: ${import.meta.env.VITE_API_URL}/auth/cajeros?local_id=${localSeleccionado}`);
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/auth/cajeros?local_id=${localSeleccionado}`,
         {
@@ -71,52 +89,91 @@ export default function Caja() {
           },
         },
       );
-      const cajerosData = await response.json();
       
-      // ⭐ Si el usuario es admin, SIEMPRE agregarlo al inicio de la lista
-      if (usuarioActual?.rol === 'administrador') {
+      console.log('📡 Response status:', response.status);
+      const cajerosData = await response.json();
+      console.log('📋 Cajeros del backend:', cajerosData);
+      console.log('📊 Cantidad de cajeros del backend:', cajerosData.length);
+      
+      // 3. Verificar si el usuario es administrador
+      console.log('🔍 Verificando rol del usuario:', usuarioActual.rol);
+      console.log('🔍 ¿Es administrador?:', usuarioActual.rol === 'administrador');
+      
+      if (usuarioActual.rol === 'administrador') {
+        console.log('👑 ¡USUARIO ES ADMINISTRADOR! - Procediendo a agregarlo');
+        
         // Verificar si el admin ya está en la lista de cajeros
         const adminYaEnLista = cajerosData.find(c => c.id === usuarioActual.id);
+        console.log('🔍 Admin ya en lista?:', adminYaEnLista ? 'SÍ' : 'NO');
         
         // Filtrar el admin de la lista original si existe para evitar duplicados
         const cajerosFiltrados = adminYaEnLista 
           ? cajerosData.filter(c => c.id !== usuarioActual.id)
           : cajerosData;
         
-        // Agregar el admin al inicio
-        setCajeros([
-          {
-            id: usuarioActual.id,
-            nombre: `${usuarioActual.nombre} (Yo - Admin)`,
-            email: usuarioActual.email,
-            esAdmin: true
-          },
-          ...cajerosFiltrados
-        ]);
+        console.log('📊 Cajeros filtrados (sin admin):', cajerosFiltrados.length);
         
-        console.log('✅ Admin agregado a la lista de cajeros:', usuarioActual.nombre);
+        // Crear objeto admin
+        const adminCajero = {
+          id: usuarioActual.id,
+          nombre: `${usuarioActual.nombre} (Yo - Admin)`,
+          email: usuarioActual.email,
+          rol: usuarioActual.rol,
+          esAdmin: true
+        };
+        console.log('👑 Objeto admin creado:', adminCajero);
+        
+        // Agregar el admin al inicio
+        const listaCajeros = [adminCajero, ...cajerosFiltrados];
+        console.log('📊 Lista final de cajeros:', listaCajeros);
+        console.log('📊 Total cajeros en lista final:', listaCajeros.length);
+        
+        setCajeros(listaCajeros);
+        console.log('✅ setCajeros ejecutado con', listaCajeros.length, 'cajeros');
+        
+        // Auto-seleccionar al admin si es el único
+        if (listaCajeros.length === 1) {
+          setCajeroSeleccionado(usuarioActual.id);
+          console.log('🎯 Admin auto-seleccionado');
+        }
       } else {
         // Si es cajero, solo mostrar la lista normal
+        console.log('👷 Usuario es CAJERO - mostrando lista normal');
         setCajeros(cajerosData);
+        console.log('✅ setCajeros ejecutado con', cajerosData.length, 'cajeros');
       }
       
+      console.log('✅ ===== CARGA DE CAJEROS COMPLETADA =====');
+      
     } catch (error) {
+      console.error('❌ ===== ERROR EN CARGA DE CAJEROS =====');
+      console.error('Error completo:', error);
       toast.error("Error al cargar cajeros");
-      console.error('Error cargando cajeros:', error);
       
       // ⭐ FALLBACK: Si falla la carga pero el usuario es admin, mostrar solo al admin
-      const usuarioActual = JSON.parse(localStorage.getItem('user'));
-      if (usuarioActual?.rol === 'administrador') {
-        setCajeros([
-          {
-            id: usuarioActual.id,
-            nombre: `${usuarioActual.nombre} (Yo - Admin)`,
-            email: usuarioActual.email,
-            esAdmin: true
-          }
-        ]);
-        console.log('✅ Fallback: Admin agregado como único cajero');
-      } else {
+      try {
+        const usuarioActual = JSON.parse(localStorage.getItem('user'));
+        console.log('🆘 Ejecutando FALLBACK para usuario:', usuarioActual?.nombre);
+        
+        if (usuarioActual?.rol === 'administrador') {
+          const fallbackCajeros = [
+            {
+              id: usuarioActual.id,
+              nombre: `${usuarioActual.nombre} (Yo - Admin)`,
+              email: usuarioActual.email,
+              rol: usuarioActual.rol,
+              esAdmin: true
+            }
+          ];
+          setCajeros(fallbackCajeros);
+          setCajeroSeleccionado(usuarioActual.id);
+          console.log('✅ FALLBACK exitoso - Admin agregado como único cajero');
+        } else {
+          setCajeros([]);
+          console.log('⚠️ FALLBACK - No es admin, lista vacía');
+        }
+      } catch (fallbackError) {
+        console.error('❌ Error en fallback:', fallbackError);
         setCajeros([]);
       }
     }
@@ -133,7 +190,21 @@ export default function Caja() {
   };
 
   const handleOpenModalAbrir = () => {
+    console.log('🔓 ===== ABRIENDO MODAL ABRIR TURNO =====');
+    console.log('📊 Cajeros disponibles:', cajeros);
+    console.log('📊 Cantidad de cajeros:', cajeros.length);
+    console.log('📊 Cajero seleccionado actual:', cajeroSeleccionado);
+    
+    if (cajeros.length === 0) {
+      console.warn('⚠️ ¡ADVERTENCIA! No hay cajeros en la lista');
+    }
+    
+    cajeros.forEach((cajero, index) => {
+      console.log(`  ${index + 1}. ID: ${cajero.id} | Nombre: ${cajero.nombre} | Admin: ${cajero.esAdmin || false}`);
+    });
+    
     setModalAbrir(true);
+    console.log('✅ Modal abierto');
   };
 
   const handleAbrirTurno = async () => {

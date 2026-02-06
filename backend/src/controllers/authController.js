@@ -449,16 +449,32 @@ const authController = {
     }
   },
 
-  // ⭐ NUEVO: Obtener cajeros activos
+  // ⭐ CORREGIDO: Obtener cajeros activos (con filtro por local opcional)
   getCajeros: async (req, res) => {
     try {
-      // Devolver TODOS los cajeros activos, sin filtrar por local
-      // Así pueden trabajar en cualquier local según el día
+      const { local_id } = req.query;
+      
+      console.log('📋 ===== GET CAJEROS =====');
+      console.log('🏢 Local solicitado:', local_id);
+      console.log('👤 Usuario solicitante:', req.usuario.id, '-', req.usuario.nombre, '-', req.usuario.rol);
+
+      // Construir el where dinámicamente
+      const where = {
+        activo: true,
+        rol: "cajero",
+      };
+
+      // Si se proporciona local_id, filtrar por ese local
+      // Si no, devolver todos los cajeros (útil para admins)
+      if (local_id) {
+        where.local_asignado_id = local_id;
+        console.log('🔍 Filtrando cajeros por local:', local_id);
+      } else {
+        console.log('🔍 Obteniendo TODOS los cajeros activos (sin filtro de local)');
+      }
+
       const cajeros = await Usuario.findAll({
-        where: {
-          activo: true,
-          rol: "cajero",
-        },
+        where,
         attributes: ["id", "nombre", "email", "rol", "local_asignado_id"],
         include: [
           {
@@ -470,9 +486,14 @@ const authController = {
         order: [["nombre", "ASC"]],
       });
 
+      console.log(`✅ Encontrados ${cajeros.length} cajeros`);
+      cajeros.forEach((c, i) => {
+        console.log(`  ${i + 1}. ${c.nombre} (${c.email}) - Local: ${c.local?.nombre || 'Sin asignar'}`);
+      });
+
       res.json(cajeros);
     } catch (error) {
-      console.error("Error obteniendo cajeros:", error);
+      console.error('❌ Error obteniendo cajeros:', error);
       res.status(500).json({ error: error.message });
     }
   },
