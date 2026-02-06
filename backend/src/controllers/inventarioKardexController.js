@@ -684,31 +684,30 @@ const inventarioKardexController = {
   },
 
   // ==========================================
-  // INVENTARIO VALORIZADO MEJORADO
-  // Con análisis de rotación, métricas avanzadas y más información
+  // INVENTARIO VALORIZADO MEJORADO - COMPATIBLE
+  // Versión que funciona con la estructura actual sin cambios en BD
   // ==========================================
 
   getInventarioValorizado: async (req, res) => {
     try {
-      const { local_id, categoria_id, proveedor_id } = req.query;
+      const { local_id } = req.query;
 
-      // Construir filtros dinámicos
-      const whereProducto = { activo: true };
-      if (categoria_id) {
-        whereProducto.categoria_id = categoria_id;
-      }
-      if (proveedor_id) {
-        whereProducto.proveedor_id = proveedor_id;
-      }
+      console.log("📊 ===== INVENTARIO VALORIZADO =====");
+      console.log("🏢 Local filtro:", local_id || "Todos");
 
       const productos = await Producto.findAll({
-        where: whereProducto,
+        where: { activo: true },
         include: [
-          { model: Categoria, as: "categoria" },
-          { model: Proveedor, as: "proveedor" },
+          {
+            model: Categoria,
+            as: "categoria",
+            required: false,
+          },
         ],
         order: [["nombre", "ASC"]],
       });
+
+      console.log(`📦 Total productos activos: ${productos.length}`);
 
       // Calcular fecha de 90 días atrás para análisis de rotación
       const fecha90DiasAtras = new Date();
@@ -762,10 +761,19 @@ const inventarioKardexController = {
             whereMovimientos.local_id = local_id;
           }
 
-          const ventasUltimos90Dias =
-            (await MovimientoInventario.sum("cantidad", {
+          let ventasUltimos90Dias = 0;
+          try {
+            const sumResult = await MovimientoInventario.sum("cantidad", {
               where: whereMovimientos,
-            })) || 0;
+            });
+            ventasUltimos90Dias = sumResult || 0;
+          } catch (error) {
+            console.log(
+              `⚠️ No se pudo calcular rotación para ${p.nombre}:`,
+              error.message,
+            );
+            ventasUltimos90Dias = 0;
+          }
 
           // Calcular rotación diaria promedio
           const rotacionDiaria = ventasUltimos90Dias / 90;
@@ -793,8 +801,9 @@ const inventarioKardexController = {
           }
 
           // Estado del stock
-          const stockBajo = stockTotal <= p.alerta_stock;
-          const stockCritico = stockTotal <= p.alerta_stock / 2;
+          const alertaStock = p.alerta_stock || 5; // Default si no existe
+          const stockBajo = stockTotal <= alertaStock;
+          const stockCritico = stockTotal <= alertaStock / 2;
           const sinStock = stockTotal === 0;
 
           return {
@@ -804,8 +813,6 @@ const inventarioKardexController = {
             nombre: p.nombre,
             categoria: p.categoria?.nombre || "Sin categoría",
             categoria_id: p.categoria_id,
-            proveedor: p.proveedor?.nombre || "Sin proveedor",
-            proveedor_id: p.proveedor_id,
 
             // Stock
             stock,
@@ -813,7 +820,7 @@ const inventarioKardexController = {
             stock_local2: stockLocal2,
             stock_total: stockTotal,
             local_filtrado: nombreLocal,
-            alerta_stock: p.alerta_stock,
+            alerta_stock: alertaStock,
 
             // Estados de stock
             stock_bajo: stockBajo,
@@ -842,11 +849,18 @@ const inventarioKardexController = {
         }),
       );
 
+      console.log(
+        `✅ Inventario valorizado calculado: ${inventarioValorizado.length} productos`,
+      );
+
       // Filtrar productos con stock 0 si no hay filtro de local
-      // (cuando se filtra por local, mantener todos para mostrar qué falta en ese local)
       const inventarioFiltrado = local_id
         ? inventarioValorizado
         : inventarioValorizado.filter((p) => p.stock > 0);
+
+      console.log(
+        `📊 Productos después de filtro: ${inventarioFiltrado.length}`,
+      );
 
       // ⭐ CALCULAR TOTALES Y MÉTRICAS GLOBALES
       const totales = {
@@ -907,7 +921,7 @@ const inventarioKardexController = {
               (totales.utilidad_potencial_total / totales.valor_total_costo) *
               100
             ).toFixed(2)
-          : 0;
+          : "0.00";
 
       // ⭐ DESGLOSE POR LOCAL (solo si no hay filtro de local)
       let desglosePorLocal = null;
@@ -928,7 +942,7 @@ const inventarioKardexController = {
         };
 
         inventarioValorizado.forEach((p) => {
-          // Castellana
+          // Castellana (Local 1)
           const valorCostoL1 = p.stock_local1 * p.costo_promedio;
           const valorVentaL1 = p.stock_local1 * p.precio_venta;
           desglosePorLocal.castellana.valor_costo += valorCostoL1;
@@ -938,7 +952,7 @@ const inventarioKardexController = {
           if (p.stock_local1 > 0)
             desglosePorLocal.castellana.productos_con_stock++;
 
-          // Avenida 1ra
+          // Avenida 1ra (Local 2)
           const valorCostoL2 = p.stock_local2 * p.costo_promedio;
           const valorVentaL2 = p.stock_local2 * p.precio_venta;
           desglosePorLocal.avenida_1ra.valor_costo += valorCostoL2;
@@ -971,6 +985,14 @@ const inventarioKardexController = {
           .slice(0, 5),
       };
 
+      console.log("✅ ===== RESPUESTA PREPARADA =====");
+      console.log(`📦 Productos: ${inventarioFiltrado.length}`);
+      console.log(
+        `💰 Valor total: $${totales.valor_total_costo.toLocaleString()}`,
+      );
+      console.log(`🔄 Alta rotación: ${totales.productos_alta_rotacion}`);
+      console.log(`💤 Sin movimiento: ${totales.productos_sin_movimiento}`);
+
       res.json({
         productos: inventarioFiltrado,
         totales,
@@ -978,14 +1000,16 @@ const inventarioKardexController = {
         topProductos,
         filtros_aplicados: {
           local_id: local_id || null,
-          categoria_id: categoria_id || null,
-          proveedor_id: proveedor_id || null,
         },
         fecha_calculo: new Date().toISOString(),
       });
     } catch (error) {
-      console.error("Error en getInventarioValorizado:", error);
-      res.status(500).json({ error: error.message });
+      console.error("❌ Error en getInventarioValorizado:", error);
+      console.error("Stack:", error.stack);
+      res.status(500).json({
+        error: error.message,
+        stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      });
     }
   },
 };

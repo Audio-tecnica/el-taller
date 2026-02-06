@@ -88,12 +88,12 @@ getMiTurnoActivo: async (req, res) => {
         });
       }
 
-      // ⭐ Validar que cajero_id sea de un cajero real
+      // ⭐ Validar que cajero_id sea de un usuario válido (cajero o administrador)
       if (cajero_id) {
         const cajero = await Usuario.findByPk(cajero_id);
-        if (!cajero || cajero.rol !== "cajero") {
+        if (!cajero || !['cajero', 'administrador'].includes(cajero.rol)) {
           return res.status(400).json({
-            error: "El usuario seleccionado no es un cajero válido",
+            error: "El usuario seleccionado no es un cajero o administrador válido",
           });
         }
       }
