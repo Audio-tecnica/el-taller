@@ -449,7 +449,7 @@ const authController = {
     }
   },
 
-  // ⭐ CORREGIDO: Obtener cajeros activos + administradores
+  // ⭐ CORREGIDO: Obtener TODOS los usuarios activos (admins + cajeros) sin filtro de local
   getCajeros: async (req, res) => {
     try {
       const { local_id } = req.query;
@@ -458,41 +458,15 @@ const authController = {
       console.log('🏢 Local solicitado:', local_id);
       console.log('👤 Usuario solicitante:', req.usuario.id, '-', req.usuario.nombre, '-', req.usuario.rol);
 
-      // ⭐ ESTRATEGIA: Obtener cajeros del local + TODOS los administradores activos
+      // ⭐ ESTRATEGIA: Obtener TODOS los usuarios activos (administradores + cajeros)
+      // Sin importar su local asignado - pueden abrir turno en cualquier local
       
-      // 1. Obtener cajeros del local específico
-      const whereCajeros = {
-        activo: true,
-        rol: "cajero",
-      };
-
-      if (local_id) {
-        whereCajeros.local_asignado_id = local_id;
-        console.log('🔍 Filtrando cajeros por local:', local_id);
-      } else {
-        console.log('🔍 Obteniendo TODOS los cajeros activos (sin filtro de local)');
-      }
-
-      const cajeros = await Usuario.findAll({
-        where: whereCajeros,
-        attributes: ["id", "nombre", "email", "rol", "local_asignado_id"],
-        include: [
-          {
-            model: Local,
-            as: "local",
-            attributes: ["id", "nombre"],
-          },
-        ],
-        order: [["nombre", "ASC"]],
-      });
-
-      console.log(`✅ Encontrados ${cajeros.length} cajeros del local`);
-      
-      // 2. Obtener TODOS los administradores activos (pueden abrir turno en cualquier local)
-      const administradores = await Usuario.findAll({
+      const todosLosUsuarios = await Usuario.findAll({
         where: {
           activo: true,
-          rol: "administrador",
+          rol: {
+            [Op.in]: ['administrador', 'cajero']
+          }
         },
         attributes: ["id", "nombre", "email", "rol", "local_asignado_id"],
         include: [
@@ -502,20 +476,19 @@ const authController = {
             attributes: ["id", "nombre"],
           },
         ],
-        order: [["nombre", "ASC"]],
+        order: [
+          // Primero administradores, luego cajeros
+          ["rol", "ASC"],
+          ["nombre", "ASC"]
+        ],
       });
 
-      console.log(`✅ Encontrados ${administradores.length} administradores activos`);
-
-      // 3. Combinar cajeros + administradores
-      const usuariosDisponibles = [...administradores, ...cajeros];
-
-      console.log(`✅ Total usuarios disponibles: ${usuariosDisponibles.length}`);
-      usuariosDisponibles.forEach((u, i) => {
-        console.log(`  ${i + 1}. ${u.nombre} (${u.rol}) - Local: ${u.local?.nombre || 'Todos los locales'}`);
+      console.log(`✅ Total usuarios activos: ${todosLosUsuarios.length}`);
+      todosLosUsuarios.forEach((u, i) => {
+        console.log(`  ${i + 1}. ${u.nombre} (${u.rol}) - Local asignado: ${u.local?.nombre || 'Sin asignar'}`);
       });
 
-      res.json(usuariosDisponibles);
+      res.json(todosLosUsuarios);
     } catch (error) {
       console.error('❌ Error obteniendo cajeros:', error);
       res.status(500).json({ error: error.message });
