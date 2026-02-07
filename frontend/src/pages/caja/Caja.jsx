@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext"; // ⭐ NUEVO: Usar contexto
+import { useAuth } from "../../context/AuthContext";
 import { turnosService } from "../../services/turnosService";
 import { mesasService } from "../../services/mesasService";
 import toast from "react-hot-toast";
@@ -8,7 +8,7 @@ import logo from "../../assets/logo.jpeg";
 
 export default function Caja() {
   const navigate = useNavigate();
-  const { user } = useAuth(); // ⭐ NUEVO: Obtener usuario del contexto
+  const { user } = useAuth();
   const [locales, setLocales] = useState([]);
   const [localSeleccionado, setLocalSeleccionado] = useState("");
   const [turnoActivo, setTurnoActivo] = useState(null);
@@ -32,10 +32,8 @@ export default function Caja() {
       cargarTurno();
       cargarCajeros();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localSeleccionado]);
 
-  // ⭐ NUEVO: Efecto para auto-seleccionar cajero si el user está disponible
   useEffect(() => {
     if (user && cajeros.length === 0 && localSeleccionado) {
       console.log('👤 Usuario detectado del contexto, recargando cajeros...');
@@ -66,11 +64,9 @@ export default function Caja() {
     }
   };
 
-  // ⭐ SIMPLIFICADO: El backend ahora incluye administradores automáticamente
   const cargarCajeros = async () => {
     console.log('🔄 ===== INICIANDO CARGA DE CAJEROS =====');
     try {
-      // Cargar usuarios disponibles del backend (incluye cajeros + administradores)
       console.log(`📡 Haciendo fetch a: ${import.meta.env.VITE_API_URL}/auth/cajeros?local_id=${localSeleccionado}`);
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/auth/cajeros?local_id=${localSeleccionado}`,
@@ -91,11 +87,9 @@ export default function Caja() {
       console.log('📋 Usuarios del backend:', usuariosData);
       console.log('📊 Cantidad de usuarios:', usuariosData.length);
       
-      // El backend ya incluye administradores, simplemente usar los datos
       setCajeros(usuariosData);
       console.log('✅ setCajeros ejecutado con', usuariosData.length, 'usuarios');
       
-      // Auto-seleccionar si hay usuario en contexto y es el único disponible
       if (user && usuariosData.length === 1 && usuariosData[0].id === user.id) {
         setCajeroSeleccionado(user.id);
         console.log('🎯 Usuario auto-seleccionado');
@@ -206,11 +200,14 @@ export default function Caja() {
     );
   }
 
+  // Obtener el índice del local seleccionado para los colores
+  const localIndex = locales.findIndex(l => l.id === localSeleccionado);
+
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
       {/* Header */}
       <header className="bg-[#0a0a0a] border-b border-[#2a2a2a]">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center space-x-4">
             <button
               onClick={() => navigate("/dashboard")}
@@ -230,27 +227,60 @@ export default function Caja() {
             </button>
           </div>
 
-          {/* Selector de local */}
-          <select
-            value={localSeleccionado}
-            onChange={(e) => setLocalSeleccionado(e.target.value)}
-            className="px-4 py-2 bg-[#141414] border border-[#2a2a2a] rounded-lg text-white"
-          >
-            {locales.map((local) => (
-              <option key={local.id} value={local.id}>
-                {local.nombre}
-              </option>
+          {/* 🎨 BOTONES DE LOCALES CON COLORES */}
+          <div className="flex gap-3">
+            {locales.map((local, index) => (
+              <button
+                key={local.id}
+                onClick={() => setLocalSeleccionado(local.id)}
+                className={`px-6 py-3 rounded-xl font-bold transition-all duration-200 ${
+                  localSeleccionado === local.id
+                    ? index === 0
+                      ? 'bg-purple-500/20 text-purple-300 border-2 border-purple-500/50 shadow-lg shadow-purple-500/20'
+                      : 'bg-amber-500/20 text-amber-300 border-2 border-amber-500/50 shadow-lg shadow-amber-500/20'
+                    : 'bg-[#1a1a1a] text-gray-500 border border-[#2a2a2a] hover:bg-[#222] hover:text-gray-400'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{index === 0 ? '🏪' : '🏬'}</span>
+                  <div className="text-left">
+                    <div className="text-sm font-bold">{local.nombre}</div>
+                    {localSeleccionado === local.id && (
+                      <div className="text-xs opacity-70">Seleccionado</div>
+                    )}
+                  </div>
+                </div>
+              </button>
             ))}
-          </select>
+          </div>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      {/* 📦 CONTAINER MÁS ANCHO */}
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        {/* 🏷️ TÍTULO DEL LOCAL CON COLOR */}
+        <div className={`mb-6 p-4 rounded-xl border-2 ${
+          localIndex === 0
+            ? 'bg-purple-500/10 border-purple-500/30'
+            : 'bg-amber-500/10 border-amber-500/30'
+        }`}>
+          <h2 className={`text-2xl font-bold flex items-center gap-3 ${
+            localIndex === 0 ? 'text-purple-300' : 'text-amber-300'
+          }`}>
+            <span className="text-3xl">{localIndex === 0 ? '🏪' : '🏬'}</span>
+            {locales.find(l => l.id === localSeleccionado)?.nombre}
+          </h2>
+        </div>
+
         {/* Estado del turno */}
         {turnoActivo ? (
           <div className="space-y-6">
-            {/* Turno activo */}
-            <div className="bg-[#141414] border border-emerald-500/30 rounded-2xl p-6">
+            {/* Turno activo con borde de color */}
+            <div className={`rounded-2xl p-6 border-2 ${
+              localIndex === 0
+                ? 'bg-[#141414] border-purple-500/30 shadow-lg shadow-purple-500/10'
+                : 'bg-[#141414] border-amber-500/30 shadow-lg shadow-amber-500/10'
+            }`}>
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
