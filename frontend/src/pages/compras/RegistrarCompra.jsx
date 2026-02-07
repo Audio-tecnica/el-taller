@@ -119,7 +119,10 @@ export default function RegistrarCompra() {
     let totalRetenciones = 0;
     
     impuestosSeleccionados.forEach(imp => {
-      const monto = (subtotal * parseFloat(imp.porcentaje)) / 100;
+      const porcentaje = parseFloat(imp.porcentaje);
+      if (isNaN(porcentaje)) return; // Saltar si el porcentaje no es válido
+      
+      const monto = (subtotal * porcentaje) / 100;
       if (imp.tipo === 'Impuesto') {
         totalImpuestos += monto;
       } else {
@@ -133,7 +136,8 @@ export default function RegistrarCompra() {
   const calcularTotal = () => {
     const subtotal = calcularSubtotal();
     const { totalImpuestos, totalRetenciones } = calcularImpuestos();
-    return subtotal + totalImpuestos - totalRetenciones;
+    const total = subtotal + totalImpuestos - totalRetenciones;
+    return isNaN(total) ? 0 : total;
   };
 
   // NUEVA FUNCIÓN: Convertir IDs a objetos completos de impuestos
@@ -703,7 +707,8 @@ export default function RegistrarCompra() {
                     <div className="bg-[#1a1a1a] rounded-lg p-3 space-y-2">
                       <p className="text-xs text-gray-500 font-medium mb-2">Impuestos aplicados:</p>
                       {impuestosSeleccionados.map((imp) => {
-                        const monto = (calcularSubtotal() * parseFloat(imp.porcentaje)) / 100;
+                        const porcentaje = parseFloat(imp.porcentaje);
+                        const monto = !isNaN(porcentaje) ? (calcularSubtotal() * porcentaje) / 100 : 0;
                         return (
                           <div key={imp.impuesto_id} className="flex items-center justify-between text-sm">
                             <span className="text-gray-400">

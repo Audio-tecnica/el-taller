@@ -6,6 +6,8 @@ const {
   Categoria,
   Usuario,
   Compra,
+  Impuesto,
+  CompraImpuesto,
 } = require("../models");
 const { Op } = require("sequelize");
 const sequelize = require("../config/database");
@@ -156,7 +158,6 @@ const inventarioKardexController = {
       // ================================================
       // CALCULAR IMPUESTOS
       // ================================================
-      const { Impuesto, CompraImpuesto } = require('../models');
       
       let totalImpuestos = 0;
       let totalRetenciones = 0;
