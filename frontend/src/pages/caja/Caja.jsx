@@ -23,9 +23,23 @@ export default function Caja() {
   const [cajeros, setCajeros] = useState([]);
   const [cajeroSeleccionado, setCajeroSeleccionado] = useState("");
 
+  // Estados para manejar turnos de ambos locales
+  const [turnosLocales, setTurnosLocales] = useState({});
+  const [cajerosLocales, setCajerosLocales] = useState({});
+
   useEffect(() => {
     cargarLocales();
   }, []);
+
+  useEffect(() => {
+    if (locales.length > 0) {
+      // Cargar turnos y cajeros para todos los locales
+      locales.forEach(local => {
+        cargarTurnoLocal(local.id);
+        cargarCajerosLocal(local.id);
+      });
+    }
+  }, [locales]);
 
   useEffect(() => {
     if (localSeleccionado) {
@@ -61,6 +75,15 @@ export default function Caja() {
       setTurnoActivo(turno);
     } catch {
       setTurnoActivo(null);
+    }
+  };
+
+  const cargarTurnoLocal = async (localId) => {
+    try {
+      const turno = await turnosService.getTurnoActivo(localId);
+      setTurnosLocales(prev => ({ ...prev, [localId]: turno }));
+    } catch {
+      setTurnosLocales(prev => ({ ...prev, [localId]: null }));
     }
   };
 
@@ -105,6 +128,30 @@ export default function Caja() {
     }
   };
 
+  const cargarCajerosLocal = async (localId) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/auth/cajeros?local_id=${localId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        },
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const usuariosData = await response.json();
+      setCajerosLocales(prev => ({ ...prev, [localId]: usuariosData }));
+      
+    } catch (error) {
+      console.error('Error al cargar cajeros del local:', localId, error);
+      setCajerosLocales(prev => ({ ...prev, [localId]: [] }));
+    }
+  };
+
   const cargarHistorial = async () => {
     try {
       const data = await turnosService.getHistorial(localSeleccionado);
@@ -115,22 +162,20 @@ export default function Caja() {
     }
   };
 
-  const handleOpenModalAbrir = () => {
+  const handleOpenModalAbrir = (localId) => {
     console.log('🔓 ===== ABRIENDO MODAL ABRIR TURNO =====');
-    console.log('📊 Cajeros disponibles:', cajeros);
-    console.log('📊 Cantidad de cajeros:', cajeros.length);
-    console.log('📊 Cajero seleccionado actual:', cajeroSeleccionado);
+    setLocalSeleccionado(localId);
     
-    if (cajeros.length === 0) {
+    const cajerosLocal = cajerosLocales[localId] || [];
+    console.log('📊 Cajeros disponibles:', cajerosLocal);
+    console.log('📊 Cantidad de cajeros:', cajerosLocal.length);
+    
+    if (cajerosLocal.length === 0) {
       console.warn('⚠️ ¡ADVERTENCIA! No hay cajeros en la lista');
       console.warn('Usuario del contexto:', user);
-      console.warn('Usuario de localStorage:', localStorage.getItem('user'));
     }
     
-    cajeros.forEach((cajero, index) => {
-      console.log(`  ${index + 1}. ID: ${cajero.id} | Nombre: ${cajero.nombre} | Admin: ${cajero.esAdmin || false}`);
-    });
-    
+    setCajeros(cajerosLocal);
     setModalAbrir(true);
     console.log('✅ Modal abierto');
   };
@@ -153,11 +198,18 @@ export default function Caja() {
       setModalAbrir(false);
       setEfectivoInicial("");
       setCajeroSeleccionado("");
+      cargarTurnoLocal(localSeleccionado);
       cargarTurno();
     } catch (error) {
       console.error('❌ Error al abrir turno:', error);
       toast.error(error.response?.data?.error || "Error al abrir turno");
     }
+  };
+
+  const handleOpenModalCerrar = (localId) => {
+    setLocalSeleccionado(localId);
+    setTurnoActivo(turnosLocales[localId]);
+    setModalCerrar(true);
   };
 
   const handleCerrarTurno = async () => {
@@ -176,6 +228,7 @@ export default function Caja() {
       setEfectivoReal("");
       setNotasCierre("");
       setTurnoActivo(null);
+      cargarTurnoLocal(localSeleccionado);
     } catch {
       toast.error("Error al cerrar turno");
     }
@@ -200,199 +253,210 @@ export default function Caja() {
     );
   }
 
-  // Obtener el índice del local seleccionado para los colores
-  const localIndex = locales.findIndex(l => l.id === localSeleccionado);
-
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
       {/* Header */}
       <header className="bg-[#0a0a0a] border-b border-[#2a2a2a]">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="flex items-center space-x-3 hover:opacity-80 transition"
-            >
-              <img
-                src={logo}
-                alt="El Taller"
-                className="w-12 h-12 rounded-full object-contain bg-black"
-              />
-              <div>
-                <h1 className="text-lg font-bold text-[#D4B896] tracking-wide">
-                  EL TALLER
-                </h1>
-                <p className="text-xs text-gray-500">Caja y Turnos</p>
-              </div>
-            </button>
-          </div>
+        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="flex items-center space-x-3 hover:opacity-80 transition"
+          >
+            <img
+              src={logo}
+              alt="El Taller"
+              className="w-12 h-12 rounded-full object-contain bg-black"
+            />
+            <div>
+              <h1 className="text-lg font-bold text-[#D4B896] tracking-wide">
+                EL TALLER
+              </h1>
+              <p className="text-xs text-gray-500">Caja y Turnos</p>
+            </div>
+          </button>
 
-          {/* 🎨 BOTONES DE LOCALES CON COLORES */}
+          {/* Botones de navegación a locales (opcional) */}
           <div className="flex gap-3">
             {locales.map((local, index) => (
               <button
                 key={local.id}
-                onClick={() => setLocalSeleccionado(local.id)}
-                className={`px-6 py-3 rounded-xl font-bold transition-all duration-200 ${
-                  localSeleccionado === local.id
-                    ? index === 0
-                      ? 'bg-purple-500/20 text-purple-300 border-2 border-purple-500/50 shadow-lg shadow-purple-500/20'
-                      : 'bg-amber-500/20 text-amber-300 border-2 border-amber-500/50 shadow-lg shadow-amber-500/20'
-                    : 'bg-[#1a1a1a] text-gray-500 border border-[#2a2a2a] hover:bg-[#222] hover:text-gray-400'
+                onClick={() => {
+                  const element = document.getElementById(`local-${local.id}`);
+                  element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  index === 0
+                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/50'
+                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/50'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{index === 0 ? '🏪' : '🏬'}</span>
-                  <div className="text-left">
-                    <div className="text-sm font-bold">{local.nombre}</div>
-                    {localSeleccionado === local.id && (
-                      <div className="text-xs opacity-70">Seleccionado</div>
-                    )}
-                  </div>
-                </div>
+                {index === 0 ? '🏪' : '🏬'} {local.nombre}
               </button>
             ))}
           </div>
         </div>
       </header>
 
-      {/* 📦 CONTAINER MÁS ANCHO */}
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        {/* 🏷️ TÍTULO DEL LOCAL CON COLOR */}
-        <div className={`mb-6 p-4 rounded-xl border-2 ${
-          localIndex === 0
-            ? 'bg-purple-500/10 border-purple-500/30'
-            : 'bg-amber-500/10 border-amber-500/30'
-        }`}>
-          <h2 className={`text-2xl font-bold flex items-center gap-3 ${
-            localIndex === 0 ? 'text-purple-300' : 'text-amber-300'
-          }`}>
-            <span className="text-3xl">{localIndex === 0 ? '🏪' : '🏬'}</span>
-            {locales.find(l => l.id === localSeleccionado)?.nombre}
-          </h2>
-        </div>
+      {/* Container Principal - Dos Columnas */}
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {locales.map((local, index) => {
+            const turnoLocal = turnosLocales[local.id];
+            const colorScheme = index === 0 
+              ? { 
+                  bg: 'bg-purple-500/10', 
+                  border: 'border-purple-500/30',
+                  text: 'text-purple-300',
+                  button: 'bg-purple-500/20 text-purple-300 border-purple-500/30 hover:bg-purple-500/30',
+                  icon: '🏪'
+                }
+              : { 
+                  bg: 'bg-amber-500/10', 
+                  border: 'border-amber-500/30',
+                  text: 'text-amber-300',
+                  button: 'bg-amber-500/20 text-amber-300 border-amber-500/30 hover:bg-amber-500/30',
+                  icon: '🏬'
+                };
 
-        {/* Estado del turno */}
-        {turnoActivo ? (
-          <div className="space-y-6">
-            {/* Turno activo con borde de color */}
-            <div className={`rounded-2xl p-6 border-2 ${
-              localIndex === 0
-                ? 'bg-[#141414] border-purple-500/30 shadow-lg shadow-purple-500/10'
-                : 'bg-[#141414] border-amber-500/30 shadow-lg shadow-amber-500/10'
-            }`}>
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
-                    <span className="text-emerald-500 font-medium">
-                      Turno Abierto
-                    </span>
+            return (
+              <div 
+                key={local.id} 
+                id={`local-${local.id}`}
+                className={`border-2 rounded-2xl ${colorScheme.border} ${colorScheme.bg} overflow-hidden`}
+              >
+                {/* Header del Local */}
+                <div className={`p-4 border-b-2 ${colorScheme.border}`}>
+                  <h2 className={`text-xl font-bold flex items-center gap-3 ${colorScheme.text}`}>
+                    <span className="text-3xl">{colorScheme.icon}</span>
+                    {local.nombre.toUpperCase()}
+                  </h2>
+                </div>
+
+                {/* Contenido del Local */}
+                <div className="p-6">
+                  {turnoLocal ? (
+                    // Turno Activo
+                    <div className="space-y-4">
+                      {/* Estado y Acciones */}
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
+                            <span className="text-emerald-500 font-medium text-sm">
+                              Turno Abierto
+                            </span>
+                          </div>
+                          <p className="text-gray-400 text-xs">
+                            {formatDate(turnoLocal.fecha_apertura)}
+                          </p>
+                          <p className="text-gray-500 text-xs">
+                            Por: {turnoLocal.usuario?.nombre}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleOpenModalCerrar(local.id)}
+                          className="px-3 py-1.5 text-sm bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition border border-red-500/30"
+                        >
+                          Cerrar Turno
+                        </button>
+                      </div>
+
+                      {/* Resumen Compacto */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-[#1a1a1a] rounded-lg p-3">
+                          <p className="text-gray-500 text-xs">Ventas</p>
+                          <p className="text-lg font-bold text-[#D4B896]">
+                            {formatMoney(turnoLocal.resumen?.total_ventas)}
+                          </p>
+                        </div>
+                        <div className="bg-[#1a1a1a] rounded-lg p-3">
+                          <p className="text-gray-500 text-xs">Pedidos</p>
+                          <p className="text-lg font-bold text-white">
+                            {turnoLocal.resumen?.cantidad_pedidos || 0}
+                          </p>
+                        </div>
+                        <div className="bg-[#1a1a1a] rounded-lg p-3">
+                          <p className="text-gray-500 text-xs">Cortesías</p>
+                          <p className="text-lg font-bold text-orange-500">
+                            {formatMoney(turnoLocal.resumen?.total_cortesias)}
+                          </p>
+                        </div>
+                        <div className="bg-[#1a1a1a] rounded-lg p-3">
+                          <p className="text-gray-500 text-xs">Efectivo Esp.</p>
+                          <p className="text-lg font-bold text-emerald-500">
+                            {formatMoney(turnoLocal.resumen?.efectivo_esperado)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Métodos de Pago */}
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="bg-[#1a1a1a] rounded-lg p-2 text-center">
+                          <p className="text-lg mb-0.5">💵</p>
+                          <p className="text-gray-500 text-xs">Efectivo</p>
+                          <p className="text-sm font-bold text-white">
+                            {formatMoney(turnoLocal.resumen?.total_efectivo)}
+                          </p>
+                        </div>
+                        <div className="bg-[#1a1a1a] rounded-lg p-2 text-center">
+                          <p className="text-lg mb-0.5">🏦</p>
+                          <p className="text-gray-500 text-xs">Transfer.</p>
+                          <p className="text-sm font-bold text-white">
+                            {formatMoney(turnoLocal.resumen?.total_transferencias)}
+                          </p>
+                        </div>
+                        <div className="bg-[#1a1a1a] rounded-lg p-2 text-center">
+                          <p className="text-lg mb-0.5">📱</p>
+                          <p className="text-gray-500 text-xs">Nequi</p>
+                          <p className="text-sm font-bold text-white">
+                            {formatMoney(turnoLocal.resumen?.total_nequi)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    // Sin Turno
+                    <div className="text-center py-12">
+                      <div className="text-5xl mb-3">💰</div>
+                      <h3 className="text-lg font-bold text-white mb-2">
+                        No hay turno abierto
+                      </h3>
+                      <p className="text-gray-500 text-sm mb-6">
+                        Abre un turno para comenzar a registrar ventas
+                      </p>
+                      <button
+                        onClick={() => handleOpenModalAbrir(local.id)}
+                        className={`px-6 py-2.5 font-semibold rounded-lg transition border ${colorScheme.button}`}
+                      >
+                        Abrir Turno
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Botón Ver Historial */}
+                  <div className="mt-4">
+                    <button
+                      onClick={() => {
+                        setLocalSeleccionado(local.id);
+                        cargarHistorial();
+                      }}
+                      className="w-full py-2 text-sm bg-[#141414] text-gray-400 rounded-lg hover:bg-[#1a1a1a] transition border border-[#2a2a2a]"
+                    >
+                      📋 Ver Historial de Turnos
+                    </button>
                   </div>
-                  <p className="text-gray-400 text-sm">
-                    Abierto: {formatDate(turnoActivo.fecha_apertura)}
-                  </p>
-                  <p className="text-gray-500 text-sm">
-                    Por: {turnoActivo.usuario?.nombre}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setModalCerrar(true)}
-                  className="px-4 py-2 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition border border-red-500/30"
-                >
-                  Cerrar Turno
-                </button>
-              </div>
-
-              {/* Resumen de ventas */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-[#1a1a1a] rounded-xl p-4">
-                  <p className="text-gray-500 text-sm">Ventas Totales</p>
-                  <p className="text-2xl font-bold text-[#D4B896]">
-                    {formatMoney(turnoActivo.resumen?.total_ventas)}
-                  </p>
-                </div>
-                <div className="bg-[#1a1a1a] rounded-xl p-4">
-                  <p className="text-gray-500 text-sm">Pedidos</p>
-                  <p className="text-2xl font-bold text-white">
-                    {turnoActivo.resumen?.cantidad_pedidos || 0}
-                  </p>
-                </div>
-                <div className="bg-[#1a1a1a] rounded-xl p-4">
-                  <p className="text-gray-500 text-sm">Cortesías</p>
-                  <p className="text-2xl font-bold text-orange-500">
-                    {formatMoney(turnoActivo.resumen?.total_cortesias)}
-                  </p>
-                </div>
-                <div className="bg-[#1a1a1a] rounded-xl p-4">
-                  <p className="text-gray-500 text-sm">Efectivo Esperado</p>
-                  <p className="text-2xl font-bold text-emerald-500">
-                    {formatMoney(turnoActivo.resumen?.efectivo_esperado)}
-                  </p>
                 </div>
               </div>
-
-              {/* Desglose por método */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="bg-[#1a1a1a] rounded-xl p-4 text-center">
-                  <p className="text-2xl mb-1">💵</p>
-                  <p className="text-gray-500 text-sm">Efectivo</p>
-                  <p className="text-lg font-bold text-white">
-                    {formatMoney(turnoActivo.resumen?.total_efectivo)}
-                  </p>
-                </div>
-                <div className="bg-[#1a1a1a] rounded-xl p-4 text-center">
-                  <p className="text-2xl mb-1">🏦</p>
-                  <p className="text-gray-500 text-sm">Transferencias</p>
-                  <p className="text-lg font-bold text-white">
-                    {formatMoney(turnoActivo.resumen?.total_transferencias)}
-                  </p>
-                </div>
-                <div className="bg-[#1a1a1a] rounded-xl p-4 text-center">
-                  <p className="text-2xl mb-1">📱</p>
-                  <p className="text-gray-500 text-sm">Nequi</p>
-                  <p className="text-lg font-bold text-white">
-                    {formatMoney(turnoActivo.resumen?.total_nequi)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* Sin turno activo */
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-8 text-center">
-            <div className="text-6xl mb-4">💰</div>
-            <h2 className="text-xl font-bold text-white mb-2">
-              No hay turno abierto
-            </h2>
-            <p className="text-gray-500 mb-6">
-              Abre un turno para comenzar a registrar ventas
-            </p>
-            <button
-              onClick={handleOpenModalAbrir}
-              className="px-6 py-3 bg-[#D4B896] text-[#0a0a0a] font-semibold rounded-lg hover:bg-[#C4A576] transition"
-            >
-              Abrir Turno
-            </button>
-          </div>
-        )}
-
-        {/* Botón historial */}
-        <div className="mt-6">
-          <button
-            onClick={cargarHistorial}
-            className="w-full py-3 bg-[#141414] text-gray-400 rounded-xl hover:bg-[#1a1a1a] transition border border-[#2a2a2a]"
-          >
-            📋 Ver Historial de Turnos
-          </button>
+            );
+          })}
         </div>
 
-        {/* Historial */}
+        {/* Historial (se muestra abajo de todo) */}
         {verHistorial && (
           <div className="mt-6 bg-[#141414] border border-[#2a2a2a] rounded-2xl overflow-hidden">
             <div className="p-4 border-b border-[#2a2a2a] flex justify-between items-center">
               <h3 className="text-lg font-bold text-white">
-                Historial de Turnos
+                Historial de Turnos - {locales.find(l => l.id === localSeleccionado)?.nombre}
               </h3>
               <button
                 onClick={() => setVerHistorial(false)}
