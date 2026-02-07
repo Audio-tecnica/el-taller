@@ -1,5 +1,6 @@
 const PDFDocument = require('pdfkit');
 const { Compra, Proveedor, Local, MovimientoInventario, Producto } = require('../models');
+const { Op } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
 
@@ -50,6 +51,36 @@ const generarPDFFactura = async (req, res) => {
         }
       ]
     });
+
+    // Si no se encuentran movimientos con compra_id, buscar por otros criterios
+    let movimientosFinal = movimientos;
+    if (movimientos.length === 0) {
+      console.log(`⚠️ No se encontraron movimientos con compra_id para ${id}, buscando por otros criterios...`);
+      
+      movimientosFinal = await MovimientoInventario.findAll({
+        where: {
+          tipo: 'compra',
+          proveedor_id: compra.proveedor_id,
+          local_id: compra.local_id,
+          [Op.or]: [
+            { numero_factura: compra.numero_factura },
+            { 
+              fecha_factura: compra.fecha_factura || compra.fecha_compra
+            }
+          ]
+        },
+        include: [
+          {
+            model: Producto,
+            as: 'producto',
+            attributes: ['nombre', 'codigo']
+          }
+        ],
+        limit: 50 // Limitar por seguridad
+      });
+
+      console.log(`📦 Encontrados ${movimientosFinal.length} movimientos por criterios alternativos`);
+    }
 
     const doc = new PDFDocument({ 
       size: 'LETTER',
@@ -237,26 +268,41 @@ const generarPDFFactura = async (req, res) => {
 
     // Productos
     doc.fillColor('#000000');
-    movimientos.forEach((mov, index) => {
-      if (index % 2 === 0) {
-        doc
-          .fillColor('#f9f9f9')
-          .rect(40, currentY, 515, 18)
-          .fill();
-        doc.fillColor('#000000');
-      }
-
+    
+    if (movimientosFinal.length === 0) {
+      // Mostrar mensaje si no hay productos
+      currentY += 10;
       doc
-        .fontSize(8)
+        .fontSize(10)
         .font('Helvetica')
-        .text(mov.producto?.codigo || 'N/A', 45, currentY + 5, { width: 70 })
-        .text(mov.producto?.nombre || 'Producto', 120, currentY + 5, { width: 200 })
-        .text(mov.cantidad.toString(), 325, currentY + 5, { width: 60, align: 'right' })
-        .text(formatCurrency(mov.costo_unitario), 390, currentY + 5, { width: 75, align: 'right' })
-        .text(formatCurrency(mov.costo_total), 470, currentY + 5, { width: 80, align: 'right' });
+        .fillColor('#999999')
+        .text('No se encontraron productos asociados a esta compra', 40, currentY, { 
+          width: 515, 
+          align: 'center' 
+        });
+      currentY += 30;
+    } else {
+      movimientosFinal.forEach((mov, index) => {
+        if (index % 2 === 0) {
+          doc
+            .fillColor('#f9f9f9')
+            .rect(40, currentY, 515, 18)
+            .fill();
+          doc.fillColor('#000000');
+        }
 
-      currentY += 18;
-    });
+        doc
+          .fontSize(8)
+          .font('Helvetica')
+          .text(mov.producto?.codigo || 'N/A', 45, currentY + 5, { width: 70 })
+          .text(mov.producto?.nombre || 'Producto', 120, currentY + 5, { width: 200 })
+          .text(mov.cantidad.toString(), 325, currentY + 5, { width: 60, align: 'right' })
+          .text(formatCurrency(mov.costo_unitario), 390, currentY + 5, { width: 75, align: 'right' })
+          .text(formatCurrency(mov.costo_total), 470, currentY + 5, { width: 80, align: 'right' });
+
+        currentY += 18;
+      });
+    }
 
     currentY += 5;
     doc
