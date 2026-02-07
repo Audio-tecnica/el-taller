@@ -77,7 +77,7 @@ const inventarioKardexController = {
       // PROCESAR PRODUCTOS Y ACTUALIZAR INVENTARIO
       // ================================================
       let subtotal = 0;
-      const movimientos = [];
+      const productosParaMovimientos = [];
 
       for (const item of productos) {
         if (item.cantidad <= 0) {
@@ -131,28 +131,15 @@ const inventarioKardexController = {
           );
         }
 
-        const movimiento = await MovimientoInventario.create(
-          {
-            producto_id: item.producto_id,
-            local_id,
-            tipo: "compra",
-            cantidad: item.cantidad,
-            stock_anterior: stockAnterior,
-            stock_nuevo: stockNuevo,
-            costo_unitario: item.costo_unitario,
-            costo_total: costoTotal,
-            proveedor_id,
-            numero_factura,
-            fecha_factura,
-            fecha_movimiento: new Date(),
-            motivo: `Compra a ${proveedor.nombre}`,
-            observaciones,
-            usuario_id,
-          },
-          { transaction: t },
-        );
-
-        movimientos.push(movimiento);
+        // Guardar info para crear movimientos después
+        productosParaMovimientos.push({
+          producto_id: item.producto_id,
+          cantidad: item.cantidad,
+          stock_anterior: stockAnterior,
+          stock_nuevo: stockNuevo,
+          costo_unitario: item.costo_unitario,
+          costo_total: costoTotal
+        });
       }
 
       // ================================================
@@ -279,6 +266,35 @@ const inventarioKardexController = {
             ...impReg
           }, { transaction: t });
         }
+      }
+
+      // ================================================
+      // CREAR MOVIMIENTOS DE INVENTARIO (AHORA CON compra_id)
+      // ================================================
+      const movimientos = [];
+      for (const prodInfo of productosParaMovimientos) {
+        const movimiento = await MovimientoInventario.create(
+          {
+            producto_id: prodInfo.producto_id,
+            local_id,
+            tipo: "compra",
+            cantidad: prodInfo.cantidad,
+            stock_anterior: prodInfo.stock_anterior,
+            stock_nuevo: prodInfo.stock_nuevo,
+            costo_unitario: prodInfo.costo_unitario,
+            costo_total: prodInfo.costo_total,
+            proveedor_id,
+            compra_id: compra.id, // ⭐ AHORA SÍ TENEMOS EL ID
+            numero_factura,
+            fecha_factura,
+            fecha_movimiento: new Date(),
+            motivo: `Compra a ${proveedor.nombre}`,
+            observaciones,
+            usuario_id,
+          },
+          { transaction: t },
+        );
+        movimientos.push(movimiento);
       }
 
       // ================================================

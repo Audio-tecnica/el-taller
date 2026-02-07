@@ -53,7 +53,7 @@ const generarPDFFactura = async (req, res) => {
 
     const doc = new PDFDocument({ 
       size: 'LETTER',
-      margins: { top: 50, bottom: 50, left: 50, right: 50 }
+      margins: { top: 40, bottom: 40, left: 40, right: 40 }
     });
 
     const filename = `factura_${compra.numero_factura || compra.numero_compra}_${Date.now()}.pdf`;
@@ -62,157 +62,186 @@ const generarPDFFactura = async (req, res) => {
     const stream = fs.createWriteStream(filepath);
     doc.pipe(stream);
 
-    // Header
+    // ===== HEADER =====
+    // Logo y título
     doc
-      .fontSize(24)
+      .fontSize(26)
       .font('Helvetica-Bold')
       .fillColor('#D4B896')
-      .text('EL TALLER', 50, 50);
+      .text('EL TALLER', 40, 40);
 
     doc
-      .fontSize(10)
+      .fontSize(9)
       .font('Helvetica')
       .fillColor('#666666')
-      .text('Sistema de Gestión', 50, 78);
+      .text('Sistema de Gestión de Inventario', 40, 70);
+
+    // Cuadro de información de factura (derecha)
+    const boxX = 380;
+    const boxY = 40;
+    doc
+      .fillColor('#D4B896')
+      .rect(boxX, boxY, 175, 85)
+      .fill();
 
     doc
-      .strokeColor('#D4B896')
-      .lineWidth(2)
-      .moveTo(50, 100)
-      .lineTo(562, 100)
-      .stroke();
-
-    doc
-      .fontSize(18)
+      .fontSize(16)
       .font('Helvetica-Bold')
-      .fillColor('#000000')
-      .text('FACTURA DE COMPRA', 50, 120);
-
-    // Información de la factura
-    const infoY = 120;
-    doc
-      .fontSize(10)
-      .font('Helvetica-Bold')
-      .text('N° Factura:', 400, infoY)
-      .font('Helvetica')
-      .text(compra.numero_factura || 'N/A', 480, infoY);
-
-    doc
-      .font('Helvetica-Bold')
-      .text('N° Compra:', 400, infoY + 15)
-      .font('Helvetica')
-      .text(compra.numero_compra, 480, infoY + 15);
-
-    doc
-      .font('Helvetica-Bold')
-      .text('Fecha:', 400, infoY + 30)
-      .font('Helvetica')
-      .text(new Date(compra.fecha_factura || compra.fecha_compra).toLocaleDateString('es-CO'), 480, infoY + 30);
-
-    doc
-      .font('Helvetica-Bold')
-      .text('Local:', 400, infoY + 45)
-      .font('Helvetica')
-      .text(compra.local?.nombre || 'N/A', 480, infoY + 45);
-
-    const estadoColor = compra.estado === 'recibida' ? '#10b981' : 
-                       compra.estado === 'pendiente' ? '#fbbf24' : '#ef4444';
-    doc
-      .font('Helvetica-Bold')
-      .text('Estado:', 400, infoY + 60)
-      .fillColor(estadoColor)
-      .font('Helvetica-Bold')
-      .text(compra.estado.toUpperCase(), 480, infoY + 60);
-
-    doc.fillColor('#000000');
-
-    // Información del proveedor
-    doc
-      .fontSize(12)
-      .font('Helvetica-Bold')
-      .text('DATOS DEL PROVEEDOR', 50, 220);
-
-    doc
-      .fontSize(10)
-      .font('Helvetica-Bold')
-      .text('Razón Social:', 50, 240)
-      .font('Helvetica')
-      .text(compra.proveedor?.nombre || 'N/A', 140, 240);
-
-    if (compra.proveedor?.nit) {
-      doc
-        .font('Helvetica-Bold')
-        .text('NIT:', 50, 255)
-        .font('Helvetica')
-        .text(compra.proveedor.nit, 140, 255);
-    }
-
-    if (compra.proveedor?.telefono) {
-      doc
-        .font('Helvetica-Bold')
-        .text('Teléfono:', 50, 270)
-        .font('Helvetica')
-        .text(compra.proveedor.telefono, 140, 270);
-    }
-
-    if (compra.proveedor?.email) {
-      doc
-        .font('Helvetica-Bold')
-        .text('Email:', 50, 285)
-        .font('Helvetica')
-        .text(compra.proveedor.email, 140, 285);
-    }
-
-    if (compra.proveedor?.direccion) {
-      doc
-        .font('Helvetica-Bold')
-        .text('Dirección:', 50, 300)
-        .font('Helvetica')
-        .text(compra.proveedor.direccion, 140, 300, { width: 400 });
-    }
-
-    doc
-      .strokeColor('#CCCCCC')
-      .lineWidth(1)
-      .moveTo(50, 330)
-      .lineTo(562, 330)
-      .stroke();
-
-    // Tabla de productos
-    let tableTop = 350;
-    
-    doc
-      .fontSize(12)
-      .font('Helvetica-Bold')
-      .text('DETALLE DE PRODUCTOS', 50, tableTop);
-
-    tableTop += 25;
+      .fillColor('#FFFFFF')
+      .text('FACTURA DE COMPRA', boxX + 10, boxY + 10, { width: 155, align: 'center' });
 
     doc
       .fontSize(9)
       .font('Helvetica-Bold')
       .fillColor('#FFFFFF')
-      .rect(50, tableTop, 512, 20)
+      .text('N° Factura:', boxX + 10, boxY + 35)
+      .font('Helvetica')
+      .text(compra.numero_factura || 'N/A', boxX + 75, boxY + 35);
+
+    doc
+      .font('Helvetica-Bold')
+      .text('N° Compra:', boxX + 10, boxY + 50)
+      .font('Helvetica')
+      .text(compra.numero_compra, boxX + 75, boxY + 50);
+
+    doc
+      .font('Helvetica-Bold')
+      .text('Fecha:', boxX + 10, boxY + 65)
+      .font('Helvetica')
+      .text(new Date(compra.fecha_factura || compra.fecha_compra).toLocaleDateString('es-CO'), boxX + 75, boxY + 65);
+
+    // Línea separadora
+    doc
+      .strokeColor('#D4B896')
+      .lineWidth(1)
+      .moveTo(40, 140)
+      .lineTo(555, 140)
+      .stroke();
+
+    // ===== INFORMACIÓN DEL PROVEEDOR =====
+    let currentY = 155;
+    
+    doc
+      .fontSize(12)
+      .font('Helvetica-Bold')
+      .fillColor('#000000')
+      .text('DATOS DEL PROVEEDOR', 40, currentY);
+
+    currentY += 20;
+    
+    // Fondo del proveedor
+    doc
+      .fillColor('#F5F5F5')
+      .rect(40, currentY - 5, 515, 80)
+      .fill();
+
+    doc
+      .fontSize(10)
+      .font('Helvetica-Bold')
+      .fillColor('#000000')
+      .text('Razón Social:', 50, currentY)
+      .font('Helvetica')
+      .text(compra.proveedor?.nombre || 'N/A', 140, currentY);
+
+    if (compra.proveedor?.nit) {
+      currentY += 15;
+      doc
+        .font('Helvetica-Bold')
+        .text('NIT:', 50, currentY)
+        .font('Helvetica')
+        .text(compra.proveedor.nit, 140, currentY);
+    }
+
+    currentY += 15;
+    doc
+      .font('Helvetica-Bold')
+      .text('Teléfono:', 50, currentY)
+      .font('Helvetica')
+      .text(compra.proveedor?.telefono || 'N/A', 140, currentY);
+
+    doc
+      .font('Helvetica-Bold')
+      .text('Email:', 290, currentY)
+      .font('Helvetica')
+      .text(compra.proveedor?.email || 'N/A', 340, currentY, { width: 200 });
+
+    if (compra.proveedor?.direccion) {
+      currentY += 15;
+      doc
+        .font('Helvetica-Bold')
+        .text('Dirección:', 50, currentY)
+        .font('Helvetica')
+        .text(compra.proveedor.direccion, 140, currentY, { width: 400 });
+    }
+
+    currentY += 25;
+
+    // ===== INFORMACIÓN DE LA COMPRA =====
+    doc
+      .fontSize(10)
+      .font('Helvetica-Bold')
+      .text('Local:', 50, currentY)
+      .font('Helvetica')
+      .text(compra.local?.nombre || 'N/A', 140, currentY);
+
+    // Estado de la compra
+    const estadoText = compra.estado.charAt(0).toUpperCase() + compra.estado.slice(1);
+    const estadoColor = compra.estado === 'recibida' ? '#10b981' : 
+                       compra.estado === 'pendiente' ? '#fbbf24' : '#ef4444';
+    
+    doc
+      .font('Helvetica-Bold')
+      .text('Estado:', 290, currentY)
+      .fillColor(estadoColor)
+      .font('Helvetica-Bold')
+      .text(estadoText, 340, currentY);
+
+    doc.fillColor('#000000');
+    currentY += 20;
+
+    // ===== TABLA DE PRODUCTOS =====
+    doc
+      .strokeColor('#CCCCCC')
+      .lineWidth(1)
+      .moveTo(40, currentY)
+      .lineTo(555, currentY)
+      .stroke();
+
+    currentY += 10;
+
+    doc
+      .fontSize(11)
+      .font('Helvetica-Bold')
+      .fillColor('#000000')
+      .text('DETALLE DE PRODUCTOS', 40, currentY);
+
+    currentY += 20;
+
+    // Header de tabla
+    doc
+      .fontSize(9)
+      .font('Helvetica-Bold')
+      .fillColor('#FFFFFF')
+      .rect(40, currentY, 515, 22)
       .fillAndStroke('#1a1a1a', '#1a1a1a');
 
     doc
       .fillColor('#FFFFFF')
-      .text('Código', 55, tableTop + 6, { width: 80 })
-      .text('Producto', 140, tableTop + 6, { width: 180 })
-      .text('Cantidad', 325, tableTop + 6, { width: 60, align: 'right' })
-      .text('Costo Unit.', 390, tableTop + 6, { width: 80, align: 'right' })
-      .text('Subtotal', 475, tableTop + 6, { width: 80, align: 'right' });
+      .text('Código', 45, currentY + 7, { width: 70 })
+      .text('Producto', 120, currentY + 7, { width: 200 })
+      .text('Cantidad', 325, currentY + 7, { width: 60, align: 'right' })
+      .text('Costo Unit.', 390, currentY + 7, { width: 75, align: 'right' })
+      .text('Subtotal', 470, currentY + 7, { width: 80, align: 'right' });
 
+    currentY += 22;
+
+    // Productos
     doc.fillColor('#000000');
-    tableTop += 25;
-
     movimientos.forEach((mov, index) => {
-      const y = tableTop + (index * 20);
-      
       if (index % 2 === 0) {
         doc
           .fillColor('#f9f9f9')
-          .rect(50, y - 3, 512, 20)
+          .rect(40, currentY, 515, 18)
           .fill();
         doc.fillColor('#000000');
       }
@@ -220,71 +249,85 @@ const generarPDFFactura = async (req, res) => {
       doc
         .fontSize(8)
         .font('Helvetica')
-        .text(mov.producto?.codigo || 'N/A', 55, y, { width: 80 })
-        .text(mov.producto?.nombre || 'Producto', 140, y, { width: 180 })
-        .text(mov.cantidad.toString(), 325, y, { width: 60, align: 'right' })
-        .text(formatCurrency(mov.costo_unitario), 390, y, { width: 80, align: 'right' })
-        .text(formatCurrency(mov.costo_total), 475, y, { width: 80, align: 'right' });
+        .text(mov.producto?.codigo || 'N/A', 45, currentY + 5, { width: 70 })
+        .text(mov.producto?.nombre || 'Producto', 120, currentY + 5, { width: 200 })
+        .text(mov.cantidad.toString(), 325, currentY + 5, { width: 60, align: 'right' })
+        .text(formatCurrency(mov.costo_unitario), 390, currentY + 5, { width: 75, align: 'right' })
+        .text(formatCurrency(mov.costo_total), 470, currentY + 5, { width: 80, align: 'right' });
+
+      currentY += 18;
     });
 
-    const afterProductsY = tableTop + (movimientos.length * 20) + 10;
+    currentY += 5;
     doc
       .strokeColor('#CCCCCC')
       .lineWidth(1)
-      .moveTo(50, afterProductsY)
-      .lineTo(562, afterProductsY)
+      .moveTo(40, currentY)
+      .lineTo(555, currentY)
       .stroke();
 
-    // Totales
-    const totalesY = afterProductsY + 20;
+    // ===== TOTALES =====
+    currentY += 15;
+
+    doc
+      .fontSize(9)
+      .font('Helvetica')
+      .fillColor('#000000')
+      .text('Subtotal:', 390, currentY, { width: 75, align: 'right' })
+      .font('Helvetica-Bold')
+      .text(formatCurrency(compra.subtotal), 470, currentY, { width: 80, align: 'right' });
+
+    currentY += 15;
+    
+    // Calcular el IVA real
+    const ivaReal = parseFloat(compra.impuestos) || 0;
+    const porcentajeIVA = compra.subtotal > 0 ? (ivaReal / compra.subtotal * 100).toFixed(2) : 0;
     
     doc
-      .fontSize(10)
       .font('Helvetica')
-      .text('Subtotal:', 390, totalesY, { width: 80, align: 'right' })
+      .text(`IVA (${porcentajeIVA}%):`, 390, currentY, { width: 75, align: 'right' })
       .font('Helvetica-Bold')
-      .text(formatCurrency(compra.subtotal), 475, totalesY, { width: 80, align: 'right' });
-
-    doc
-      .font('Helvetica')
-      .text(`IVA (${compra.iva_porcentaje || 0}%):`, 390, totalesY + 15, { width: 80, align: 'right' })
-      .font('Helvetica-Bold')
-      .text(formatCurrency(compra.impuestos), 475, totalesY + 15, { width: 80, align: 'right' });
+      .text(formatCurrency(ivaReal), 470, currentY, { width: 80, align: 'right' });
 
     if (parseFloat(compra.descuento) > 0) {
+      currentY += 15;
       doc
         .font('Helvetica')
-        .text('Descuento:', 390, totalesY + 30, { width: 80, align: 'right' })
+        .text('Descuento:', 390, currentY, { width: 75, align: 'right' })
         .font('Helvetica-Bold')
         .fillColor('#ef4444')
-        .text(`-${formatCurrency(compra.descuento)}`, 475, totalesY + 30, { width: 80, align: 'right' });
+        .text(`-${formatCurrency(compra.descuento)}`, 470, currentY, { width: 80, align: 'right' });
       doc.fillColor('#000000');
     }
 
-    const totalY = parseFloat(compra.descuento) > 0 ? totalesY + 50 : totalesY + 35;
+    currentY += 20;
+
+    // TOTAL final
     doc
-      .rect(380, totalY - 5, 182, 25)
+      .rect(365, currentY - 5, 190, 28)
       .fillAndStroke('#D4B896', '#D4B896');
 
     doc
       .fontSize(12)
       .font('Helvetica-Bold')
       .fillColor('#000000')
-      .text('TOTAL:', 390, totalY + 3, { width: 80, align: 'right' })
-      .text(formatCurrency(compra.total), 475, totalY + 3, { width: 80, align: 'right' });
+      .text('TOTAL:', 390, currentY + 3, { width: 75, align: 'right' })
+      .text(formatCurrency(compra.total), 470, currentY + 3, { width: 80, align: 'right' });
 
+    // Observaciones
     if (compra.observaciones) {
-      const obsY = totalY + 40;
+      currentY += 40;
       doc
         .fontSize(10)
         .font('Helvetica-Bold')
         .fillColor('#000000')
-        .text('OBSERVACIONES:', 50, obsY);
+        .text('OBSERVACIONES:', 40, currentY);
       
+      currentY += 15;
       doc
         .fontSize(9)
         .font('Helvetica')
-        .text(compra.observaciones, 50, obsY + 15, { width: 512 });
+        .text(compra.observaciones, 40, currentY, { width: 515 });
     }
 
     // Footer
@@ -294,17 +337,17 @@ const generarPDFFactura = async (req, res) => {
       .fillColor('#666666')
       .text(
         'Documento generado automáticamente por El Taller - Sistema de Gestión',
-        50,
+        40,
         750,
-        { align: 'center', width: 512 }
+        { align: 'center', width: 515 }
       );
 
     doc
       .text(
-        `Fecha de generación: ${new Date().toLocaleString('es-CO')}`,
-        50,
+        `Generado: ${new Date().toLocaleString('es-CO')}`,
+        40,
         765,
-        { align: 'center', width: 512 }
+        { align: 'center', width: 515 }
       );
 
     doc.end();
