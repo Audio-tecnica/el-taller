@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { proveedoresService } from "../../../services/proveedoresService";
 import { facturasCompraService } from "../../../services/facturasCompraService";
+import ModalPagoCompra from "../../../components/ModalPagoCompra";
 import toast from "react-hot-toast";
 
 export default function TabFacturas({ proveedorId }) {
@@ -12,6 +13,7 @@ export default function TabFacturas({ proveedorId }) {
     estado: "todas"
   });
   const [facturaSeleccionada, setFacturaSeleccionada] = useState(null);
+  const [mostrarModalPago, setMostrarModalPago] = useState(false);
 
   useEffect(() => {
     cargarFacturas();
@@ -229,6 +231,9 @@ const descargarPDF = async (factura) => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Estado
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Pago
+                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Subtotal
                   </th>
@@ -266,6 +271,19 @@ const descargarPDF = async (factura) => {
                         }
                       `}>
                         {factura.estado}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`
+                        px-2 py-1 text-xs font-medium rounded-full
+                        ${factura.estado_pago === 'pagado' 
+                          ? 'bg-emerald-500/10 text-emerald-400' 
+                          : factura.estado_pago === 'parcial'
+                          ? 'bg-orange-500/10 text-orange-400'
+                          : 'bg-red-500/10 text-red-400'
+                        }
+                      `}>
+                        {factura.estado_pago === 'pagado' ? 'Pagado' : factura.estado_pago === 'parcial' ? 'Parcial' : 'Pendiente'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-300">
@@ -398,6 +416,29 @@ const descargarPDF = async (factura) => {
                 </div>
               </div>
 
+              {/* Información de Pago */}
+              {facturaSeleccionada.forma_pago === 'credito' && (
+                <div className="border-t border-[#2a2a2a] pt-4 bg-[#0a0a0a] rounded-lg p-4">
+                  <h4 className="text-sm font-bold text-white mb-3">Estado de Pago</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-xs text-gray-500">Monto Pagado</span>
+                      <p className="text-emerald-400 font-bold">{formatearMoneda(facturaSeleccionada.monto_pagado)}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500">Saldo Pendiente</span>
+                      <p className="text-orange-400 font-bold">{formatearMoneda(facturaSeleccionada.saldo_pendiente)}</p>
+                    </div>
+                    {facturaSeleccionada.fecha_vencimiento && (
+                      <div className="col-span-2">
+                        <span className="text-xs text-gray-500">Fecha de Vencimiento</span>
+                        <p className="text-white">{formatearFecha(facturaSeleccionada.fecha_vencimiento)}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {facturaSeleccionada.observaciones && (
                 <div className="border-t border-[#2a2a2a] pt-4">
                   <span className="text-xs text-gray-500">Observaciones</span>
@@ -406,6 +447,14 @@ const descargarPDF = async (factura) => {
               )}
 
               <div className="flex gap-3 pt-4">
+                {facturaSeleccionada.forma_pago === 'credito' && parseFloat(facturaSeleccionada.saldo_pendiente) > 0 && (
+                  <button
+                    onClick={() => setMostrarModalPago(true)}
+                    className="flex-1 px-4 py-3 bg-[#D4B896]/10 text-[#D4B896] border border-[#D4B896]/20 rounded-lg font-bold hover:bg-[#D4B896]/20 transition"
+                  >
+                    💰 Registrar Pago
+                  </button>
+                )}
                 <button
                   onClick={() => descargarPDF(facturaSeleccionada)}
                   className="flex-1 px-4 py-3 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg font-bold hover:bg-blue-500/20 transition"
@@ -422,6 +471,18 @@ const descargarPDF = async (factura) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de Pago */}
+      {mostrarModalPago && facturaSeleccionada && (
+        <ModalPagoCompra
+          compra={facturaSeleccionada}
+          onClose={() => setMostrarModalPago(false)}
+          onPagoRegistrado={() => {
+            cargarFacturas();
+            setMostrarModalPago(false);
+          }}
+        />
       )}
     </div>
   );
