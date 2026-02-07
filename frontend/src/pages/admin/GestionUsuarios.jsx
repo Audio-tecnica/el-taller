@@ -100,6 +100,26 @@ export default function GestionUsuarios() {
     }
   };
 
+  const eliminarUsuario = async (usuario) => {
+    // Confirmación
+    const confirmar = window.confirm(
+      `¿Estás seguro de eliminar al usuario "${usuario.nombre}"?\n\n` +
+      `⚠️ Esta acción NO se puede deshacer.\n\n` +
+      `Se eliminarán todos los datos asociados a este usuario.`
+    );
+
+    if (!confirmar) return;
+
+    try {
+      await api.delete(`/auth/usuarios/${usuario.id}`);
+      toast.success('Usuario eliminado exitosamente');
+      cargarUsuarios();
+    } catch (error) {
+      const mensaje = error.response?.data?.error || 'Error al eliminar usuario';
+      toast.error(mensaje);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
@@ -174,12 +194,21 @@ export default function GestionUsuarios() {
                     </button>
                   </td>
                   <td className="p-4">
-                    <button
-                      onClick={() => abrirModalEditar(usuario)}
-                      className="px-3 py-1.5 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition text-sm font-medium"
-                    >
-                      ✏️ Editar
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => abrirModalEditar(usuario)}
+                        className="px-3 py-1.5 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition text-sm font-medium"
+                      >
+                        ✏️ Editar
+                      </button>
+                      <button
+                        onClick={() => eliminarUsuario(usuario)}
+                        className="px-3 py-1.5 bg-red-600/20 text-red-400 rounded-lg hover:bg-red-600/30 transition text-sm font-medium"
+                        title="Eliminar usuario"
+                      >
+                        🗑️ Eliminar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

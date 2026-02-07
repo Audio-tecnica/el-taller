@@ -494,6 +494,75 @@ const authController = {
       res.status(500).json({ error: error.message });
     }
   },
+
+  // Eliminar usuario
+  eliminarUsuario: async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Buscar el usuario
+      const usuario = await Usuario.findByPk(id);
+
+      if (!usuario) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+
+      // Verificar que no sea el último administrador
+      if (usuario.rol === 'administrador') {
+        const totalAdmins = await Usuario.count({
+          where: {
+            rol: 'administrador',
+            activo: true
+          }
+        });
+
+        if (totalAdmins <= 1) {
+          return res.status(400).json({ 
+            error: 'No se puede eliminar el último administrador del sistema' 
+          });
+        }
+      }
+
+      // Verificar que el usuario no esté intentando eliminarse a sí mismo
+      if (usuario.id === req.usuario.id) {
+        return res.status(400).json({ 
+          error: 'No puedes eliminar tu propia cuenta' 
+        });
+      }
+
+      // Verificar si tiene turnos activos
+      const turnoActivo = await Turno.findOne({
+        where: {
+          cajero_id: id,
+          estado: 'abierto'
+        }
+      });
+
+      if (turnoActivo) {
+        return res.status(400).json({ 
+          error: 'No se puede eliminar un usuario con turno abierto. Cierra el turno primero.' 
+        });
+      }
+
+      // Eliminar usuario
+      await usuario.destroy();
+
+      console.log(`✅ Usuario eliminado: ${usuario.nombre} (${usuario.email})`);
+
+      res.json({ 
+        message: 'Usuario eliminado exitosamente',
+        usuario: {
+          id: usuario.id,
+          nombre: usuario.nombre,
+          email: usuario.email
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Error eliminando usuario:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
 };
 
 module.exports = authController;
