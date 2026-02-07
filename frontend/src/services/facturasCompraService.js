@@ -29,12 +29,12 @@ export const facturasCompraService = {
   },
 
   editar: async (compraId, datos) => {
-    const response = await api.put(`/facturas-compra/${compraId}/editar`, datos);
+    const response = await api.put(`/facturas-compra/${compraId}`, datos);
     return response.data;
   },
 
   anular: async (compraId, motivo) => {
-    const response = await api.put(`/facturas-compra/${compraId}/anular`, { motivo });
+    const response = await api.post(`/facturas-compra/${compraId}/anular`, { motivo });
     return response.data;
   }
 };
