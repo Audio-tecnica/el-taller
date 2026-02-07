@@ -635,7 +635,7 @@ export default function Caja() {
             <div className="p-6 space-y-4">
               <div className="bg-[#1a1a1a] rounded-xl p-4">
                 <div className="flex justify-between mb-2">
-                  <span className="text-gray-400">Efectivo esperado</span>
+                  <span className="text-gray-400">Total esperado</span>
                   <span className="text-white font-bold">
                     {formatMoney(turnoActivo?.resumen?.efectivo_esperado)}
                   </span>
