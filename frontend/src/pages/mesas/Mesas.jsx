@@ -1,17 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { mesasService } from '../../services/mesasService';
+import { turnosService } from '../../services/turnosService';
 import toast from 'react-hot-toast';
 import logo from '../../assets/logo.jpeg';
 
 export default function Mesas() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [mesas, setMesas] = useState([]);
   const [locales, setLocales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [mesaEditar, setMesaEditar] = useState(null);
   const [filtroLocal, setFiltroLocal] = useState('');
+  
+  // Estados para el modal de advertencia de caja cerrada
+  const [mostrarAdvertenciaCaja, setMostrarAdvertenciaCaja] = useState(false);
+  const [setTurnosActivos] = useState({});
 
   const [formData, setFormData] = useState({
     numero: '',
@@ -22,6 +29,13 @@ export default function Mesas() {
   useEffect(() => {
     cargarDatos();
   }, []);
+
+  // Verificar estado de caja al cargar
+  useEffect(() => {
+    if (locales.length > 0 && user) {
+      verificarEstadoCaja();
+    }
+  }, [locales, user]);
 
   const cargarDatos = async () => {
     try {
@@ -35,6 +49,38 @@ export default function Mesas() {
       toast.error('Error al cargar datos');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const verificarEstadoCaja = async () => {
+    try {
+      const turnosPromises = locales.map(async (local) => {
+        try {
+          const turno = await turnosService.getTurnoActivo(local.id);
+          return { localId: local.id, turno };
+        } catch {
+          return { localId: local.id, turno: null };
+        }
+      });
+
+      const resultados = await Promise.all(turnosPromises);
+      const turnosMap = {};
+      resultados.forEach(({ localId, turno }) => {
+        turnosMap[localId] = turno;
+      });
+      setTurnosActivos(turnosMap);
+
+      // Verificar si hay al menos un turno activo
+      const hayTurnoActivo = Object.values(turnosMap).some(turno => turno !== null);
+
+      // Solo mostrar advertencia si:
+      // 1. No hay ningún turno activo en ningún local
+      // 2. El usuario es administrador
+      if (!hayTurnoActivo && user?.rol === 'administrador') {
+        setMostrarAdvertenciaCaja(true);
+      }
+    } catch (error) {
+      console.error('Error verificando estado de caja:', error);
     }
   };
 
@@ -258,7 +304,72 @@ export default function Mesas() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Modal Advertencia Caja Cerrada - Solo para Administradores */}
+      {mostrarAdvertenciaCaja && user?.rol === 'administrador' && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-[#141414] border-2 border-orange-500/50 rounded-2xl w-full max-w-md shadow-2xl shadow-orange-500/20">
+            <div className="p-6 border-b border-orange-500/30 bg-orange-500/10">
+              <div className="flex items-center gap-3">
+                <div className="text-4xl">⚠️</div>
+                <div>
+                  <h2 className="text-xl font-bold text-orange-400">Caja Cerrada</h2>
+                  <p className="text-sm text-orange-300/70">Aviso para administradores</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
+                <p className="text-orange-200 text-sm leading-relaxed">
+                  <strong className="text-orange-400">Atención:</strong> Actualmente no hay ningún turno de caja abierto en ningún local.
+                </p>
+              </div>
+
+              <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4 space-y-3">
+                <p className="text-gray-300 text-sm">
+                  <span className="text-[#D4B896] font-semibold">Como administrador</span>, puedes acceder al módulo de mesas, pero ten en cuenta que:
+                </p>
+                <ul className="space-y-2 text-xs text-gray-400 ml-4">
+                  <li className="flex items-start gap-2">
+                    <span className="text-orange-400 mt-0.5">•</span>
+                    <span>No se podrán procesar pagos hasta que se abra un turno</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-orange-400 mt-0.5">•</span>
+                    <span>Los cajeros no pueden ingresar sin un turno activo</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-orange-400 mt-0.5">•</span>
+                    <span>Se recomienda abrir caja antes de tomar pedidos</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="flex flex-col gap-3 pt-2">
+                <button
+                  onClick={() => navigate('/caja')}
+                  className="w-full py-3 bg-[#D4B896] text-[#0a0a0a] font-semibold rounded-lg hover:bg-[#C4A576] transition flex items-center justify-center gap-2"
+                >
+                  <span>💰</span>
+                  <span>Ir a Abrir Caja</span>
+                </button>
+                <button
+                  onClick={() => setMostrarAdvertenciaCaja(false)}
+                  className="w-full py-3 bg-orange-500/20 text-orange-300 font-medium rounded-lg hover:bg-orange-500/30 transition border border-orange-500/30"
+                >
+                  Continuar de todos modos
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-600 text-center pt-2">
+                Este mensaje solo se muestra a administradores
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar/Crear Mesa */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl w-full max-w-md">
