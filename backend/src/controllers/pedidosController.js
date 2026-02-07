@@ -266,16 +266,20 @@ const pedidosController = {
 
         // ⭐ NUEVO: Registrar movimiento de inventario para barriles
         try {
+          // Calcular costo por vaso (costo del barril / capacidad)
+          const costoPorVaso = (producto.costo_promedio || 0) / (producto.capacidad_barril || 85);
+          const costoTotalVasos = costoPorVaso * cantidad;
+          
           await MovimientoInventario.create(
             {
               producto_id: producto.id,
               local_id: local.id,
               tipo: "venta",
-              cantidad: Math.abs(cantidad), // ✅ CAMBIO: usar valor absoluto
+              cantidad: Math.abs(cantidad), // Vasos vendidos
               stock_anterior: vasosAntes,
               stock_nuevo: producto[vasosKey],
-              costo_unitario: producto.costo_promedio || 0,
-              costo_total: (producto.costo_promedio || 0) * cantidad,
+              costo_unitario: costoPorVaso, // Costo por vaso
+              costo_total: costoTotalVasos, // Costo total de los vasos
               valor_venta: parseFloat(producto.precio_venta) * cantidad,
               motivo: `Venta POS Barril - Mesa ${pedido.mesa?.numero || "N/A"}`,
               pedido_id: pedido.id,
@@ -286,7 +290,7 @@ const pedidosController = {
           );
 
           console.log(
-            `📝 Movimiento de barril registrado para ${producto.nombre}`,
+            `📝 Movimiento de barril registrado: ${cantidad} vasos × $${costoPorVaso.toFixed(2)} = $${costoTotalVasos.toFixed(2)}`,
           );
         } catch (errorMov) {
           console.error(
