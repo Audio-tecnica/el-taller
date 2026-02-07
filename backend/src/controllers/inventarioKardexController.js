@@ -321,7 +321,7 @@ const inventarioKardexController = {
           { model: Proveedor, as: 'proveedor' },
           { 
             model: CompraImpuesto, 
-            as: 'impuestos',
+            as: 'impuestosAplicados',
             include: [{ model: Impuesto, as: 'impuesto' }]
           }
         ]

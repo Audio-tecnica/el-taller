@@ -76,6 +76,9 @@ export default function RegistrarCompra() {
       return;
     }
 
+    const costoUnitario = parseFloat(producto.ultimo_costo) || 0;
+    const precioVenta = parseFloat(producto.precio_venta) || 0;
+
     setProductosCompra([
       ...productosCompra,
       {
@@ -83,9 +86,9 @@ export default function RegistrarCompra() {
         nombre: producto.nombre,
         categoria: producto.categoria?.nombre || null,
         cantidad: 1,
-        costo_unitario: producto.ultimo_costo || 0,
-        precio_venta: producto.precio_venta || 0,
-        subtotal: producto.ultimo_costo || 0,
+        costo_unitario: costoUnitario,
+        precio_venta: precioVenta,
+        subtotal: costoUnitario,
       },
     ]);
     setBusquedaProducto("");
@@ -110,7 +113,7 @@ export default function RegistrarCompra() {
   };
 
   const calcularSubtotal = () => {
-    return productosCompra.reduce((sum, p) => sum + p.subtotal, 0);
+    return productosCompra.reduce((sum, p) => sum + (parseFloat(p.subtotal) || 0), 0);
   };
 
   const calcularImpuestos = () => {
