@@ -30,12 +30,11 @@ export default function EnviarFacturaWhatsApp({ pedidoId, pedido }) {
       return;
     }
 
-    // DEBUGGING: Ver qué datos tenemos
-    console.log('🔍 Pedido completo:', pedido);
-    console.log('🔍 Total del pedido:', pedido?.total);
-
-    // Generar URL de la factura
-    const urlFactura = `${window.location.origin}/api/facturas/pdf/${pedidoId}`;
+    // ✅ CORREGIDO: Usar la URL del backend real, no del frontend
+    const token = localStorage.getItem("token");
+    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    const baseUrl = API_BASE.replace(/\/api$/, "");
+    const urlFactura = `${baseUrl}/api/facturas/pdf/${pedidoId}?token=${token}`;
 
     // Obtener total - intentar de varias fuentes
     let total = 0;
@@ -61,6 +60,7 @@ ${urlFactura}
 Vuelve pronto!`;
 
     console.log('📱 Mensaje a enviar:', mensaje);
+    console.log('🔗 URL de factura:', urlFactura);
 
     // Generar link de WhatsApp
     const urlWhatsApp = `https://wa.me/57${soloNumeros}?text=${encodeURIComponent(mensaje)}`;
