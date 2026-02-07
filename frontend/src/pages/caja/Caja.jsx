@@ -656,7 +656,7 @@ export default function Caja() {
                   value={efectivoReal}
                   onChange={(e) => setEfectivoReal(e.target.value)}
                   className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-white text-xl focus:ring-2 focus:ring-[#D4B896]"
-                  placeholder="ingresar total recaudado..."
+                  placeholder="Ingresar total recaudado..."
                 />
               </div>
 
