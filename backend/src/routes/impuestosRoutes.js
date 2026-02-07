@@ -10,6 +10,9 @@ router.use(authMiddleware);
 // CATÁLOGO DE IMPUESTOS
 // ═══════════════════════════════════════════════════════════════════
 
+// GET /api/impuestos/activos - Obtener impuestos activos (DEBE IR ANTES DE /:id)
+router.get('/activos', impuestosController.obtenerImpuestosActivos);
+
 // GET /api/impuestos - Obtener todos los impuestos
 router.get('/', impuestosController.obtenerImpuestos);
 

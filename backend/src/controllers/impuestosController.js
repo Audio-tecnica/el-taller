@@ -5,6 +5,21 @@ const { Op } = require('sequelize');
 // CATÁLOGO DE IMPUESTOS
 // ═══════════════════════════════════════════════════════════════════
 
+// Obtener todos los impuestos activos (para selectores)
+exports.obtenerImpuestosActivos = async (req, res) => {
+  try {
+    const impuestos = await Impuesto.findAll({
+      where: { activo: true },
+      order: [['tipo', 'ASC'], ['orden', 'ASC']]
+    });
+
+    res.json(impuestos);
+  } catch (error) {
+    console.error('Error al obtener impuestos activos:', error);
+    res.status(500).json({ error: 'Error al obtener impuestos activos' });
+  }
+};
+
 // Obtener todos los impuestos
 exports.obtenerImpuestos = async (req, res) => {
   try {
