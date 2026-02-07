@@ -5,6 +5,7 @@ import { inventarioKardexService } from "../../services/inventarioKardexService"
 import toast from "react-hot-toast";
 import logo from "../../assets/logo.jpeg";
 import api from "../../services/api";
+import SelectorImpuestos from "../../components/SelectorImpuestos"; // AGREGADO
 
 export default function RegistrarCompra() {
   const navigate = useNavigate();
@@ -135,6 +136,22 @@ export default function RegistrarCompra() {
     return subtotal + totalImpuestos - totalRetenciones;
   };
 
+  // NUEVA FUNCIÓN: Convertir IDs a objetos completos de impuestos
+  const handleImpuestosChange = (impuestosIds) => {
+    const impuestosCompletos = impuestosIds.map(id => {
+      const impuesto = impuestosDisponibles.find(imp => imp.id === id);
+      return impuesto ? {
+        impuesto_id: impuesto.id,
+        nombre: impuesto.nombre,
+        porcentaje: impuesto.porcentaje,
+        tipo: impuesto.tipo,
+        codigo: impuesto.codigo
+      } : null;
+    }).filter(Boolean);
+    
+    setImpuestosSeleccionados(impuestosCompletos);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -196,100 +213,116 @@ export default function RegistrarCompra() {
           <div className="flex items-center justify-between">
             <button
               onClick={() => navigate("/inventario")}
-              className="flex items-center gap-3 hover:opacity-80 transition"
+              className="flex items-center gap-2 text-gray-400 hover:text-[#D4B896] transition"
             >
-              <img
-                src={logo}
-                alt="El Taller"
-                className="w-10 h-10 rounded-xl object-contain bg-black"
-              />
-              <div>
-                <h1 className="text-xl font-black text-white">Nueva Compra</h1>
-                <p className="text-xs text-[#D4B896]">
-                  Registro de Compra a Proveedor
-                </p>
-              </div>
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                />
+              </svg>
+              <span className="font-medium">Volver</span>
             </button>
 
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="px-4 py-2 bg-[#1a1a1a] text-gray-400 rounded-lg hover:bg-[#2a2a2a] transition border border-[#2a2a2a]"
-            >
-              Cancelar
-            </button>
+            <div className="flex items-center gap-3">
+              <img
+                src={logo}
+                alt="Logo"
+                className="w-10 h-10 rounded-full border-2 border-[#D4B896]"
+              />
+              <div>
+                <h1 className="text-lg font-black text-white">
+                  Registrar Compra
+                </h1>
+                <p className="text-xs text-gray-500">
+                  Complete los datos de la compra
+                </p>
+              </div>
+            </div>
+
+            <div className="w-24"></div>
           </div>
         </div>
       </header>
 
       <form onSubmit={handleSubmit} className="max-w-7xl mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Información de la Compra */}
+          {/* Columna Izquierda - Información General */}
           <div className="lg:col-span-2 space-y-6">
             {/* Datos Generales */}
             <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
-              <h2 className="text-lg font-bold text-white mb-4">
-                Información General
+              <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <svg
+                  className="w-5 h-5 text-[#D4B896]"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                Datos Generales
               </h2>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Proveedor */}
+                <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">
                     Proveedor *
                   </label>
                   <select
-                    required
                     value={compra.proveedor_id}
                     onChange={(e) =>
                       setCompra({ ...compra, proveedor_id: e.target.value })
                     }
-                    className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-white focus:outline-none focus:border-[#D4B896] transition"
+                    className="w-full px-4 py-2.5 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white focus:outline-none focus:border-[#D4B896] transition"
+                    required
                   >
-                    <option value="">Seleccionar proveedor</option>
-                    {proveedores.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.nombre}
+                    <option value="">Seleccionar proveedor...</option>
+                    {proveedores.map((prov) => (
+                      <option key={prov.id} value={prov.id}>
+                        {prov.nombre}
                       </option>
                     ))}
                   </select>
                 </div>
 
+                {/* Local */}
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">
                     Local *
                   </label>
                   <select
-                    required
                     value={compra.local_id}
                     onChange={(e) =>
                       setCompra({ ...compra, local_id: e.target.value })
                     }
-                    className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-white focus:outline-none focus:border-[#D4B896] transition"
+                    className="w-full px-4 py-2.5 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white focus:outline-none focus:border-[#D4B896] transition"
+                    required
                   >
-                    {locales.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.nombre}
+                    {locales.map((local) => (
+                      <option key={local.id} value={local.id}>
+                        {local.nombre}
                       </option>
                     ))}
                   </select>
                 </div>
 
+                {/* Número de Factura */}
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">
-                    Fecha Factura
-                  </label>
-                  <input
-                    type="date"
-                    value={compra.fecha_factura}
-                    onChange={(e) =>
-                      setCompra({ ...compra, fecha_factura: e.target.value })
-                    }
-                    className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-white focus:outline-none focus:border-[#D4B896] transition"
-                  />
-                </div>
-
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-400 mb-2">
-                    Número de Factura
+                    Número de Factura *
                   </label>
                   <input
                     type="text"
@@ -297,25 +330,43 @@ export default function RegistrarCompra() {
                     onChange={(e) =>
                       setCompra({ ...compra, numero_factura: e.target.value })
                     }
-                    className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-white focus:outline-none focus:border-[#D4B896] transition"
+                    className="w-full px-4 py-2.5 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white focus:outline-none focus:border-[#D4B896] transition"
                     placeholder="FAC-001"
+                    required
                   />
                 </div>
 
-                <div className="col-span-2">
+                {/* Fecha Factura */}
+                <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">
-                    Observaciones
+                    Fecha Factura *
                   </label>
-                  <textarea
-                    value={compra.observaciones}
+                  <input
+                    type="date"
+                    value={compra.fecha_factura}
                     onChange={(e) =>
-                      setCompra({ ...compra, observaciones: e.target.value })
+                      setCompra({ ...compra, fecha_factura: e.target.value })
                     }
-                    rows={2}
-                    className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-white focus:outline-none focus:border-[#D4B896] transition resize-none"
-                    placeholder="Notas adicionales..."
+                    className="w-full px-4 py-2.5 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white focus:outline-none focus:border-[#D4B896] transition"
+                    required
                   />
                 </div>
+              </div>
+
+              {/* Observaciones */}
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Observaciones
+                </label>
+                <textarea
+                  value={compra.observaciones}
+                  onChange={(e) =>
+                    setCompra({ ...compra, observaciones: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white focus:outline-none focus:border-[#D4B896] transition resize-none"
+                  rows="3"
+                  placeholder="Notas adicionales..."
+                />
               </div>
             </div>
 
@@ -324,242 +375,163 @@ export default function RegistrarCompra() {
               <h2 className="text-lg font-bold text-white mb-4">
                 Forma de Pago
               </h2>
-              <div className="space-y-4">
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      value="contado"
-                      checked={formaPago === "contado"}
-                      onChange={(e) => setFormaPago(e.target.value)}
-                      className="w-4 h-4 text-[#D4B896] focus:ring-[#D4B896]"
-                    />
-                    <span className="text-white">Contado</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      value="credito"
-                      checked={formaPago === "credito"}
-                      onChange={(e) => setFormaPago(e.target.value)}
-                      className="w-4 h-4 text-[#D4B896] focus:ring-[#D4B896]"
-                    />
-                    <span className="text-white">Crédito</span>
-                  </label>
-                </div>
 
-                {/* Días de Crédito - Solo si es crédito */}
-                {formaPago === "credito" && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                      Días de Crédito
-                    </label>
-                    <input
-                      type="number"
-                      value={diasCredito}
-                      onChange={(e) => setDiasCredito(parseInt(e.target.value))}
-                      className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-white focus:outline-none focus:border-[#D4B896] transition"
-                      min="1"
-                    />
-                  </div>
-                )}
+              <div className="flex gap-4 mb-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="formaPago"
+                    value="contado"
+                    checked={formaPago === "contado"}
+                    onChange={(e) => setFormaPago(e.target.value)}
+                    className="w-4 h-4 text-[#D4B896] focus:ring-[#D4B896]"
+                  />
+                  <span className="text-white">Contado</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="formaPago"
+                    value="credito"
+                    checked={formaPago === "credito"}
+                    onChange={(e) => setFormaPago(e.target.value)}
+                    className="w-4 h-4 text-[#D4B896] focus:ring-[#D4B896]"
+                  />
+                  <span className="text-white">Crédito</span>
+                </label>
               </div>
+
+              {formaPago === "credito" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Días de Crédito
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={diasCredito}
+                    onChange={(e) => setDiasCredito(parseInt(e.target.value))}
+                    className="w-full px-4 py-2.5 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white focus:outline-none focus:border-[#D4B896] transition"
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Selector de Impuestos */}
+            {/* NUEVO: Sección de Impuestos Aplicables */}
             <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
-              <h2 className="text-lg font-bold text-white mb-4">
+              <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <svg
+                  className="w-5 h-5 text-[#D4B896]"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                  />
+                </svg>
                 Impuestos Aplicables
               </h2>
-              <div className="space-y-2">
-                {impuestosDisponibles.map((impuesto) => (
-                  <label key={impuesto.id} className="flex items-center gap-3 p-3 bg-[#1a1a1a] rounded-lg hover:bg-[#2a2a2a] transition cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={impuestosSeleccionados.some(
-                        (i) => i.impuesto_id === impuesto.id,
-                      )}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setImpuestosSeleccionados([
-                            ...impuestosSeleccionados,
-                            {
-                              impuesto_id: impuesto.id,
-                              porcentaje: impuesto.porcentaje,
-                              nombre: impuesto.nombre,
-                              tipo: impuesto.tipo,
-                            },
-                          ]);
-                        } else {
-                          setImpuestosSeleccionados(
-                            impuestosSeleccionados.filter(
-                              (i) => i.impuesto_id !== impuesto.id,
-                            ),
-                          );
-                        }
-                      }}
-                      className="w-4 h-4 text-[#D4B896] focus:ring-[#D4B896]"
-                    />
-                    <span className="text-white flex-1">
-                      {impuesto.nombre}
-                    </span>
-                    <span className="text-gray-400 text-sm">
-                      {impuesto.porcentaje}%
-                    </span>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      impuesto.tipo === 'Retención' 
-                        ? 'bg-red-500/20 text-red-400' 
-                        : 'bg-emerald-500/20 text-emerald-400'
-                    }`}>
-                      {impuesto.tipo}
-                    </span>
-                  </label>
-                ))}
-                {impuestosDisponibles.length === 0 && (
-                  <p className="text-gray-500 text-sm text-center py-4">
-                    No hay impuestos disponibles
-                  </p>
-                )}
-              </div>
+
+              <SelectorImpuestos
+                impuestosSeleccionados={impuestosSeleccionados.map(i => i.impuesto_id)}
+                onImpuestosChange={handleImpuestosChange}
+                subtotal={calcularSubtotal()}
+                onImpuestosDisponiblesLoaded={setImpuestosDisponibles}
+              />
             </div>
 
             {/* Productos */}
             <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-white">Productos</h2>
-                <button
-                  type="button"
-                  onClick={() => setMostrarBusqueda(!mostrarBusqueda)}
-                  className="px-4 py-2 bg-[#D4B896] text-[#0a0a0a] rounded-lg font-bold text-sm hover:shadow-lg hover:shadow-[#D4B896]/30 transition"
+              <h2 className="text-lg font-bold text-white mb-4">Productos</h2>
+
+              {/* Buscador de productos */}
+              <div className="mb-4 relative">
+                <input
+                  type="text"
+                  value={busquedaProducto}
+                  onChange={(e) => {
+                    setBusquedaProducto(e.target.value);
+                    setMostrarBusqueda(e.target.value.length > 0);
+                  }}
+                  onFocus={() =>
+                    setMostrarBusqueda(busquedaProducto.length > 0)
+                  }
+                  className="w-full px-4 py-3 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-white focus:outline-none focus:border-[#D4B896] transition pl-10"
+                  placeholder="Buscar producto por nombre o código..."
+                />
+                <svg
+                  className="w-5 h-5 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  + Agregar Producto
-                </button>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+
+                {/* Resultados de búsqueda */}
+                {mostrarBusqueda && productosFiltrados.length > 0 && (
+                  <div className="absolute z-10 w-full mt-2 bg-[#141414] border border-[#2a2a2a] rounded-lg shadow-xl max-h-64 overflow-y-auto">
+                    {productosFiltrados.map((producto) => (
+                      <button
+                        key={producto.id}
+                        type="button"
+                        onClick={() => agregarProducto(producto)}
+                        className="w-full px-4 py-3 text-left hover:bg-[#1a1a1a] transition border-b border-[#2a2a2a] last:border-0"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-white font-medium">
+                              {producto.nombre}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {producto.codigo} •{" "}
+                              {producto.categoria?.nombre || "Sin categoría"}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[#D4B896] font-bold">
+                              ${producto.ultimo_costo?.toLocaleString() || 0}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Stock: {producto.stock_actual || 0}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {/* Búsqueda de productos */}
-              {mostrarBusqueda && (
-                <div className="mb-4 relative">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={busquedaProducto}
-                      onChange={(e) => setBusquedaProducto(e.target.value)}
-                      placeholder="Buscar por nombre, código o categoría..."
-                      className="w-full px-4 py-3 pl-12 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#D4B896] transition"
-                      autoFocus
-                    />
-                    <svg
-                      className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
-                    </svg>
-                  </div>
-
-                  {busquedaProducto && productosFiltrados.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden z-10 max-h-96 overflow-y-auto shadow-2xl">
-                      {productosFiltrados.map((producto) => (
-                        <button
-                          key={producto.id}
-                          type="button"
-                          onClick={() => agregarProducto(producto)}
-                          className="w-full px-4 py-4 text-left hover:bg-[#2a2a2a] transition border-b border-[#2a2a2a] last:border-b-0 group"
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h4 className="text-white font-bold text-base group-hover:text-[#D4B896] transition truncate">
-                                  {producto.nombre}
-                                </h4>
-                                {producto.categoria?.icono && (
-                                  <span className="text-lg flex-shrink-0">
-                                    {producto.categoria.icono}
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="flex items-center gap-3 flex-wrap">
-                                {producto.categoria?.nombre && (
-                                  <span className="px-2 py-0.5 bg-[#2a2a2a] text-[#D4B896] text-xs rounded-full">
-                                    {producto.categoria.nombre}
-                                  </span>
-                                )}
-                                {producto.codigo && (
-                                  <span className="text-xs text-gray-500 font-mono">
-                                    {producto.codigo}
-                                  </span>
-                                )}
-                                {/* Desglose de stock por local */}
-                                <div className="flex items-center gap-2 text-xs">
-                                  <span className="text-gray-400">📍</span>
-                                  <span
-                                    className={`${(producto.stock_local1 || 0) > 0 ? "text-emerald-400" : "text-gray-600"}`}
-                                  >
-                                    Castellana: {producto.stock_local1 || 0}
-                                  </span>
-                                  <span className="text-gray-600">|</span>
-                                  <span
-                                    className={`${(producto.stock_local2 || 0) > 0 ? "text-emerald-400" : "text-gray-600"}`}
-                                  >
-                                    Avenida 1ra: {producto.stock_local2 || 0}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-[#D4B896] font-bold text-lg">
-                                $
-                                {Number(
-                                  producto.precio_venta || 0,
-                                ).toLocaleString()}
-                              </p>
-                              {producto.ultimo_costo > 0 && (
-                                <p className="text-xs text-gray-500">
-                                  Último costo: $
-                                  {Number(
-                                    producto.ultimo_costo,
-                                  ).toLocaleString()}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {busquedaProducto && productosFiltrados.length === 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6 text-center">
-                      <p className="text-gray-500">
-                        No se encontraron productos
-                      </p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Intenta con otro término de búsqueda
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Lista de productos */}
+              {/* Lista de productos agregados */}
               {productosCompra.length === 0 ? (
-                <div className="text-center py-12 bg-[#1a1a1a] rounded-xl border border-dashed border-[#2a2a2a]">
-                  <div className="w-20 h-20 mx-auto mb-4 bg-[#0a0a0a] rounded-full flex items-center justify-center">
-                    <span className="text-4xl">📦</span>
-                  </div>
-                  <p className="text-gray-500 font-medium mb-1">
-                    No hay productos agregados
-                  </p>
-                  <p className="text-xs text-gray-600">
-                    Click en "Agregar Producto" para comenzar
+                <div className="text-center py-12 text-gray-500">
+                  <svg
+                    className="w-16 h-16 mx-auto mb-4 opacity-50"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                    />
+                  </svg>
+                  <p>No hay productos agregados</p>
+                  <p className="text-sm mt-2">
+                    Busca y selecciona productos arriba
                   </p>
                 </div>
               ) : (
@@ -567,15 +539,15 @@ export default function RegistrarCompra() {
                   {productosCompra.map((item, index) => (
                     <div
                       key={index}
-                      className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4 hover:border-[#D4B896]/30 transition"
+                      className="bg-[#0a0a0a] border border-[#2a2a2a] rounded-xl p-4"
                     >
                       <div className="flex items-start gap-4">
-                        <div className="flex-1">
+                        <div className="flex-1 space-y-3">
                           {/* Nombre y categoría */}
-                          <div className="mb-3">
-                            <h4 className="text-white font-bold text-base mb-1">
+                          <div>
+                            <h3 className="text-white font-bold">
                               {item.nombre}
-                            </h4>
+                            </h3>
                             {item.categoria && (
                               <span className="text-xs text-gray-500 bg-[#0a0a0a] px-2 py-1 rounded">
                                 {item.categoria}
