@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 export default function ModalPagoCompra({ compra, onClose, onPagoRegistrado }) {
   const [loading, setLoading] = useState(false);
   const [pago, setPago] = useState({
-    monto: compra?.saldo_pendiente || 0,
+    monto: parseFloat(compra?.saldo_pendiente) || 0,
     metodo_pago: 'efectivo',
     numero_referencia: '',
     observaciones: ''
@@ -14,12 +14,15 @@ export default function ModalPagoCompra({ compra, onClose, onPagoRegistrado }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (parseFloat(pago.monto) <= 0) {
-      toast.error('El monto debe ser mayor a 0');
+    const montoNumerico = parseFloat(pago.monto);
+    const saldoPendiente = parseFloat(compra.saldo_pendiente);
+
+    if (isNaN(montoNumerico) || montoNumerico <= 0) {
+      toast.error('El monto debe ser mayor a cero');
       return;
     }
 
-    if (parseFloat(pago.monto) > parseFloat(compra.saldo_pendiente)) {
+    if (montoNumerico > saldoPendiente) {
       toast.error('El monto no puede ser mayor al saldo pendiente');
       return;
     }
@@ -27,8 +30,10 @@ export default function ModalPagoCompra({ compra, onClose, onPagoRegistrado }) {
     try {
       setLoading(true);
       await pagosComprasService.registrarPago(compra.id, {
-        ...pago,
-        monto: parseFloat(pago.monto)
+        monto_pago: montoNumerico,
+        forma_pago: pago.metodo_pago,
+        numero_referencia: pago.numero_referencia,
+        observaciones: pago.observaciones
       });
       
       toast.success('Pago registrado exitosamente');
