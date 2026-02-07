@@ -546,3 +546,56 @@ exports.obtenerResumenGeneral = async (req, res) => {
     res.status(500).json({ error: "Error al obtener resumen general" });
   }
 };
+
+// Eliminar cliente
+exports.eliminarCliente = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Buscar el cliente
+    const cliente = await ClienteB2B.findByPk(id);
+
+    if (!cliente) {
+      return res.status(404).json({ error: 'Cliente no encontrado' });
+    }
+
+    // Verificar que no tenga saldo pendiente
+    if (parseFloat(cliente.saldo_pendiente) > 0) {
+      return res.status(400).json({ 
+        error: `No se puede eliminar el cliente porque tiene un saldo pendiente de $${parseFloat(cliente.saldo_pendiente).toLocaleString()}` 
+      });
+    }
+
+    // Verificar que no tenga ventas pendientes o parciales
+    const ventasPendientes = await VentaB2B.count({
+      where: {
+        cliente_id: id,
+        estado_pago: ['Pendiente', 'Parcial']
+      }
+    });
+
+    if (ventasPendientes > 0) {
+      return res.status(400).json({ 
+        error: `No se puede eliminar el cliente porque tiene ${ventasPendientes} ventas pendientes de pago` 
+      });
+    }
+
+    // Eliminar cliente (CASCADE eliminará ventas, pagos, etc.)
+    await cliente.destroy();
+
+    console.log(`✅ Cliente eliminado: ${cliente.razon_social} (${cliente.numero_documento})`);
+
+    res.json({ 
+      message: 'Cliente eliminado exitosamente',
+      cliente: {
+        id: cliente.id,
+        razon_social: cliente.razon_social,
+        numero_documento: cliente.numero_documento
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error eliminando cliente:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

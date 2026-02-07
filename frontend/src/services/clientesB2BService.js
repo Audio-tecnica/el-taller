@@ -53,6 +53,12 @@ const clientesB2BService = {
   obtenerResumenGeneral: async () => {
     const { data } = await api.get('/clientes-b2b/resumen');
     return data;
+  },
+
+  // Eliminar cliente
+  eliminarCliente: async (id) => {
+    const { data } = await api.delete(`/clientes-b2b/${id}`);
+    return data;
   }
 };
 

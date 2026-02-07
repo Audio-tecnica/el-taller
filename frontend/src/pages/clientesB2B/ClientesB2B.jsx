@@ -81,6 +81,36 @@ export default function ClientesB2B() {
     await cargarResumen();
   };
 
+  const handleEliminarCliente = async (cliente) => {
+    // Verificar si tiene saldo pendiente
+    if (parseFloat(cliente.saldo_pendiente) > 0) {
+      alert(`No se puede eliminar el cliente "${cliente.razon_social}" porque tiene un saldo pendiente de ${formatearMoneda(cliente.saldo_pendiente)}`);
+      return;
+    }
+
+    // Confirmación
+    const confirmar = window.confirm(
+      `¿Estás seguro de eliminar al cliente "${cliente.razon_social}"?\n\n` +
+      `⚠️ Esta acción NO se puede deshacer.\n\n` +
+      `Se eliminarán:\n` +
+      `- El cliente\n` +
+      `- Todo su historial de ventas\n` +
+      `- Todos sus pagos registrados`
+    );
+
+    if (!confirmar) return;
+
+    try {
+      await clientesB2BService.eliminarCliente(cliente.id);
+      alert('Cliente eliminado exitosamente');
+      await cargarClientes();
+      await cargarResumen();
+    } catch (error) {
+      const mensaje = error.response?.data?.error || 'Error al eliminar cliente';
+      alert(mensaje);
+    }
+  };
+
   const handleCambiarEstado = async (cliente, nuevoEstado) => {
     const motivo = prompt(`¿Motivo para cambiar estado a ${nuevoEstado}?`);
     if (!motivo) return;
@@ -460,6 +490,15 @@ export default function ClientesB2B() {
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleEliminarCliente(cliente)}
+                            className="group px-3 py-2 text-sm bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-all duration-200 font-medium"
+                            title="Eliminar cliente"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                           </button>
                         </div>

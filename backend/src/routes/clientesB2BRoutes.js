@@ -19,5 +19,6 @@ router.post('/', adminMiddleware, clientesB2BController.crearCliente);
 router.put('/:id', adminMiddleware, clientesB2BController.actualizarCliente);
 router.patch('/:id/estado', adminMiddleware, clientesB2BController.cambiarEstado);
 router.post('/:id/recalcular-credito', adminMiddleware, clientesB2BController.recalcularCredito);
+router.delete('/:id', adminMiddleware, clientesB2BController.eliminarCliente);
 
 module.exports = router;
