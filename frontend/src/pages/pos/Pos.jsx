@@ -26,6 +26,10 @@ export default function POS() {
   const [modalCambiarMesa, setModalCambiarMesa] = useState(null); // { mesa: {...} }
   const [loadingCambio, setLoadingCambio] = useState(false);
 
+  // ⭐ NUEVO: Estado para modal de advertencia de caja cerrada
+  const [mostrarAdvertenciaCaja, setMostrarAdvertenciaCaja] = useState(false);
+  const [hayTurnoActivo, setHayTurnoActivo] = useState(false);
+
   // ⭐ FUNCIÓN SIMPLE para cargar mesas (recibe el local directamente)
   const cargarMesas = async (localId) => {
     try {
@@ -45,6 +49,35 @@ export default function POS() {
     }
   };
 
+  // ⭐ NUEVA FUNCIÓN: Verificar si hay turnos activos en cualquier local
+  const verificarTurnosActivos = async () => {
+    try {
+      // Obtener todos los locales
+      const localesData = await mesasService.getLocales();
+      
+      // Verificar turno activo en cada local
+      const verificaciones = await Promise.all(
+        localesData.map(async (local) => {
+          try {
+            const turno = await turnosService.getTurnoActivo(local.id);
+            return turno !== null;
+          } catch {
+            return false;
+          }
+        })
+      );
+      
+      // Si al menos un local tiene turno activo
+      const hayAlgunTurno = verificaciones.some(tiene => tiene === true);
+      setHayTurnoActivo(hayAlgunTurno);
+      
+      return hayAlgunTurno;
+    } catch (error) {
+      console.error('Error verificando turnos activos:', error);
+      return false;
+    }
+  };
+
   // ⭐ EFECTO PRINCIPAL: Verificar ROL primero, luego turno
   useEffect(() => {
     const inicializar = async () => {
@@ -60,6 +93,12 @@ export default function POS() {
           setEsAdmin(true);
           setTurnoActivo(null);
           setLocalDelTurno(null);
+          
+          // ⭐ NUEVO: Verificar si hay turnos activos para mostrar advertencia
+          const hayTurnos = await verificarTurnosActivos();
+          if (!hayTurnos) {
+            setMostrarAdvertenciaCaja(true);
+          }
           
           // ⭐ Admin SIEMPRE ve TODAS las mesas
           await cargarMesas(null);
@@ -84,6 +123,7 @@ export default function POS() {
             setEsAdmin(false);
             setTurnoActivo(turno);
             setLocalDelTurno(localId);
+            setHayTurnoActivo(true); // Cajero tiene turno, obviamente hay turno activo
             
             // ⭐ Cajero solo ve mesas de su local
             await cargarMesas(localId);
@@ -330,6 +370,71 @@ export default function POS() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a0a0a] via-[#0f0f0f] to-[#0a0a0a]">
+      {/* ⭐ NUEVO: Modal Advertencia Caja Cerrada - Solo para Administradores */}
+      {mostrarAdvertenciaCaja && esAdmin && !hayTurnoActivo && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-[#141414] border-2 border-orange-500/50 rounded-2xl w-full max-w-md shadow-2xl shadow-orange-500/20">
+            <div className="p-6 border-b border-orange-500/30 bg-orange-500/10">
+              <div className="flex items-center gap-3">
+                <div className="text-4xl">⚠️</div>
+                <div>
+                  <h2 className="text-xl font-bold text-orange-400">Caja Cerrada</h2>
+                  <p className="text-sm text-orange-300/70">Aviso para administradores</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
+                <p className="text-orange-200 text-sm leading-relaxed">
+                  <strong className="text-orange-400">Atención:</strong> Actualmente no hay ningún turno de caja abierto en ningún local.
+                </p>
+              </div>
+
+              <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4 space-y-3">
+                <p className="text-gray-300 text-sm">
+                  <span className="text-[#D4B896] font-semibold">Como administrador</span>, puedes acceder al POS, pero ten en cuenta que:
+                </p>
+                <ul className="space-y-2 text-xs text-gray-400 ml-4">
+                  <li className="flex items-start gap-2">
+                    <span className="text-orange-400 mt-0.5">•</span>
+                    <span>No se podrán procesar pagos hasta que se abra un turno</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-orange-400 mt-0.5">•</span>
+                    <span>Los cajeros no pueden ingresar sin un turno activo</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-orange-400 mt-0.5">•</span>
+                    <span>Se recomienda abrir caja antes de tomar pedidos</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="flex flex-col gap-3 pt-2">
+                <button
+                  onClick={() => navigate('/caja')}
+                  className="w-full py-3 bg-[#D4B896] text-[#0a0a0a] font-semibold rounded-lg hover:bg-[#C4A576] transition flex items-center justify-center gap-2"
+                >
+                  <span>💰</span>
+                  <span>Ir a Abrir Caja</span>
+                </button>
+                <button
+                  onClick={() => setMostrarAdvertenciaCaja(false)}
+                  className="w-full py-3 bg-orange-500/20 text-orange-300 font-medium rounded-lg hover:bg-orange-500/30 transition border border-orange-500/30"
+                >
+                  Continuar de todos modos
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-600 text-center pt-2">
+                Este mensaje solo se muestra a administradores
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-[#D4B896]/20 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-3">
