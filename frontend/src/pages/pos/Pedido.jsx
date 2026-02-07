@@ -880,11 +880,7 @@ export default function Pedido() {
                   </svg>
                   📄 Descargar Factura PDF
                 </button>
-                <EnviarFacturaWhatsApp
-                  pedidoId={pedido?.id}
-                  totalPedido={pedido?.total}
-                  mesaNumero={pedido?.mesa?.numero}
-                />
+                <EnviarFacturaWhatsApp pedidoId={pedido.id} pedido={pedido} />
 
                 <button
                   onClick={finalizarSinFactura}

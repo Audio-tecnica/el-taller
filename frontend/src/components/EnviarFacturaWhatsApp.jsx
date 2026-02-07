@@ -1,7 +1,7 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 
-export default function EnviarFacturaWhatsApp({ pedidoId, totalPedido, mesaNumero, pedido }) {
+export default function EnviarFacturaWhatsApp({ pedidoId, pedido }) {
   const [telefono, setTelefono] = useState("");
 
   const formatearTelefono = (valor) => {
@@ -30,35 +30,37 @@ export default function EnviarFacturaWhatsApp({ pedidoId, totalPedido, mesaNumer
       return;
     }
 
+    // DEBUGGING: Ver qué datos tenemos
+    console.log('🔍 Pedido completo:', pedido);
+    console.log('🔍 Total del pedido:', pedido?.total);
+
     // Generar URL de la factura
     const urlFactura = `${window.location.origin}/api/facturas/pdf/${pedidoId}`;
 
-    // Obtener total de múltiples fuentes posibles
+    // Obtener total - intentar de varias fuentes
     let total = 0;
-    if (totalPedido) {
-      total = Number(totalPedido);
-    } else if (pedido?.total) {
-      total = Number(pedido.total);
-    } else if (pedido?.subtotal) {
-      total = Number(pedido.subtotal);
+    if (pedido) {
+      total = pedido.total || pedido.subtotal || pedido.total_pagado || 0;
     }
 
     // Formatear total
-    const totalFormateado = total.toLocaleString('es-CO');
+    const totalFormateado = Number(total).toLocaleString('es-CO');
 
-    // Obtener mesa de múltiples fuentes
-    const mesa = mesaNumero || pedido?.mesa?.numero || pedido?.mesa_numero || 'N/A';
+    // Obtener mesa
+    const mesa = pedido?.mesa?.numero || pedido?.mesa_numero || 'Sin mesa';
 
-    // Crear mensaje de WhatsApp
-    const mensaje = `¡Gracias por tu compra en El Taller! 🍺
+    // Crear mensaje SIN emojis problemáticos
+    const mensaje = `Gracias por tu compra en El Taller!
 
 Mesa: ${mesa}
 Total: $${totalFormateado}
 
-📄 Descarga tu factura aquí:
+Descarga tu factura aqui:
 ${urlFactura}
 
-¡Vuelve pronto!`;
+Vuelve pronto!`;
+
+    console.log('📱 Mensaje a enviar:', mensaje);
 
     // Generar link de WhatsApp
     const urlWhatsApp = `https://wa.me/57${soloNumeros}?text=${encodeURIComponent(mensaje)}`;
@@ -66,7 +68,7 @@ ${urlFactura}
     // Abrir WhatsApp
     window.open(urlWhatsApp, '_blank');
     
-    toast.success('WhatsApp abierto. Envía el mensaje al cliente 📱');
+    toast.success('WhatsApp abierto');
     
     // Limpiar campo
     setTimeout(() => {
@@ -118,7 +120,7 @@ ${urlFactura}
         </button>
 
         <p className="text-xs text-gray-600 text-center">
-          Se abrirá WhatsApp con el mensaje listo para enviar
+          Se abrira WhatsApp con el mensaje listo para enviar
         </p>
       </div>
     </div>
