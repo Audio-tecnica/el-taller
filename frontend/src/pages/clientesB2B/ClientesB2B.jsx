@@ -82,20 +82,26 @@ export default function ClientesB2B() {
   };
 
   const handleEliminarCliente = async (cliente) => {
-    // Verificar si tiene saldo pendiente
+    // Primera confirmación si tiene saldo pendiente
     if (parseFloat(cliente.saldo_pendiente) > 0) {
-      alert(`No se puede eliminar el cliente "${cliente.razon_social}" porque tiene un saldo pendiente de ${formatearMoneda(cliente.saldo_pendiente)}`);
-      return;
+      const confirmarSaldo = window.confirm(
+        `⚠️ ADVERTENCIA: El cliente "${cliente.razon_social}" tiene un SALDO PENDIENTE de ${formatearMoneda(cliente.saldo_pendiente)}.\n\n` +
+        `Si eliminas este cliente, SE PERDERÁ EL REGISTRO DE ESTA DEUDA.\n\n` +
+        `¿Estás seguro de continuar?`
+      );
+      
+      if (!confirmarSaldo) return;
     }
 
-    // Confirmación
+    // Confirmación final
     const confirmar = window.confirm(
-      `¿Estás seguro de eliminar al cliente "${cliente.razon_social}"?\n\n` +
+      `¿Estás COMPLETAMENTE seguro de eliminar al cliente "${cliente.razon_social}"?\n\n` +
       `⚠️ Esta acción NO se puede deshacer.\n\n` +
       `Se eliminarán:\n` +
       `- El cliente\n` +
       `- Todo su historial de ventas\n` +
-      `- Todos sus pagos registrados`
+      `- Todos sus pagos registrados\n` +
+      (parseFloat(cliente.saldo_pendiente) > 0 ? `- Su saldo pendiente de ${formatearMoneda(cliente.saldo_pendiente)}` : '')
     );
 
     if (!confirmar) return;

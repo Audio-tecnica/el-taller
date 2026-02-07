@@ -559,38 +559,24 @@ exports.eliminarCliente = async (req, res) => {
       return res.status(404).json({ error: 'Cliente no encontrado' });
     }
 
-    // Verificar que no tenga saldo pendiente
-    if (parseFloat(cliente.saldo_pendiente) > 0) {
-      return res.status(400).json({ 
-        error: `No se puede eliminar el cliente porque tiene un saldo pendiente de $${parseFloat(cliente.saldo_pendiente).toLocaleString()}` 
-      });
-    }
-
-    // Verificar que no tenga ventas pendientes o parciales
-    const ventasPendientes = await VentaB2B.count({
-      where: {
-        cliente_id: id,
-        estado_pago: ['Pendiente', 'Parcial']
-      }
-    });
-
-    if (ventasPendientes > 0) {
-      return res.status(400).json({ 
-        error: `No se puede eliminar el cliente porque tiene ${ventasPendientes} ventas pendientes de pago` 
-      });
-    }
-
+    // NOTA: Permitimos eliminar aunque tenga saldo pendiente
+    // La validación y confirmación se hace en el frontend
+    
     // Eliminar cliente (CASCADE eliminará ventas, pagos, etc.)
     await cliente.destroy();
 
     console.log(`✅ Cliente eliminado: ${cliente.razon_social} (${cliente.numero_documento})`);
+    if (parseFloat(cliente.saldo_pendiente) > 0) {
+      console.log(`⚠️ Se eliminó con saldo pendiente: $${parseFloat(cliente.saldo_pendiente).toLocaleString()}`);
+    }
 
     res.json({ 
       message: 'Cliente eliminado exitosamente',
       cliente: {
         id: cliente.id,
         razon_social: cliente.razon_social,
-        numero_documento: cliente.numero_documento
+        numero_documento: cliente.numero_documento,
+        saldo_eliminado: parseFloat(cliente.saldo_pendiente)
       }
     });
 
