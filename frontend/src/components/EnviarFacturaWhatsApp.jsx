@@ -1,17 +1,13 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 
-export default function EnviarFacturaWhatsApp({ pedidoId, totalPedido, mesaNumero }) {
+export default function EnviarFacturaWhatsApp({ pedidoId, totalPedido, mesaNumero, pedido }) {
   const [telefono, setTelefono] = useState("");
 
   const formatearTelefono = (valor) => {
-    // Solo números
     const numeros = valor.replace(/\D/g, '');
-    
-    // Máximo 10 dígitos (número colombiano sin código de país)
     const limitado = numeros.slice(0, 10);
     
-    // Formatear: 300 123 4567
     if (limitado.length <= 3) {
       return limitado;
     } else if (limitado.length <= 6) {
@@ -27,7 +23,6 @@ export default function EnviarFacturaWhatsApp({ pedidoId, totalPedido, mesaNumer
   };
 
   const handleEnviarWhatsApp = () => {
-    // Validar teléfono
     const soloNumeros = telefono.replace(/\s/g, '');
     
     if (soloNumeros.length !== 10) {
@@ -38,26 +33,42 @@ export default function EnviarFacturaWhatsApp({ pedidoId, totalPedido, mesaNumer
     // Generar URL de la factura
     const urlFactura = `${window.location.origin}/api/facturas/pdf/${pedidoId}`;
 
+    // Obtener total de múltiples fuentes posibles
+    let total = 0;
+    if (totalPedido) {
+      total = Number(totalPedido);
+    } else if (pedido?.total) {
+      total = Number(pedido.total);
+    } else if (pedido?.subtotal) {
+      total = Number(pedido.subtotal);
+    }
+
+    // Formatear total
+    const totalFormateado = total.toLocaleString('es-CO');
+
+    // Obtener mesa de múltiples fuentes
+    const mesa = mesaNumero || pedido?.mesa?.numero || pedido?.mesa_numero || 'N/A';
+
     // Crear mensaje de WhatsApp
     const mensaje = `¡Gracias por tu compra en El Taller! 🍺
 
-Mesa: ${mesaNumero}
-Total: $${totalPedido.toLocaleString('es-CO')}
+Mesa: ${mesa}
+Total: $${totalFormateado}
 
 📄 Descarga tu factura aquí:
 ${urlFactura}
 
 ¡Vuelve pronto!`;
 
-    // Generar link de WhatsApp (con código de país +57 para Colombia)
+    // Generar link de WhatsApp
     const urlWhatsApp = `https://wa.me/57${soloNumeros}?text=${encodeURIComponent(mensaje)}`;
 
-    // Abrir WhatsApp en nueva pestaña
+    // Abrir WhatsApp
     window.open(urlWhatsApp, '_blank');
     
     toast.success('WhatsApp abierto. Envía el mensaje al cliente 📱');
     
-    // Limpiar campo después de 1 segundo
+    // Limpiar campo
     setTimeout(() => {
       setTelefono("");
     }, 1000);
