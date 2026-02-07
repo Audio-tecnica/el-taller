@@ -73,18 +73,27 @@ export default function TabFacturas({ proveedorId }) {
 
 const descargarPDF = async (factura) => {
     try {
-      if (factura.factura_pdf_url) {
+      // Intentar descargar directamente
+      try {
         await facturasCompraService.descargarPDF(factura.id);
         toast.success("PDF descargado exitosamente");
-      } else {
-        toast.loading("Generando PDF...", { id: "gen-pdf" });
-        await facturasCompraService.generarPDF(factura.id);
-        toast.success("PDF generado", { id: "gen-pdf" });
-        
-        await facturasCompraService.descargarPDF(factura.id);
-        toast.success("PDF descargado");
-        
-        cargarFacturas();
+        return;
+      } catch (downloadError) {
+        // Si falla (404), generar el PDF primero
+        if (downloadError.response?.status === 404) {
+          toast.loading("Generando PDF...", { id: "gen-pdf" });
+          await facturasCompraService.generarPDF(factura.id);
+          toast.success("PDF generado", { id: "gen-pdf" });
+          
+          // Intentar descargar nuevamente
+          await facturasCompraService.descargarPDF(factura.id);
+          toast.success("PDF descargado");
+          
+          cargarFacturas();
+        } else {
+          // Si es otro error, lanzarlo
+          throw downloadError;
+        }
       }
     } catch (error) {
       console.error("Error al descargar PDF:", error);
@@ -94,13 +103,29 @@ const descargarPDF = async (factura) => {
 
   const imprimirFactura = async (factura) => {
     try {
-      if (!factura.factura_pdf_url) {
+      // Asegurarse de que el PDF existe
+      try {
+        // Verificar si el PDF existe intentando accederlo
+        const pdfURL = facturasCompraService.obtenerURLPDF(factura.id);
+        const checkResponse = await fetch(pdfURL, { 
+          method: 'HEAD',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (!checkResponse.ok) {
+          throw new Error('PDF no existe');
+        }
+      } catch  {
+        // Si no existe, generarlo
         toast.loading("Generando PDF para imprimir...", { id: "gen-pdf-print" });
         await facturasCompraService.generarPDF(factura.id);
         toast.success("PDF generado", { id: "gen-pdf-print" });
         cargarFacturas();
       }
       
+      // Abrir en nueva ventana para imprimir
       const pdfURL = facturasCompraService.obtenerURLPDF(factura.id);
       const printWindow = window.open(pdfURL, '_blank');
       
