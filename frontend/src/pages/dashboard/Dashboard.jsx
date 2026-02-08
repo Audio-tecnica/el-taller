@@ -160,14 +160,11 @@ export default function Dashboard() {
           console.error('⚠️ Error al cargar stock Local 1:', err);
         }
 
-        // Pedidos pendientes Local 1
+        // Pedidos pendientes Local 1 (mesas ocupadas con pedidos activos)
         try {
-          const { pedidosService } = await import("../../services/pedidosService");
-          const pedidosLocal1 = await pedidosService.getPedidos({ local_id: local1.id });
-          pedidosPendientesLocal1 = pedidosLocal1.filter(p => 
-            p.estado === 'pendiente' || p.estado === 'en_preparacion'
-          ).length;
-          console.log('🔔 Pedidos pendientes Local 1:', pedidosPendientesLocal1);
+          const mesasLocal1 = await mesasService.getMesas(local1.id);
+          pedidosPendientesLocal1 = mesasLocal1.filter(m => m.estado === 'ocupada').length;
+          console.log('🔔 Pedidos pendientes Local 1 (mesas ocupadas):', pedidosPendientesLocal1);
         } catch (err) {
           console.error('⚠️ Error al cargar pedidos Local 1:', err);
         }
@@ -241,14 +238,11 @@ export default function Dashboard() {
           console.error('⚠️ Error al cargar stock Local 2:', err);
         }
 
-        // Pedidos pendientes Local 2
+        // Pedidos pendientes Local 2 (mesas ocupadas con pedidos activos)
         try {
-          const { pedidosService } = await import("../../services/pedidosService");
-          const pedidosLocal2 = await pedidosService.getPedidos({ local_id: local2.id });
-          pedidosPendientesLocal2 = pedidosLocal2.filter(p => 
-            p.estado === 'pendiente' || p.estado === 'en_preparacion'
-          ).length;
-          console.log('🔔 Pedidos pendientes Local 2:', pedidosPendientesLocal2);
+          const mesasLocal2 = await mesasService.getMesas(local2.id);
+          pedidosPendientesLocal2 = mesasLocal2.filter(m => m.estado === 'ocupada').length;
+          console.log('🔔 Pedidos pendientes Local 2 (mesas ocupadas):', pedidosPendientesLocal2);
         } catch (err) {
           console.error('⚠️ Error al cargar pedidos Local 2:', err);
         }
@@ -728,7 +722,7 @@ export default function Dashboard() {
 
                   <div className="grid grid-cols-2 gap-4 pt-3 border-t border-blue-500/20">
                     <div>
-                      <p className="text-gray-500 text-xs mb-1">🔔 Pedidos Pendientes</p>
+                      <p className="text-gray-500 text-xs mb-1">🔔 Cuentas Abiertas</p>
                       <p className="text-lg font-bold text-orange-400">
                         {statsLocal1.pedidosPendientes}
                       </p>
@@ -786,7 +780,7 @@ export default function Dashboard() {
 
                   <div className="grid grid-cols-2 gap-4 pt-3 border-t border-purple-500/20">
                     <div>
-                      <p className="text-gray-500 text-xs mb-1">🔔 Pedidos Pendientes</p>
+                      <p className="text-gray-500 text-xs mb-1">🔔 Cuentas Abiertas</p>
                       <p className="text-lg font-bold text-orange-400">
                         {statsLocal2.pedidosPendientes}
                       </p>
