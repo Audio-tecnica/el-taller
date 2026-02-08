@@ -520,5 +520,4 @@ export const generarPDFGastos = (datos, fechaInicio, fechaFin) => {
   
   addFooter(doc);
   doc.save(`gastos-${fechaInicio}-${fechaFin}.pdf`);
-};/ /   r e b u i l d  
- 
+};
