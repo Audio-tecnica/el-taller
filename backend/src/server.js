@@ -12,6 +12,12 @@ const sequelize = require('./config/database');
 const app = express();
 const server = http.createServer(app);
 
+// Importar rutas de gastos
+const gastosRoutes = require('./routes/gastos');
+
+// Registrar rutas
+app.use('/api/gastos', gastosRoutes);
+
 // Configurar Socket.IO
 const io = new Server(server, {
   cors: {

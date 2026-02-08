@@ -263,6 +263,13 @@ export default function Dashboard() {
       desc: "Turnos y arqueo",
       destacado: false,
     },
+      {
+    nombre: "Gastos",           // ← AGREGAR
+    icono: "💸",                 // ← AGREGAR
+    ruta: "/gastos",             // ← AGREGAR
+    desc: "Control de egresos",  // ← AGREGAR
+    destacado: false,            // ← AGREGAR
+  },
     {
       nombre: "Reportes",
       icono: "📈",

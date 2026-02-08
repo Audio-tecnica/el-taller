@@ -8,6 +8,7 @@ const Local = require('../models/Local');
 const Usuario = require('../models/Usuario');
 const MovimientoInventario = require('../models/MovimientoInventario');
 const Proveedor = require('../models/Proveedor');
+const Gasto = require('../models/Gasto');
 
 module.exports = {
   // ==================== REPORTES EXISTENTES ====================
@@ -449,18 +450,49 @@ module.exports = {
   },
 
   // 2️⃣ Gastos
-  getGastos: async (req, res) => {
-    try {
-      const { fecha_inicio, fecha_fin } = req.query;
-      
-      // Por ahora devolvemos estructura vacía
-      // Puedes agregar una tabla de Gastos si lo necesitas
-      res.json([]);
-    } catch (error) {
-      console.error('Error en getGastos:', error);
-      res.status(500).json({ error: error.message });
+  // 2️⃣ Gastos
+getGastos: async (req, res) => {
+  try {
+    const { fecha_inicio, fecha_fin, categoria, local_id } = req.query;
+    
+    const where = {};
+    
+    if (fecha_inicio && fecha_fin) {
+      where.fecha = {
+        [Op.between]: [fecha_inicio, fecha_fin]
+      };
     }
-  },
+    
+    if (categoria) {
+      where.categoria = categoria;
+    }
+    
+    if (local_id) {
+      where.local_id = local_id;
+    }
+    
+    const gastos = await Gasto.findAll({
+      where,
+      include: [
+        { model: Local, as: 'local', attributes: ['id', 'nombre'] },
+        { model: Proveedor, as: 'proveedor', attributes: ['id', 'nombre'] }
+      ],
+      order: [['fecha', 'DESC']]
+    });
+    
+    // Calcular total para el frontend
+    const totalGastos = gastos.reduce((sum, g) => sum + parseFloat(g.monto || 0), 0);
+    
+    res.json({
+      gastos,
+      totalGastos,
+      cantidad: gastos.length
+    });
+  } catch (error) {
+    console.error('Error en getGastos:', error);
+    res.status(500).json({ error: error.message });
+  }
+},
 
   // 3️⃣ Compras Detalladas - CORREGIDO
   getComprasDetalladas: async (req, res) => {

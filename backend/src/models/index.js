@@ -268,6 +268,17 @@ PagoCompra.belongsTo(Usuario, {
   as: 'usuario' 
 });
 
+// Importar el modelo de Gasto
+const Gasto = require('./Gasto');
+
+// Relaciones de Gasto
+Gasto.belongsTo(Local, { foreignKey: 'local_id', as: 'local' });
+Gasto.belongsTo(Proveedor, { foreignKey: 'proveedor_id', as: 'proveedor' });
+Gasto.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+
+// Exportar el modelo
+module.exports.Gasto = Gasto;
+
 // ==========================================
 // EXPORTAR MODELOS
 // ==========================================
@@ -308,3 +319,4 @@ module.exports = {
   CompraImpuesto,
   PagoCompra
 };
+
