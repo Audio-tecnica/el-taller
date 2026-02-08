@@ -15,12 +15,16 @@ export default function Dashboard() {
   const [statsLocal1, setStatsLocal1] = useState({
     ventasHoy: 0,
     mesasActivas: 0,
-    stockBajo: 0
+    stockBajo: 0,
+    pedidosPendientes: 0,
+    topProductos: []
   });
   const [statsLocal2, setStatsLocal2] = useState({
     ventasHoy: 0,
     mesasActivas: 0,
-    stockBajo: 0
+    stockBajo: 0,
+    pedidosPendientes: 0,
+    topProductos: []
   });
   const [loadingStats, setLoadingStats] = useState(true);
 
@@ -122,6 +126,8 @@ export default function Dashboard() {
       let ventasLocal1 = 0;
       let mesasActivasLocal1 = 0;
       let stockBajoLocal1 = 0;
+      let pedidosPendientesLocal1 = 0;
+      let topProductosLocal1 = [];
 
       if (local1) {
         // Ventas Local 1
@@ -153,12 +159,56 @@ export default function Dashboard() {
         } catch (err) {
           console.error('⚠️ Error al cargar stock Local 1:', err);
         }
+
+        // Pedidos pendientes Local 1
+        try {
+          const { pedidosService } = await import("../../services/pedidosService");
+          const pedidosLocal1 = await pedidosService.getPedidos({ local_id: local1.id });
+          pedidosPendientesLocal1 = pedidosLocal1.filter(p => 
+            p.estado === 'pendiente' || p.estado === 'en_preparacion'
+          ).length;
+          console.log('🔔 Pedidos pendientes Local 1:', pedidosPendientesLocal1);
+        } catch (err) {
+          console.error('⚠️ Error al cargar pedidos Local 1:', err);
+        }
+
+        // Top 3 productos Local 1
+        try {
+          const { pedidosService } = await import("../../services/pedidosService");
+          const hoy = new Date().toISOString().split('T')[0];
+          const pedidosHoy = await pedidosService.getPedidos({ 
+            local_id: local1.id,
+            fecha_inicio: hoy,
+            fecha_fin: hoy
+          });
+          
+          // Contar productos vendidos
+          const productosCount = {};
+          pedidosHoy.forEach(pedido => {
+            pedido.items?.forEach(item => {
+              const key = item.producto?.nombre || 'Producto';
+              productosCount[key] = (productosCount[key] || 0) + item.cantidad;
+            });
+          });
+
+          // Top 3
+          topProductosLocal1 = Object.entries(productosCount)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([nombre, cantidad]) => ({ nombre, cantidad }));
+          
+          console.log('🏆 Top productos Local 1:', topProductosLocal1);
+        } catch (err) {
+          console.error('⚠️ Error al cargar top productos Local 1:', err);
+        }
       }
 
       // ========== ESTADÍSTICAS LOCAL 2 ==========
       let ventasLocal2 = 0;
       let mesasActivasLocal2 = 0;
       let stockBajoLocal2 = 0;
+      let pedidosPendientesLocal2 = 0;
+      let topProductosLocal2 = [];
 
       if (local2) {
         // Ventas Local 2
@@ -190,23 +240,69 @@ export default function Dashboard() {
         } catch (err) {
           console.error('⚠️ Error al cargar stock Local 2:', err);
         }
+
+        // Pedidos pendientes Local 2
+        try {
+          const { pedidosService } = await import("../../services/pedidosService");
+          const pedidosLocal2 = await pedidosService.getPedidos({ local_id: local2.id });
+          pedidosPendientesLocal2 = pedidosLocal2.filter(p => 
+            p.estado === 'pendiente' || p.estado === 'en_preparacion'
+          ).length;
+          console.log('🔔 Pedidos pendientes Local 2:', pedidosPendientesLocal2);
+        } catch (err) {
+          console.error('⚠️ Error al cargar pedidos Local 2:', err);
+        }
+
+        // Top 3 productos Local 2
+        try {
+          const { pedidosService } = await import("../../services/pedidosService");
+          const hoy = new Date().toISOString().split('T')[0];
+          const pedidosHoy = await pedidosService.getPedidos({ 
+            local_id: local2.id,
+            fecha_inicio: hoy,
+            fecha_fin: hoy
+          });
+          
+          // Contar productos vendidos
+          const productosCount = {};
+          pedidosHoy.forEach(pedido => {
+            pedido.items?.forEach(item => {
+              const key = item.producto?.nombre || 'Producto';
+              productosCount[key] = (productosCount[key] || 0) + item.cantidad;
+            });
+          });
+
+          // Top 3
+          topProductosLocal2 = Object.entries(productosCount)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([nombre, cantidad]) => ({ nombre, cantidad }));
+          
+          console.log('🏆 Top productos Local 2:', topProductosLocal2);
+        } catch (err) {
+          console.error('⚠️ Error al cargar top productos Local 2:', err);
+        }
       }
 
       console.log('📊 Estadísticas finales por local:', {
-        local1: { ventasLocal1, mesasActivasLocal1, stockBajoLocal1 },
-        local2: { ventasLocal2, mesasActivasLocal2, stockBajoLocal2 }
+        local1: { ventasLocal1, mesasActivasLocal1, stockBajoLocal1, pedidosPendientesLocal1, topProductosLocal1 },
+        local2: { ventasLocal2, mesasActivasLocal2, stockBajoLocal2, pedidosPendientesLocal2, topProductosLocal2 }
       });
 
       setStatsLocal1({
         ventasHoy: ventasLocal1,
         mesasActivas: mesasActivasLocal1,
-        stockBajo: stockBajoLocal1
+        stockBajo: stockBajoLocal1,
+        pedidosPendientes: pedidosPendientesLocal1,
+        topProductos: topProductosLocal1
       });
 
       setStatsLocal2({
         ventasHoy: ventasLocal2,
         mesasActivas: mesasActivasLocal2,
-        stockBajo: stockBajoLocal2
+        stockBajo: stockBajoLocal2,
+        pedidosPendientes: pedidosPendientesLocal2,
+        topProductos: topProductosLocal2
       });
 
     } catch (error) {
@@ -608,24 +704,49 @@ export default function Dashboard() {
                   <p className="text-gray-500 text-sm">Cargando...</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-gray-500 text-xs mb-1">Ventas Hoy</p>
-                    <p className="text-xl font-bold text-[#D4B896]">
-                      {formatMoney(statsLocal1.ventasHoy)}
-                    </p>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-gray-500 text-xs mb-1">Ventas Hoy</p>
+                      <p className="text-xl font-bold text-[#D4B896]">
+                        {formatMoney(statsLocal1.ventasHoy)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-xs mb-1">Mesas Activas</p>
+                      <p className="text-xl font-bold text-emerald-500">
+                        {statsLocal1.mesasActivas}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-xs mb-1">Stock Bajo ⚠️</p>
+                      <p className="text-xl font-bold text-red-500">
+                        {statsLocal1.stockBajo}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-gray-500 text-xs mb-1">Mesas Activas</p>
-                    <p className="text-xl font-bold text-emerald-500">
-                      {statsLocal1.mesasActivas}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500 text-xs mb-1">Stock Bajo ⚠️</p>
-                    <p className="text-xl font-bold text-red-500">
-                      {statsLocal1.stockBajo}
-                    </p>
+
+                  <div className="grid grid-cols-2 gap-4 pt-3 border-t border-blue-500/20">
+                    <div>
+                      <p className="text-gray-500 text-xs mb-1">🔔 Pedidos Pendientes</p>
+                      <p className="text-lg font-bold text-orange-400">
+                        {statsLocal1.pedidosPendientes}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-xs mb-1">🏆 Top Productos</p>
+                      {statsLocal1.topProductos.length > 0 ? (
+                        <div className="space-y-1">
+                          {statsLocal1.topProductos.map((p, idx) => (
+                            <p key={idx} className="text-xs text-gray-300">
+                              {idx + 1}. {p.nombre.substring(0, 15)} ({p.cantidad})
+                            </p>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500">Sin ventas</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -641,24 +762,49 @@ export default function Dashboard() {
                   <p className="text-gray-500 text-sm">Cargando...</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-gray-500 text-xs mb-1">Ventas Hoy</p>
-                    <p className="text-xl font-bold text-[#D4B896]">
-                      {formatMoney(statsLocal2.ventasHoy)}
-                    </p>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-gray-500 text-xs mb-1">Ventas Hoy</p>
+                      <p className="text-xl font-bold text-[#D4B896]">
+                        {formatMoney(statsLocal2.ventasHoy)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-xs mb-1">Mesas Activas</p>
+                      <p className="text-xl font-bold text-emerald-500">
+                        {statsLocal2.mesasActivas}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-xs mb-1">Stock Bajo ⚠️</p>
+                      <p className="text-xl font-bold text-red-500">
+                        {statsLocal2.stockBajo}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-gray-500 text-xs mb-1">Mesas Activas</p>
-                    <p className="text-xl font-bold text-emerald-500">
-                      {statsLocal2.mesasActivas}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500 text-xs mb-1">Stock Bajo ⚠️</p>
-                    <p className="text-xl font-bold text-red-500">
-                      {statsLocal2.stockBajo}
-                    </p>
+
+                  <div className="grid grid-cols-2 gap-4 pt-3 border-t border-purple-500/20">
+                    <div>
+                      <p className="text-gray-500 text-xs mb-1">🔔 Pedidos Pendientes</p>
+                      <p className="text-lg font-bold text-orange-400">
+                        {statsLocal2.pedidosPendientes}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-xs mb-1">🏆 Top Productos</p>
+                      {statsLocal2.topProductos.length > 0 ? (
+                        <div className="space-y-1">
+                          {statsLocal2.topProductos.map((p, idx) => (
+                            <p key={idx} className="text-xs text-gray-300">
+                              {idx + 1}. {p.nombre.substring(0, 15)} ({p.cantidad})
+                            </p>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500">Sin ventas</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
