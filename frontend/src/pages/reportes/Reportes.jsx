@@ -76,7 +76,7 @@ export default function Reportes() {
               <img src={logo} alt="El Taller" className="w-10 h-10 rounded-xl object-contain bg-black" />
               <div>
                 <h1 className="text-xl font-black text-white">Reportes</h1>
-                <p className="text-xs text-[#D4B896]">Estadisticas y Analisis</p>
+                <p className="text-xs text-[#D4B896]">Estadísticas y Análisis</p>
               </div>
             </button>
 
@@ -110,13 +110,13 @@ export default function Reportes() {
                   onClick={() => { setFechaInicio(hace7Dias); setFechaFin(hoy); }}
                   className="px-3 py-1.5 text-xs bg-[#1a1a1a] text-gray-400 rounded-lg hover:text-white transition"
                 >
-                  7 dias
+                  7 días
                 </button>
                 <button
                   onClick={() => { setFechaInicio(hace30Dias); setFechaFin(hoy); }}
                   className="px-3 py-1.5 text-xs bg-[#1a1a1a] text-gray-400 rounded-lg hover:text-white transition"
                 >
-                  30 dias
+                  30 días
                 </button>
               </div>
 
@@ -156,8 +156,8 @@ export default function Reportes() {
           {[
             { id: "resumen", label: "Resumen", icon: "📊" },
             { id: "productos", label: "Productos", icon: "🏆" },
-            { id: "categorias", label: "Categorias", icon: "📦" },
-            { id: "cortesias", label: "Cortesias", icon: "🎁" }
+            { id: "categorias", label: "Categorías", icon: "📦" },
+            { id: "cortesias", label: "Cortesías", icon: "🎁" }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -189,7 +189,7 @@ export default function Reportes() {
                 <p className="text-xs text-emerald-400/70 mt-1">{ventasHoy?.cantidadPedidos || 0} pedidos</p>
               </div>
               <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/30 rounded-2xl p-5">
-                <p className="text-blue-400 text-sm mb-1">Periodo Seleccionado</p>
+                <p className="text-blue-400 text-sm mb-1">Período Seleccionado</p>
                 <p className="text-3xl font-black text-white">{formatMoney(ventasRango?.totalVentas)}</p>
                 <p className="text-xs text-blue-400/70 mt-1">{ventasRango?.cantidadPedidos || 0} pedidos</p>
               </div>
@@ -198,7 +198,7 @@ export default function Reportes() {
                 <p className="text-3xl font-black text-white">{formatMoney(ventasRango?.ticketPromedio)}</p>
               </div>
               <div className="bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/30 rounded-2xl p-5">
-                <p className="text-orange-400 text-sm mb-1">Cortesias</p>
+                <p className="text-orange-400 text-sm mb-1">Cortesías</p>
                 <p className="text-3xl font-black text-white">{formatMoney(ventasRango?.totalCortesias)}</p>
               </div>
             </div>
@@ -206,7 +206,7 @@ export default function Reportes() {
             {/* Ventas por día */}
             {ventasRango?.ventasPorDia && ventasRango.ventasPorDia.length > 0 && (
               <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
-                <h3 className="text-white font-bold mb-4">Ventas por Dia</h3>
+                <h3 className="text-white font-bold mb-4">Ventas por Día</h3>
                 <div className="space-y-2">
                   {ventasRango.ventasPorDia.map((dia) => {
                     const maxVenta = Math.max(...ventasRango.ventasPorDia.map(d => d.total));
@@ -234,7 +234,7 @@ export default function Reportes() {
             {/* Ventas por método de pago */}
             {ventasHoy?.ventasPorMetodo && Object.keys(ventasHoy.ventasPorMetodo).length > 0 && (
               <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
-                <h3 className="text-white font-bold mb-4">Metodos de Pago (Hoy)</h3>
+                <h3 className="text-white font-bold mb-4">Métodos de Pago (Hoy)</h3>
                 <div className="grid grid-cols-3 gap-4">
                   {Object.entries(ventasHoy.ventasPorMetodo).map(([metodo, data]) => (
                     <div key={metodo} className="bg-[#1a1a1a] rounded-xl p-4 text-center">
@@ -272,8 +272,8 @@ export default function Reportes() {
         {tabActiva === "productos" && (
           <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl overflow-hidden">
             <div className="p-4 border-b border-[#2a2a2a]">
-              <h3 className="text-white font-bold">Top 10 Productos Mas Vendidos</h3>
-              <p className="text-xs text-gray-500">Periodo: {fechaInicio} al {fechaFin}</p>
+              <h3 className="text-white font-bold">Top 10 Productos Más Vendidos</h3>
+              <p className="text-xs text-gray-500">Período: {fechaInicio} al {fechaFin}</p>
             </div>
             <div className="divide-y divide-[#2a2a2a]">
               {productosTop.map((prod) => (
@@ -299,7 +299,7 @@ export default function Reportes() {
               ))}
               {productosTop.length === 0 && (
                 <div className="text-center py-12 text-gray-500">
-                  No hay datos para el periodo seleccionado
+                  No hay datos para el período seleccionado
                 </div>
               )}
             </div>
@@ -310,8 +310,8 @@ export default function Reportes() {
         {tabActiva === "categorias" && (
           <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl overflow-hidden">
             <div className="p-4 border-b border-[#2a2a2a]">
-              <h3 className="text-white font-bold">Ventas por Categoria</h3>
-              <p className="text-xs text-gray-500">Periodo: {fechaInicio} al {fechaFin}</p>
+              <h3 className="text-white font-bold">Ventas por Categoría</h3>
+              <p className="text-xs text-gray-500">Período: {fechaInicio} al {fechaFin}</p>
             </div>
             <div className="p-4 space-y-3">
               {ventasCategorias.map((cat) => {
@@ -338,7 +338,7 @@ export default function Reportes() {
               })}
               {ventasCategorias.length === 0 && (
                 <div className="text-center py-12 text-gray-500">
-                  No hay datos para el periodo seleccionado
+                  No hay datos para el período seleccionado
                 </div>
               )}
             </div>
@@ -350,15 +350,15 @@ export default function Reportes() {
           <div className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-5">
-                <p className="text-gray-400 text-sm mb-1">Total Cortesias</p>
+                <p className="text-gray-400 text-sm mb-1">Total Cortesías</p>
                 <p className="text-3xl font-black text-[#D4B896]">{formatMoney(cortesias.totalCortesias)}</p>
               </div>
               <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-5">
-                <p className="text-gray-400 text-sm mb-1">Pedidos con Cortesia</p>
+                <p className="text-gray-400 text-sm mb-1">Pedidos con Cortesía</p>
                 <p className="text-3xl font-black text-white">{cortesias.cantidadPedidosConCortesia}</p>
               </div>
               <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-5">
-                <p className="text-gray-400 text-sm mb-1">Promedio por Cortesia</p>
+                <p className="text-gray-400 text-sm mb-1">Promedio por Cortesía</p>
                 <p className="text-3xl font-black text-white">
                   {formatMoney(cortesias.cantidadPedidosConCortesia > 0 
                     ? cortesias.totalCortesias / cortesias.cantidadPedidosConCortesia 
@@ -370,7 +370,7 @@ export default function Reportes() {
             {/* Por razón */}
             {cortesias.porRazon && cortesias.porRazon.length > 0 && (
               <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
-                <h3 className="text-white font-bold mb-4">Por Razon</h3>
+                <h3 className="text-white font-bold mb-4">Por Razón</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {cortesias.porRazon.map((item) => (
                     <div key={item.razon} className="bg-[#1a1a1a] rounded-xl p-4">
@@ -387,7 +387,7 @@ export default function Reportes() {
             {cortesias.detalle && cortesias.detalle.length > 0 && (
               <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl overflow-hidden">
                 <div className="p-4 border-b border-[#2a2a2a]">
-                  <h3 className="text-white font-bold">Detalle de Cortesias</h3>
+                  <h3 className="text-white font-bold">Detalle de Cortesías</h3>
                 </div>
                 <div className="divide-y divide-[#2a2a2a] max-h-96 overflow-y-auto">
                   {cortesias.detalle.map((item) => (
@@ -412,7 +412,7 @@ export default function Reportes() {
                 <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-[#1a1a1a] flex items-center justify-center">
                   <span className="text-4xl">🎁</span>
                 </div>
-                <p className="text-gray-500">No hay cortesias en el periodo seleccionado</p>
+                <p className="text-gray-500">No hay cortesías en el período seleccionado</p>
               </div>
             )}
           </div>
