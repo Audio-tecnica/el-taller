@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { reportesService } from "../../services/reportesService";
 import toast from "react-hot-toast";
 import * as pdfGenerator from "../../utils/pdfGenerator";
+import 'jspdf-autotable';
 import logo from "../../assets/logo.jpeg";
 import { 
   FileText, 
