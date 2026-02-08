@@ -23,14 +23,33 @@ export default function EnviarFacturaWhatsApp({ pedidoId, pedido }) {
     setTelefono(formateado);
   };
 
-  // ✅ Función para acortar URL usando TinyURL (oculta tu URL real)
-  const acortarUrlTinyURL = async (urlLarga) => {
+  // ✅ Función para acortar URL usando nuestro propio servicio
+  const acortarUrlPropia = async (urlLarga) => {
     try {
-      const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(urlLarga)}`);
-      const urlCorta = await response.text();
-      return urlCorta;
+      const token = localStorage.getItem("token");
+      const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+      
+      const response = await fetch(`${API_BASE}/api/urls`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          url_original: urlLarga,
+          tipo: 'factura',
+          expira_dias: 90 // La URL expirará en 90 días
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al crear URL corta');
+      }
+
+      const data = await response.json();
+      return data.url_corta; // Retorna la URL corta completa
     } catch (error) {
-      console.error('Error al acortar con TinyURL:', error);
+      console.error('Error al acortar URL:', error);
       return urlLarga; // Si falla, retornar la URL original
     }
   };
@@ -52,8 +71,8 @@ export default function EnviarFacturaWhatsApp({ pedidoId, pedido }) {
       const baseUrl = API_BASE.replace(/\/api$/, "");
       const urlFacturaLarga = `${baseUrl}/api/facturas/pdf/${pedidoId}?token=${token}`;
 
-      // ✅ Acortar la URL con TinyURL (oculta tu dominio real)
-      const urlFactura = await acortarUrlTinyURL(urlFacturaLarga);
+      // ✅ Acortar la URL con nuestro propio servicio (sin publicidad!)
+      const urlFactura = await acortarUrlPropia(urlFacturaLarga);
 
       // Obtener total
       let total = 0;
@@ -85,7 +104,7 @@ Vuelve pronto!`;
       // Abrir WhatsApp
       window.open(urlWhatsApp, '_blank');
       
-      toast.success('WhatsApp abierto con link acortado!');
+      toast.success('✅ WhatsApp abierto - Enlace sin publicidad!');
       
       // Limpiar campo
       setTimeout(() => {
@@ -142,7 +161,7 @@ Vuelve pronto!`;
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              Preparando enlace...
+              Generando enlace...
             </>
           ) : (
             <>
@@ -155,7 +174,15 @@ Vuelve pronto!`;
         </button>
 
         <p className="text-xs text-gray-600 text-center">
-          {acortandoUrl ? 'Acortando enlace...' : 'Se abrira WhatsApp con el mensaje listo para enviar'}
+          {acortandoUrl ? (
+            'Generando enlace profesional...'
+          ) : (
+            <>
+              ✨ Enlace profesional sin publicidad
+              <br />
+              Se abrirá WhatsApp con el mensaje listo
+            </>
+          )}
         </p>
       </div>
     </div>

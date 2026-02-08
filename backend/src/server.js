@@ -118,6 +118,10 @@ const gastosRoutes = require('./routes/gastosRoutes');
 // ⭐ RUTAS LOCALES
 const localesRoutes = require('./routes/localesRoutes');
 
+// ⭐ RUTAS URLS CORTAS
+const urlCortaRoutes = require('./routes/urlCortaRoutes');
+const urlCortaController = require('./controllers/urlCortaController');
+
 // Servir archivos PDF estáticos
 const path = require('path');
 app.use('/pdfs', express.static(path.join(__dirname, '../pdfs')));
@@ -145,6 +149,10 @@ app.use('/api/facturas', facturasRoutes); // ⭐ FACTURAS POS
 app.use('/api/facturas-compra', facturasCompraRoutes); // ⭐ FACTURAS DE COMPRA
 app.use('/api/gastos', gastosRoutes); // ⭐ GASTOS
 app.use('/api/locales', localesRoutes); // ⭐ LOCALES
+app.use('/api/urls', urlCortaRoutes); // ⭐ URLs CORTAS
+
+// ⭐ Ruta pública para redirigir URLs cortas (NO requiere autenticación)
+app.get('/s/:codigo', urlCortaController.redirigirUrl);
 
 // Socket.IO - Manejo de conexiones
 io.on('connection', (socket) => {
