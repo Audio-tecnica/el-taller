@@ -113,7 +113,7 @@ const facturasRoutes = require('./routes/facturasRoutes');
 const facturasCompraRoutes = require('./routes/facturasCompraRoutes');
 
 // ⭐ RUTAS GASTOS
-const gastosRoutes = require('./routes/gastos');
+const gastosRoutes = require('./routes/gastosRoutes');
 
 // ⭐ RUTAS LOCALES
 const localesRoutes = require('./routes/localesRoutes');
