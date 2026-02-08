@@ -1,4 +1,18 @@
-const UrlCorta = require('../models/UrlCorta');
+// Importar modelos - con manejo de errores
+let UrlCorta;
+try {
+  const models = require('../models');
+  UrlCorta = models.UrlCorta;
+  
+  if (!UrlCorta) {
+    console.error('❌ ERROR: El modelo UrlCorta no está exportado en models/index.js');
+    throw new Error('UrlCorta no disponible');
+  }
+} catch (error) {
+  console.error('❌ ERROR al cargar UrlCorta:', error.message);
+  throw error;
+}
+
 const { Op } = require('sequelize');
 
 // Generar código único aleatorio
@@ -274,3 +288,5 @@ exports.desactivarUrl = async (req, res) => {
     res.status(500).json({ error: 'Error al desactivar URL' });
   }
 };
+
+console.log('✅ urlCortaController cargado correctamente');
