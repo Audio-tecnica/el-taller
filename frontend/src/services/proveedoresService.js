@@ -7,6 +7,12 @@ export const proveedoresService = {
     return response.data;
   },
 
+  // Alias para compatibilidad
+  getProveedores: async (activo = true) => {
+    const response = await api.get(`/proveedores?activo=${activo}`);
+    return response.data;
+  },
+
   // Obtener un proveedor por ID
   getById: async (id) => {
     const response = await api.get(`/proveedores/${id}`);
