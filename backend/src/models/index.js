@@ -47,6 +47,11 @@ const CompraImpuesto = require('./CompraImpuesto');
 const PagoCompra = require('./PagoCompra');
 
 // ==========================================
+// IMPORTAR MODELO DE URLS CORTAS
+// ==========================================
+const UrlCorta = require('./UrlCorta');
+
+// ==========================================
 // RELACIONES EXISTENTES
 // ==========================================
 
@@ -317,6 +322,8 @@ module.exports = {
   
   // ⭐ Modelos de Compras Mejorados
   CompraImpuesto,
-  PagoCompra
+  PagoCompra,
+  
+  // ⭐ Modelo de URLs Cortas
+  UrlCorta
 };
-
