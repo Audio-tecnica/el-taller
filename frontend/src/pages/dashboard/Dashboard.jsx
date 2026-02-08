@@ -540,12 +540,12 @@ export default function Dashboard() {
           <p className="text-[#D4B896]">Sistema de gestión El Taller</p>
         </div>
 
-        {/* Grid: Módulos Principales + Stats por Local */}
+        {/* Módulos Principales */}
         <div className="mb-8">
           <h3 className="text-lg font-bold text-white mb-4">
             Módulos Principales
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {modulos.map((modulo) => (
               <button
                 key={modulo.nombre}
@@ -589,33 +589,41 @@ export default function Dashboard() {
                 </p>
               </button>
             ))}
+          </div>
+        </div>
 
-            {/* ⭐ STATS LOCAL 1 - CASTELLANA */}
-            <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/30 rounded-xl p-3">
-              <div className="mb-2">
-                <p className="text-blue-400 text-xs font-bold mb-1">🏪 Castellana</p>
+        {/* ⭐ Estadísticas por Local */}
+        <div className="mb-8">
+          <h3 className="text-lg font-bold text-white mb-4">
+            Estadísticas por Local
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* STATS LOCAL 1 - CASTELLANA */}
+            <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/30 rounded-xl p-5">
+              <div className="mb-4">
+                <p className="text-blue-400 text-sm font-bold mb-1">🏪 Castellana</p>
               </div>
               {loadingStats ? (
-                <div className="flex items-center justify-center h-24">
-                  <p className="text-gray-500 text-xs">...</p>
+                <div className="flex items-center justify-center h-32">
+                  <p className="text-gray-500 text-sm">Cargando...</p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <p className="text-gray-500 text-[10px]">Ventas</p>
-                    <p className="text-sm font-bold text-[#D4B896]">
+                    <p className="text-gray-500 text-xs mb-1">Ventas Hoy</p>
+                    <p className="text-xl font-bold text-[#D4B896]">
                       {formatMoney(statsLocal1.ventasHoy)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-500 text-[10px]">Mesas</p>
-                    <p className="text-sm font-bold text-emerald-500">
+                    <p className="text-gray-500 text-xs mb-1">Mesas Activas</p>
+                    <p className="text-xl font-bold text-emerald-500">
                       {statsLocal1.mesasActivas}
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-500 text-[10px]">Stock ⚠️</p>
-                    <p className="text-sm font-bold text-red-500">
+                    <p className="text-gray-500 text-xs mb-1">Stock Bajo ⚠️</p>
+                    <p className="text-xl font-bold text-red-500">
                       {statsLocal1.stockBajo}
                     </p>
                   </div>
@@ -623,32 +631,32 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* ⭐ STATS LOCAL 2 - AVENIDA PRIMERA */}
-            <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/30 rounded-xl p-3">
-              <div className="mb-2">
-                <p className="text-purple-400 text-xs font-bold mb-1">🏪 Av. 1ra</p>
+            {/* STATS LOCAL 2 - AVENIDA PRIMERA */}
+            <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/30 rounded-xl p-5">
+              <div className="mb-4">
+                <p className="text-purple-400 text-sm font-bold mb-1">🏪 Av. 1ra</p>
               </div>
               {loadingStats ? (
-                <div className="flex items-center justify-center h-24">
-                  <p className="text-gray-500 text-xs">...</p>
+                <div className="flex items-center justify-center h-32">
+                  <p className="text-gray-500 text-sm">Cargando...</p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <p className="text-gray-500 text-[10px]">Ventas</p>
-                    <p className="text-sm font-bold text-[#D4B896]">
+                    <p className="text-gray-500 text-xs mb-1">Ventas Hoy</p>
+                    <p className="text-xl font-bold text-[#D4B896]">
                       {formatMoney(statsLocal2.ventasHoy)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-500 text-[10px]">Mesas</p>
-                    <p className="text-sm font-bold text-emerald-500">
+                    <p className="text-gray-500 text-xs mb-1">Mesas Activas</p>
+                    <p className="text-xl font-bold text-emerald-500">
                       {statsLocal2.mesasActivas}
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-500 text-[10px]">Stock ⚠️</p>
-                    <p className="text-sm font-bold text-red-500">
+                    <p className="text-gray-500 text-xs mb-1">Stock Bajo ⚠️</p>
+                    <p className="text-xl font-bold text-red-500">
                       {statsLocal2.stockBajo}
                     </p>
                   </div>

@@ -113,7 +113,10 @@ const facturasRoutes = require('./routes/facturasRoutes');
 const facturasCompraRoutes = require('./routes/facturasCompraRoutes');
 
 // ⭐ RUTAS GASTOS
-const gastosRoutes = require('./routes/gastosRoutes');
+const gastosRoutes = require('./routes/gastos');
+
+// ⭐ RUTAS LOCALES
+const localesRoutes = require('./routes/localesRoutes');
 
 // Servir archivos PDF estáticos
 const path = require('path');
@@ -141,6 +144,7 @@ app.use('/api/impuestos', impuestosRoutes);
 app.use('/api/facturas', facturasRoutes); // ⭐ FACTURAS POS
 app.use('/api/facturas-compra', facturasCompraRoutes); // ⭐ FACTURAS DE COMPRA
 app.use('/api/gastos', gastosRoutes); // ⭐ GASTOS
+app.use('/api/locales', localesRoutes); // ⭐ LOCALES
 
 // Socket.IO - Manejo de conexiones
 io.on('connection', (socket) => {
