@@ -104,10 +104,22 @@ module.exports = {
       const totalPedidos = pedidos.length;
       const ticketPromedio = totalPedidos > 0 ? totalVentas / totalPedidos : 0;
 
+      // Ventas por método de pago
+      const ventasPorMetodo = pedidos.reduce((acc, p) => {
+        const metodo = p.metodo_pago || 'efectivo';
+        if (!acc[metodo]) {
+          acc[metodo] = { total: 0, cantidad: 0 };
+        }
+        acc[metodo].total += parseFloat(p.total_final || 0);
+        acc[metodo].cantidad += 1;
+        return acc;
+      }, {});
+
       res.json({
-        total: totalVentas,
-        pedidos: totalPedidos,
-        ticket_promedio: ticketPromedio,
+        totalVentas,  // ✅ Frontend espera totalVentas
+        cantidadPedidos: totalPedidos,  // ✅ Frontend espera cantidadPedidos
+        ticketPromedio,  // ✅ Frontend espera ticketPromedio
+        ventasPorMetodo,  // ✅ Frontend espera ventasPorMetodo
         detalle: pedidos
       });
     } catch (error) {
@@ -133,11 +145,32 @@ module.exports = {
         }
       });
 
-      const total = pedidos.reduce((sum, p) => sum + parseFloat(p.total_final || 0), 0);
+      const totalVentas = pedidos.reduce((sum, p) => sum + parseFloat(p.total_final || 0), 0);
+      const cantidadPedidos = pedidos.length;
+      const ticketPromedio = cantidadPedidos > 0 ? totalVentas / cantidadPedidos : 0;
+
+      // Total cortesías
+      const totalCortesias = pedidos
+        .filter(p => p.tiene_cortesia)
+        .reduce((sum, p) => sum + parseFloat(p.monto_cortesia || 0), 0);
+
+      // Ventas por día
+      const ventasPorDia = pedidos.reduce((acc, p) => {
+        const fecha = new Date(p.created_at).toISOString().split('T')[0];
+        if (!acc[fecha]) {
+          acc[fecha] = { fecha, total: 0, cantidad: 0 };
+        }
+        acc[fecha].total += parseFloat(p.total_final || 0);
+        acc[fecha].cantidad += 1;
+        return acc;
+      }, {});
 
       res.json({
-        total,
-        pedidos: pedidos.length,
+        totalVentas,  // ✅ Frontend espera totalVentas
+        cantidadPedidos,  // ✅ Frontend espera cantidadPedidos
+        ticketPromedio,  // ✅ Frontend espera ticketPromedio
+        totalCortesias,  // ✅ Frontend espera totalCortesias
+        ventasPorDia: Object.values(ventasPorDia).sort((a, b) => a.fecha.localeCompare(b.fecha)),  // ✅ Frontend espera ventasPorDia
         detalle: pedidos
       });
     } catch (error) {
@@ -235,11 +268,11 @@ module.exports = {
           acc[id] = {
             producto: item.producto?.nombre || 'Sin nombre',
             cantidad: 0,
-            total: 0
+            totalVentas: 0  // ✅ Frontend espera totalVentas
           };
         }
         acc[id].cantidad += item.cantidad;
-        acc[id].total += parseFloat(item.subtotal || 0);
+        acc[id].totalVentas += parseFloat(item.subtotal || 0);  // ✅ Frontend espera totalVentas
         return acc;
       }, {});
 
@@ -293,11 +326,11 @@ module.exports = {
           acc[categoria] = {
             categoria,
             cantidad: 0,
-            total: 0
+            totalVentas: 0  // ✅ Frontend espera totalVentas
           };
         }
         acc[categoria].cantidad += item.cantidad;
-        acc[categoria].total += parseFloat(item.subtotal || 0);
+        acc[categoria].totalVentas += parseFloat(item.subtotal || 0);  // ✅ Frontend espera totalVentas
         return acc;
       }, {});
 
@@ -334,11 +367,11 @@ module.exports = {
         ]
       });
 
-      const total = pedidos.reduce((sum, p) => sum + parseFloat(p.monto_cortesia || 0), 0);  // ✅ Usar monto_cortesia en lugar de total
+      const totalCortesias = pedidos.reduce((sum, p) => sum + parseFloat(p.monto_cortesia || 0), 0);
 
       res.json({
-        total,
-        cantidad: pedidos.length,
+        totalCortesias,  // ✅ Frontend espera totalCortesias
+        cantidadPedidosConCortesia: pedidos.length,  // ✅ Frontend espera cantidadPedidosConCortesia
         detalle: pedidos
       });
     } catch (error) {
@@ -613,6 +646,7 @@ module.exports = {
       const utilidadNeta = utilidadOperativa;
 
       res.json({
+        totalVentas: ventasBrutas,  // ✅ Frontend espera totalVentas
         periodo: {
           inicio: fecha_inicio,
           fin: fecha_fin
@@ -679,10 +713,14 @@ module.exports = {
         sum + parseFloat(p.total_final || 0), 0
       );
 
+      const totalPedidos = pedidosFiltrados.length;
+      const ticketPromedio = totalPedidos > 0 ? totalVentas / totalPedidos : 0;
+
       res.json({
         fecha: fecha_inicio,
         total_ventas: totalVentas,
-        total_pedidos: pedidosFiltrados.length,
+        total_pedidos: totalPedidos,
+        ticketPromedio,  // ✅ Frontend espera ticketPromedio
         metodos_pago: Object.entries(porMetodoPago).map(([metodo, data]) => ({
           metodo,
           cantidad: data.cantidad,
