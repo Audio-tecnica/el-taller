@@ -12,12 +12,6 @@ const sequelize = require('./config/database');
 const app = express();
 const server = http.createServer(app);
 
-// Importar rutas de gastos
-const gastosRoutes = require('./routes/gastos');
-
-// Registrar rutas
-app.use('/api/gastos', gastosRoutes);
-
 // Configurar Socket.IO
 const io = new Server(server, {
   cors: {
@@ -118,6 +112,9 @@ const facturasRoutes = require('./routes/facturasRoutes');
 // ⭐ RUTAS FACTURAS DE COMPRA
 const facturasCompraRoutes = require('./routes/facturasCompraRoutes');
 
+// ⭐ RUTAS GASTOS
+const gastosRoutes = require('./routes/gastosRoutes');
+
 // Servir archivos PDF estáticos
 const path = require('path');
 app.use('/pdfs', express.static(path.join(__dirname, '../pdfs')));
@@ -143,6 +140,7 @@ app.use('/api/pagos-b2b', pagosB2BRoutes);
 app.use('/api/impuestos', impuestosRoutes);
 app.use('/api/facturas', facturasRoutes); // ⭐ FACTURAS POS
 app.use('/api/facturas-compra', facturasCompraRoutes); // ⭐ FACTURAS DE COMPRA
+app.use('/api/gastos', gastosRoutes); // ⭐ GASTOS
 
 // Socket.IO - Manejo de conexiones
 io.on('connection', (socket) => {
