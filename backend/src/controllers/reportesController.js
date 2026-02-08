@@ -1,60 +1,46 @@
-const { Pedido, ItemPedido, Producto, Mesa, Local, Usuario, Turno, Categoria, MovimientoInventario, Proveedor } = require('../models');
 const { Op } = require('sequelize');
+const Producto = require('../models/Producto');
+const Categoria = require('../models/Categoria');
+const Pedido = require('../models/Pedido');
+const ItemPedido = require('../models/ItemPedido');
+const Mesa = require('../models/Mesa');
+const Local = require('../models/Local');
+const Usuario = require('../models/Usuario');
+const MovimientoInventario = require('../models/MovimientoInventario');
+const Proveedor = require('../models/Proveedor');
 
-const reportesController = {
-  // Resumen de ventas del día
+module.exports = {
+  // ==================== REPORTES EXISTENTES ====================
+  
+  // Ventas del día
   getVentasHoy: async (req, res) => {
     try {
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
-      const manana = new Date(hoy);
-      manana.setDate(manana.getDate() + 1);
-
+      
       const pedidos = await Pedido.findAll({
         where: {
           estado: 'cerrado',
-          closed_at: { [Op.between]: [hoy, manana] }
+          created_at: {
+            [Op.gte]: hoy
+          }
         },
-        include: [
-          { model: Local, as: 'local' },
-          { model: Usuario, as: 'usuario' }
-        ]
+        include: [{
+          model: ItemPedido,
+          as: 'items',
+          include: [{ model: Producto, as: 'producto' }]
+        }]
       });
 
-      const totalVentas = pedidos.reduce((sum, p) => sum + parseFloat(p.total_final || 0), 0);
-      const totalCortesias = pedidos.reduce((sum, p) => sum + parseFloat(p.monto_cortesia || 0), 0);
-      const cantidadPedidos = pedidos.length;
-
-      // Por local
-      const ventasPorLocal = {};
-      pedidos.forEach(p => {
-        const localNombre = p.local?.nombre || 'Sin local';
-        if (!ventasPorLocal[localNombre]) {
-          ventasPorLocal[localNombre] = { total: 0, cantidad: 0 };
-        }
-        ventasPorLocal[localNombre].total += parseFloat(p.total_final || 0);
-        ventasPorLocal[localNombre].cantidad += 1;
-      });
-
-      // Por método de pago
-      const ventasPorMetodo = {};
-      pedidos.forEach(p => {
-        const metodo = p.metodo_pago || 'efectivo';
-        if (!ventasPorMetodo[metodo]) {
-          ventasPorMetodo[metodo] = { total: 0, cantidad: 0 };
-        }
-        ventasPorMetodo[metodo].total += parseFloat(p.total_final || 0);
-        ventasPorMetodo[metodo].cantidad += 1;
-      });
+      const totalVentas = pedidos.reduce((sum, p) => sum + parseFloat(p.total || 0), 0);
+      const totalPedidos = pedidos.length;
+      const ticketPromedio = totalPedidos > 0 ? totalVentas / totalPedidos : 0;
 
       res.json({
-        fecha: hoy.toISOString().split('T')[0],
-        totalVentas,
-        totalCortesias,
-        cantidadPedidos,
-        ticketPromedio: cantidadPedidos > 0 ? totalVentas / cantidadPedidos : 0,
-        ventasPorLocal,
-        ventasPorMetodo
+        total: totalVentas,
+        pedidos: totalPedidos,
+        ticket_promedio: ticketPromedio,
+        detalle: pedidos
       });
     } catch (error) {
       console.error('Error en getVentasHoy:', error);
@@ -65,134 +51,83 @@ const reportesController = {
   // Ventas por rango de fechas
   getVentasPorRango: async (req, res) => {
     try {
-      const { fecha_inicio, fecha_fin, local_id } = req.query;
-
-      if (!fecha_inicio || !fecha_fin) {
-        return res.status(400).json({ error: 'Se requieren fecha_inicio y fecha_fin' });
-      }
-
-      const inicio = new Date(fecha_inicio);
-      inicio.setHours(0, 0, 0, 0);
-      const fin = new Date(fecha_fin);
-      fin.setHours(23, 59, 59, 999);
-
-      const where = {
-        estado: 'cerrado',
-        closed_at: { [Op.between]: [inicio, fin] }
-      };
-
-      if (local_id) {
-        where.local_id = local_id;
-      }
-
+      const { fecha_inicio, fecha_fin } = req.query;
+      
       const pedidos = await Pedido.findAll({
-        where,
-        include: [
-          { model: Local, as: 'local' },
-          { model: Usuario, as: 'usuario' }
-        ],
-        order: [['closed_at', 'DESC']]
-      });
-
-      const totalVentas = pedidos.reduce((sum, p) => sum + parseFloat(p.total_final || 0), 0);
-      const totalCortesias = pedidos.reduce((sum, p) => sum + parseFloat(p.monto_cortesia || 0), 0);
-
-      // Agrupar por día
-      const ventasPorDia = {};
-      pedidos.forEach(p => {
-        const fecha = new Date(p.closed_at).toISOString().split('T')[0];
-        if (!ventasPorDia[fecha]) {
-          ventasPorDia[fecha] = { total: 0, cantidad: 0, cortesias: 0 };
+        where: {
+          estado: 'cerrado',
+          created_at: {
+            [Op.between]: [
+              new Date(fecha_inicio + ' 00:00:00'),
+              new Date(fecha_fin + ' 23:59:59')
+            ]
+          }
         }
-        ventasPorDia[fecha].total += parseFloat(p.total_final || 0);
-        ventasPorDia[fecha].cantidad += 1;
-        ventasPorDia[fecha].cortesias += parseFloat(p.monto_cortesia || 0);
       });
+
+      const total = pedidos.reduce((sum, p) => sum + parseFloat(p.total || 0), 0);
 
       res.json({
-        fecha_inicio,
-        fecha_fin,
-        totalVentas,
-        totalCortesias,
-        cantidadPedidos: pedidos.length,
-        ticketPromedio: pedidos.length > 0 ? totalVentas / pedidos.length : 0,
-        ventasPorDia: Object.entries(ventasPorDia).map(([fecha, data]) => ({
-          fecha,
-          ...data
-        })).sort((a, b) => a.fecha.localeCompare(b.fecha))
+        total,
+        pedidos: pedidos.length,
+        detalle: pedidos
       });
     } catch (error) {
+      console.error('Error en getVentasPorRango:', error);
       res.status(500).json({ error: error.message });
     }
   },
 
   // Productos más vendidos
-  getProductosMasVendidos: async (req, res) => {
+  getProductosTop: async (req, res) => {
     try {
-      const { fecha_inicio, fecha_fin, limite = 20 } = req.query;
-
-      let whereClause = { estado: 'cerrado' };
-
-      if (fecha_inicio && fecha_fin) {
-        const inicio = new Date(fecha_inicio);
-        inicio.setHours(0, 0, 0, 0);
-        const fin = new Date(fecha_fin);
-        fin.setHours(23, 59, 59, 999);
-        whereClause.closed_at = { [Op.between]: [inicio, fin] };
-      }
-
-      const pedidos = await Pedido.findAll({
-        where: whereClause,
-        attributes: ['id']
-      });
-
-      const pedidoIds = pedidos.map(p => p.id);
-
-      if (pedidoIds.length === 0) {
-        return res.json([]);
-      }
-
+      const { fecha_inicio, fecha_fin, limite = 10 } = req.query;
+      
       const items = await ItemPedido.findAll({
-        where: { pedido_id: { [Op.in]: pedidoIds } },
         include: [
-          { 
-            model: Producto, 
+          {
+            model: Producto,
             as: 'producto',
-            include: [{ model: Categoria, as: 'categoria' }]
+            attributes: ['id', 'nombre', 'precio_venta']
+          },
+          {
+            model: Pedido,
+            as: 'pedido',
+            where: {
+              estado: 'cerrado',
+              created_at: {
+                [Op.between]: [
+                  new Date(fecha_inicio + ' 00:00:00'),
+                  new Date(fecha_fin + ' 23:59:59')
+                ]
+              }
+            },
+            attributes: []
           }
         ]
       });
 
-      // Agrupar por producto
-      const productosAgrupados = {};
-      items.forEach(item => {
-        const prodId = item.producto_id;
-        if (!productosAgrupados[prodId]) {
-          productosAgrupados[prodId] = {
-            producto: item.producto,
-            cantidadVendida: 0,
-            totalVentas: 0
+      const productosAgrupados = items.reduce((acc, item) => {
+        const id = item.producto_id;
+        if (!acc[id]) {
+          acc[id] = {
+            producto: item.producto?.nombre || 'Sin nombre',
+            cantidad: 0,
+            total: 0
           };
         }
-        productosAgrupados[prodId].cantidadVendida += item.cantidad;
-        productosAgrupados[prodId].totalVentas += parseFloat(item.subtotal || 0);
-      });
+        acc[id].cantidad += item.cantidad;
+        acc[id].total += parseFloat(item.subtotal || 0);
+        return acc;
+      }, {});
 
-      const ranking = Object.values(productosAgrupados)
-        .sort((a, b) => b.cantidadVendida - a.cantidadVendida)
-        .slice(0, parseInt(limite))
-        .map((item, index) => ({
-          posicion: index + 1,
-          producto_id: item.producto?.id,
-          nombre: item.producto?.nombre,
-          categoria: item.producto?.categoria?.nombre,
-          cantidadVendida: item.cantidadVendida,
-          totalVentas: item.totalVentas
-        }));
+      const resultado = Object.values(productosAgrupados)
+        .sort((a, b) => b.cantidad - a.cantidad)
+        .slice(0, parseInt(limite));
 
-      res.json(ranking);
+      res.json(resultado);
     } catch (error) {
-      console.error('Error en getProductosMasVendidos:', error);
+      console.error('Error en getProductosTop:', error);
       res.status(500).json({ error: error.message });
     }
   },
@@ -201,227 +136,154 @@ const reportesController = {
   getVentasPorCategoria: async (req, res) => {
     try {
       const { fecha_inicio, fecha_fin } = req.query;
-
-      let whereClause = { estado: 'cerrado' };
-
-      if (fecha_inicio && fecha_fin) {
-        const inicio = new Date(fecha_inicio);
-        inicio.setHours(0, 0, 0, 0);
-        const fin = new Date(fecha_fin);
-        fin.setHours(23, 59, 59, 999);
-        whereClause.closed_at = { [Op.between]: [inicio, fin] };
-      }
-
-      const pedidos = await Pedido.findAll({
-        where: whereClause,
-        attributes: ['id']
-      });
-
-      const pedidoIds = pedidos.map(p => p.id);
-
-      if (pedidoIds.length === 0) {
-        return res.json([]);
-      }
-
+      
       const items = await ItemPedido.findAll({
-        where: { pedido_id: { [Op.in]: pedidoIds } },
         include: [
-          { 
-            model: Producto, 
+          {
+            model: Producto,
             as: 'producto',
-            include: [{ model: Categoria, as: 'categoria' }]
+            include: [{
+              model: Categoria,
+              as: 'categoria',
+              attributes: ['id', 'nombre']
+            }]
+          },
+          {
+            model: Pedido,
+            as: 'pedido',
+            where: {
+              estado: 'cerrado',
+              created_at: {
+                [Op.between]: [
+                  new Date(fecha_inicio + ' 00:00:00'),
+                  new Date(fecha_fin + ' 23:59:59')
+                ]
+              }
+            },
+            attributes: []
           }
         ]
       });
 
-      // Agrupar por categoría
-      const categoriasAgrupadas = {};
-      items.forEach(item => {
-        const catNombre = item.producto?.categoria?.nombre || 'Sin categoria';
-        const catIcono = item.producto?.categoria?.icono || '📦';
-        if (!categoriasAgrupadas[catNombre]) {
-          categoriasAgrupadas[catNombre] = {
-            nombre: catNombre,
-            icono: catIcono,
-            cantidadVendida: 0,
-            totalVentas: 0
+      const categorias = items.reduce((acc, item) => {
+        const categoria = item.producto?.categoria?.nombre || 'Sin categoría';
+        if (!acc[categoria]) {
+          acc[categoria] = {
+            categoria,
+            cantidad: 0,
+            total: 0
           };
         }
-        categoriasAgrupadas[catNombre].cantidadVendida += item.cantidad;
-        categoriasAgrupadas[catNombre].totalVentas += parseFloat(item.subtotal || 0);
-      });
+        acc[categoria].cantidad += item.cantidad;
+        acc[categoria].total += parseFloat(item.subtotal || 0);
+        return acc;
+      }, {});
 
-      const resultado = Object.values(categoriasAgrupadas)
-        .sort((a, b) => b.totalVentas - a.totalVentas);
-
-      res.json(resultado);
+      res.json(Object.values(categorias));
     } catch (error) {
+      console.error('Error en getVentasPorCategoria:', error);
       res.status(500).json({ error: error.message });
     }
   },
 
-  // Resumen de cortesías
+  // Cortesías
   getCortesias: async (req, res) => {
     try {
       const { fecha_inicio, fecha_fin } = req.query;
-
-      let whereClause = { 
-        estado: 'cerrado',
-        tiene_cortesia: true
-      };
-
-      if (fecha_inicio && fecha_fin) {
-        const inicio = new Date(fecha_inicio);
-        inicio.setHours(0, 0, 0, 0);
-        const fin = new Date(fecha_fin);
-        fin.setHours(23, 59, 59, 999);
-        whereClause.closed_at = { [Op.between]: [inicio, fin] };
-      }
-
+      
       const pedidos = await Pedido.findAll({
-        where: whereClause,
+        where: {
+          es_cortesia: true,
+          estado: 'cerrado',
+          created_at: {
+            [Op.between]: [
+              new Date(fecha_inicio + ' 00:00:00'),
+              new Date(fecha_fin + ' 23:59:59')
+            ]
+          }
+        },
         include: [
-          { model: Mesa, as: 'mesa' },
-          { model: Usuario, as: 'usuario' },
-          { model: Local, as: 'local' }
-        ],
-        order: [['closed_at', 'DESC']]
+          {
+            model: ItemPedido,
+            as: 'items',
+            include: [{ model: Producto, as: 'producto' }]
+          },
+          { model: Mesa, as: 'mesa' }
+        ]
       });
 
-      const totalCortesias = pedidos.reduce((sum, p) => sum + parseFloat(p.monto_cortesia || 0), 0);
-
-      // Agrupar por razón
-      const porRazon = {};
-      pedidos.forEach(p => {
-        const razon = p.razon_cortesia || 'Sin especificar';
-        if (!porRazon[razon]) {
-          porRazon[razon] = { cantidad: 0, total: 0 };
-        }
-        porRazon[razon].cantidad += 1;
-        porRazon[razon].total += parseFloat(p.monto_cortesia || 0);
-      });
+      const total = pedidos.reduce((sum, p) => sum + parseFloat(p.total || 0), 0);
 
       res.json({
-        totalCortesias,
-        cantidadPedidosConCortesia: pedidos.length,
-        porRazon: Object.entries(porRazon).map(([razon, data]) => ({
-          razon,
-          ...data
-        })),
-        detalle: pedidos.map(p => ({
-          id: p.id,
-          mesa: p.mesa?.numero,
-          local: p.local?.nombre,
-          usuario: p.usuario?.nombre,
-          subtotal: p.subtotal,
-          monto_cortesia: p.monto_cortesia,
-          razon: p.razon_cortesia,
-          total_final: p.total_final,
-          fecha: p.closed_at
-        }))
+        total,
+        cantidad: pedidos.length,
+        detalle: pedidos
       });
     } catch (error) {
+      console.error('Error en getCortesias:', error);
       res.status(500).json({ error: error.message });
     }
   },
 
-  // Dashboard resumen
-  getDashboard: async (req, res) => {
-    try {
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-      const manana = new Date(hoy);
-      manana.setDate(manana.getDate() + 1);
-
-      // Ventas de hoy
-      const pedidosHoy = await Pedido.findAll({
-        where: {
-          estado: 'cerrado',
-          closed_at: { [Op.between]: [hoy, manana] }
-        }
-      });
-
-      const ventasHoy = pedidosHoy.reduce((sum, p) => sum + parseFloat(p.total_final || 0), 0);
-
-      // Ventas del mes
-      const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-      const pedidosMes = await Pedido.findAll({
-        where: {
-          estado: 'cerrado',
-          closed_at: { [Op.gte]: inicioMes }
-        }
-      });
-
-      const ventasMes = pedidosMes.reduce((sum, p) => sum + parseFloat(p.total_final || 0), 0);
-
-      // Mesas activas
-      const mesasOcupadas = await Mesa.count({ where: { estado: 'ocupada' } });
-      const totalMesas = await Mesa.count();
-
-      // Productos con stock bajo
-      const productos = await Producto.findAll({ where: { activo: true } });
-      const stockBajo = productos.filter(p => 
-        (p.stock_local1 + p.stock_local2) <= p.alerta_stock
-      ).length;
-
-      res.json({
-        ventasHoy,
-        ventasMes,
-        pedidosHoy: pedidosHoy.length,
-        pedidosMes: pedidosMes.length,
-        mesasOcupadas,
-        totalMesas,
-        stockBajo
-      });
-    } catch (error) {
-      console.error('Error en getDashboard:', error);
-      res.status(500).json({ error: error.message });
-    }
-  },
-
-  // ========== NUEVOS REPORTES ==========
+  // ==================== NUEVOS REPORTES PREMIUM ====================
 
   // 1️⃣ Ventas Detalladas
   getVentasDetalladas: async (req, res) => {
     try {
-      const { fecha_inicio, fecha_fin, cliente, metodo_pago, local_id } = req.query;
+      const { fecha_inicio, fecha_fin, local_id } = req.query;
       
       const where = {
         estado: 'cerrado',
-        closed_at: { 
+        created_at: {
           [Op.between]: [
-            new Date(fecha_inicio + ' 00:00:00'), 
+            new Date(fecha_inicio + ' 00:00:00'),
             new Date(fecha_fin + ' 23:59:59')
-          ] 
+          ]
         }
       };
-      
-      if (metodo_pago) where.metodo_pago = metodo_pago;
-      if (local_id) where.local_id = local_id;
-      
+
       const pedidos = await Pedido.findAll({
         where,
         include: [
-          { model: Mesa, as: 'mesa' },
-          { model: Local, as: 'local' },
-          { model: Usuario, as: 'usuario' }
+          {
+            model: ItemPedido,
+            as: 'items',
+            include: [{ model: Producto, as: 'producto' }]
+          },
+          {
+            model: Mesa,
+            as: 'mesa',
+            include: [{ model: Local, as: 'local' }]
+          },
+          {
+            model: Usuario,
+            as: 'usuario',
+            attributes: ['id', 'nombre', 'email']
+          }
         ],
-        order: [['closed_at', 'DESC']]
+        order: [['created_at', 'DESC']]
       });
-      
-      const resultado = pedidos.map(p => ({
-        id: p.id,
-        fecha: p.closed_at,
-        numero_orden: p.id.toString().padStart(6, '0'),
-        mesa: p.mesa ? `Mesa ${p.mesa.numero}` : 'Para llevar',
-        cliente: p.nombre_cliente || 'Cliente General',
-        metodo_pago: p.metodo_pago,
-        subtotal: p.subtotal,
-        impuestos: 0,
-        total: p.total_final,
-        estado: 'pagada'
-      }));
-      
+
+      const resultado = pedidos
+        .filter(p => !local_id || p.mesa?.local_id === local_id)
+        .map(p => ({
+          id: p.id,
+          fecha: p.created_at,
+          mesa: p.mesa?.nombre || 'N/A',
+          local: p.mesa?.local?.nombre || 'N/A',
+          mesero: p.usuario?.nombre || 'Sin mesero',
+          subtotal: parseFloat(p.subtotal || 0),
+          descuento: parseFloat(p.descuento || 0),
+          total: parseFloat(p.total || 0),
+          metodo_pago: p.metodo_pago || 'efectivo',
+          items: p.items.map(i => ({
+            producto: i.producto?.nombre,
+            cantidad: i.cantidad,
+            precio: parseFloat(i.precio_unitario || 0),
+            subtotal: parseFloat(i.subtotal || 0)
+          }))
+        }));
+
       res.json(resultado);
     } catch (error) {
       console.error('Error en getVentasDetalladas:', error);
@@ -432,20 +294,23 @@ const reportesController = {
   // 2️⃣ Gastos
   getGastos: async (req, res) => {
     try {
+      // Por ahora retornamos un array vacío
+      // Más adelante puedes crear una tabla de gastos
       res.json([]);
     } catch (error) {
+      console.error('Error en getGastos:', error);
       res.status(500).json({ error: error.message });
     }
   },
 
-  // 3️⃣ Compras Detalladas
+  // 3️⃣ Compras Detalladas - CORREGIDO
   getComprasDetalladas: async (req, res) => {
     try {
       const { fecha_inicio, fecha_fin, proveedor_id } = req.query;
       
       const where = {
         tipo: 'entrada',
-        fecha: { 
+        fecha_movimiento: {  // ✅ CORREGIDO: era 'fecha'
           [Op.between]: [
             new Date(fecha_inicio + ' 00:00:00'), 
             new Date(fecha_fin + ' 23:59:59')
@@ -461,17 +326,17 @@ const reportesController = {
           { model: Producto, as: 'producto' },
           { model: Proveedor, as: 'proveedor' }
         ],
-        order: [['fecha', 'DESC']]
+        order: [['fecha_movimiento', 'DESC']]  // ✅ CORREGIDO: era 'fecha'
       });
       
       const resultado = movimientos.map(m => ({
-        fecha: m.fecha,
+        fecha: m.fecha_movimiento,  // ✅ CORREGIDO: era 'fecha'
         proveedor: m.proveedor?.nombre || 'Sin proveedor',
         factura: m.numero_factura || 'N/A',
         producto: m.producto?.nombre,
         cantidad: m.cantidad,
-        costo_unitario: m.costo_unitario,
-        total: m.cantidad * m.costo_unitario,
+        costo_unitario: parseFloat(m.costo_unitario || 0),
+        total: m.cantidad * parseFloat(m.costo_unitario || 0),
         forma_pago: 'contado',
         estado: 'pagada'
       }));
@@ -498,16 +363,16 @@ const reportesController = {
           ? (local_id == 1 ? p.stock_local1 : p.stock_local2)
           : (p.stock_local1 + p.stock_local2);
         
-        const costoUnitario = p.costo_promedio || p.precio_compra || 0;
-        
         return {
+          codigo: p.id.substring(0, 8),
           producto: p.nombre,
-          stock_inicial: stockActual,
-          entradas: 0,
-          salidas: 0,
-          stock_actual: stockActual,
-          costo_unitario: costoUnitario,
-          valor_total: stockActual * costoUnitario
+          categoria: p.categoria?.nombre || 'Sin categoría',
+          stock_local1: p.stock_local1 || 0,
+          stock_local2: p.stock_local2 || 0,
+          stock_total: stockActual,
+          costo_promedio: parseFloat(p.costo_promedio || 0),
+          valor_total: stockActual * parseFloat(p.costo_promedio || 0),
+          precio_venta: parseFloat(p.precio_venta || 0)
         };
       });
       
@@ -518,13 +383,13 @@ const reportesController = {
     }
   },
 
-  // 5️⃣ Kardex
+  // 5️⃣ Kardex - CORREGIDO
   getKardex: async (req, res) => {
     try {
       const { fecha_inicio, fecha_fin, producto_id, tipo } = req.query;
       
       const where = {
-        fecha: { 
+        fecha_movimiento: {  // ✅ CORREGIDO: era 'fecha'
           [Op.between]: [
             new Date(fecha_inicio + ' 00:00:00'), 
             new Date(fecha_fin + ' 23:59:59')
@@ -541,15 +406,16 @@ const reportesController = {
           { model: Producto, as: 'producto' },
           { model: Usuario, as: 'usuario' }
         ],
-        order: [['fecha', 'DESC']]
+        order: [['fecha_movimiento', 'DESC']]  // ✅ CORREGIDO: era 'fecha'
       });
       
       const resultado = movimientos.map(m => ({
-        fecha: m.fecha,
+        fecha: m.fecha_movimiento,  // ✅ CORREGIDO: era 'fecha'
         producto: m.producto?.nombre,
         tipo: m.tipo,
         cantidad: m.cantidad,
-        saldo: m.stock_local1 + m.stock_local2,
+        stock_anterior: m.stock_anterior,
+        stock_nuevo: m.stock_nuevo,
         origen: m.observaciones || `${m.tipo} por ${m.usuario?.nombre || 'Sistema'}`
       }));
       
@@ -568,43 +434,76 @@ const reportesController = {
       const inicio = new Date(fecha_inicio + ' 00:00:00');
       const fin = new Date(fecha_fin + ' 23:59:59');
       
+      // 1. Ingresos por ventas
       const pedidos = await Pedido.findAll({
         where: {
           estado: 'cerrado',
-          closed_at: { [Op.between]: [inicio, fin] },
-          ...(local_id && { local_id })
+          created_at: { [Op.between]: [inicio, fin] }
         },
-        include: [{ 
-          model: ItemPedido, 
-          as: 'items', 
-          include: [{ model: Producto, as: 'producto' }] 
-        }]
+        include: [
+          {
+            model: ItemPedido,
+            as: 'items',
+            include: [{ model: Producto, as: 'producto' }]
+          },
+          {
+            model: Mesa,
+            as: 'mesa',
+            include: [{ model: Local, as: 'local' }]
+          }
+        ]
       });
-      
-      const totalVentas = pedidos.reduce((sum, p) => sum + parseFloat(p.total_final || 0), 0);
-      
-      let totalCostos = 0;
-      pedidos.forEach(p => {
-        p.items?.forEach(item => {
-          totalCostos += (item.producto?.costo_promedio || 0) * item.cantidad;
+
+      const pedidosFiltrados = local_id
+        ? pedidos.filter(p => p.mesa?.local_id === local_id)
+        : pedidos;
+
+      const ventasBrutas = pedidosFiltrados.reduce((sum, p) => 
+        sum + parseFloat(p.total || 0), 0
+      );
+
+      const descuentos = pedidosFiltrados.reduce((sum, p) => 
+        sum + parseFloat(p.descuento || 0), 0
+      );
+
+      const ventasNetas = ventasBrutas - descuentos;
+
+      // 2. Costo de ventas
+      let costoVentas = 0;
+      pedidosFiltrados.forEach(pedido => {
+        pedido.items?.forEach(item => {
+          const costoUnitario = parseFloat(item.producto?.costo_promedio || 0);
+          costoVentas += item.cantidad * costoUnitario;
         });
       });
-      
-      const totalGastos = 0;
-      
-      const utilidadBruta = totalVentas - totalCostos;
-      const utilidadNeta = utilidadBruta - totalGastos;
-      const margenBruto = totalVentas > 0 ? ((utilidadBruta / totalVentas) * 100).toFixed(2) : 0;
-      const margenNeto = totalVentas > 0 ? ((utilidadNeta / totalVentas) * 100).toFixed(2) : 0;
-      
+
+      const utilidadBruta = ventasNetas - costoVentas;
+      const margenBruto = ventasNetas > 0 ? (utilidadBruta / ventasNetas) * 100 : 0;
+
+      // 3. Gastos operativos (por ahora en 0, puedes agregar tabla de gastos)
+      const gastosOperativos = 0;
+
+      const utilidadOperativa = utilidadBruta - gastosOperativos;
+      const utilidadNeta = utilidadOperativa;
+
       res.json({
-        totalVentas,
-        totalCostos,
-        totalGastos,
-        utilidadBruta,
-        margenBruto,
-        utilidadNeta,
-        margenNeto
+        periodo: {
+          inicio: fecha_inicio,
+          fin: fecha_fin
+        },
+        ingresos: {
+          ventas_brutas: ventasBrutas,
+          descuentos: descuentos,
+          ventas_netas: ventasNetas
+        },
+        costos: {
+          costo_ventas: costoVentas
+        },
+        utilidad_bruta: utilidadBruta,
+        margen_bruto: margenBruto,
+        gastos_operativos: gastosOperativos,
+        utilidad_operativa: utilidadOperativa,
+        utilidad_neta: utilidadNeta
       });
     } catch (error) {
       console.error('Error en getEstadoResultados:', error);
@@ -615,41 +514,57 @@ const reportesController = {
   // 7️⃣ Cierre de Caja
   getCierreCaja: async (req, res) => {
     try {
-      const { fecha_inicio, fecha_fin, local_id, usuario_id } = req.query;
+      const { fecha_inicio, fecha_fin, local_id } = req.query;
       
-      const where = {
-        estado: 'cerrado',
-        closed_at: { 
-          [Op.between]: [
-            new Date(fecha_inicio + ' 00:00:00'), 
-            new Date(fecha_fin + ' 23:59:59')
-          ] 
-        }
-      };
-      
-      if (local_id) where.local_id = local_id;
-      if (usuario_id) where.usuario_id = usuario_id;
-      
-      const pedidos = await Pedido.findAll({ where });
-      
-      let efectivo = 0, transferencias = 0, digital = 0;
-      
-      pedidos.forEach(p => {
-        const monto = parseFloat(p.total_final || 0);
-        if (p.metodo_pago === 'efectivo') efectivo += monto;
-        else if (p.metodo_pago === 'transferencia') transferencias += monto;
-        else digital += monto;
+      const pedidos = await Pedido.findAll({
+        where: {
+          estado: 'cerrado',
+          created_at: {
+            [Op.between]: [
+              new Date(fecha_inicio + ' 00:00:00'),
+              new Date(fecha_fin + ' 23:59:59')
+            ]
+          }
+        },
+        include: [
+          {
+            model: Mesa,
+            as: 'mesa',
+            include: [{ model: Local, as: 'local' }]
+          }
+        ]
       });
-      
-      const total = efectivo + transferencias + digital;
-      
+
+      const pedidosFiltrados = local_id
+        ? pedidos.filter(p => p.mesa?.local_id === local_id)
+        : pedidos;
+
+      const porMetodoPago = pedidosFiltrados.reduce((acc, p) => {
+        const metodo = p.metodo_pago || 'efectivo';
+        if (!acc[metodo]) {
+          acc[metodo] = { cantidad: 0, total: 0 };
+        }
+        acc[metodo].cantidad += 1;
+        acc[metodo].total += parseFloat(p.total || 0);
+        return acc;
+      }, {});
+
+      const totalVentas = pedidosFiltrados.reduce((sum, p) => 
+        sum + parseFloat(p.total || 0), 0
+      );
+
       res.json({
-        efectivo,
-        transferencias,
-        digital,
-        total,
-        cantidadTransacciones: pedidos.length,
-        ticketPromedio: pedidos.length > 0 ? total / pedidos.length : 0
+        fecha: fecha_inicio,
+        total_ventas: totalVentas,
+        total_pedidos: pedidosFiltrados.length,
+        metodos_pago: Object.entries(porMetodoPago).map(([metodo, data]) => ({
+          metodo,
+          cantidad: data.cantidad,
+          total: data.total
+        })),
+        efectivo: porMetodoPago.efectivo?.total || 0,
+        tarjeta: (porMetodoPago.tarjeta?.total || 0) + (porMetodoPago.datafono?.total || 0),
+        transferencia: porMetodoPago.transferencia?.total || 0
       });
     } catch (error) {
       console.error('Error en getCierreCaja:', error);
@@ -657,5 +572,3 @@ const reportesController = {
     }
   }
 };
-
-module.exports = reportesController;

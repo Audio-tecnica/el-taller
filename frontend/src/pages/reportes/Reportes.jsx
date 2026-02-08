@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { reportesService } from "../../services/reportesService";
 import toast from "react-hot-toast";
+import * as pdfGenerator from "../../utils/pdfGenerator";
 import logo from "../../assets/logo.jpeg";
 import { 
   FileText, 
@@ -148,15 +149,69 @@ export default function Reportes() {
 
   const descargarPDF = async (tipoReporte) => {
     try {
-      // Aquí puedes implementar la generación de PDF con jsPDF
-      toast.success(`Preparando PDF de ${tipoReporte}...`);
-      // Por ahora, mostrar mensaje de que se necesita instalar jsPDF
-      toast('Para generar PDFs, instala: npm install jspdf jspdf-autotable', {
-        duration: 5000,
-        icon: '📄'
-      });
-    } catch  {
-      toast.error('Error al generar PDF');
+      toast.success(`Generando PDF de ${tipoReporte}...`);
+      
+      switch(tipoReporte) {
+        case 'ventas-detalladas':
+          if (ventasDetalladas.length === 0) {
+            toast.error('No hay datos para generar el PDF');
+            return;
+          }
+          pdfGenerator.generarPDFVentasDetalladas(ventasDetalladas, fechaInicio, fechaFin);
+          break;
+          
+        case 'gastos':
+          pdfGenerator.generarPDFGastos(gastos, fechaInicio, fechaFin);
+          break;
+          
+        case 'compras':
+          if (compras.length === 0) {
+            toast.error('No hay datos para generar el PDF');
+            return;
+          }
+          pdfGenerator.generarPDFCompras(compras, fechaInicio, fechaFin);
+          break;
+          
+        case 'inventario':
+          if (inventario.length === 0) {
+            toast.error('No hay datos para generar el PDF');
+            return;
+          }
+          pdfGenerator.generarPDFInventario(inventario);
+          break;
+          
+        case 'kardex':
+          if (kardex.length === 0) {
+            toast.error('No hay datos para generar el PDF');
+            return;
+          }
+          pdfGenerator.generarPDFKardex(kardex, fechaInicio, fechaFin);
+          break;
+          
+        case 'utilidad':
+          if (!estadoResultados) {
+            toast.error('No hay datos para generar el PDF');
+            return;
+          }
+          pdfGenerator.generarPDFEstadoResultados(estadoResultados, fechaInicio, fechaFin);
+          break;
+          
+        case 'cierre-caja':
+          if (!cierreCaja) {
+            toast.error('No hay datos para generar el PDF');
+            return;
+          }
+          pdfGenerator.generarPDFCierreCaja(cierreCaja, fechaInicio, fechaFin);
+          break;
+          
+        default:
+          toast.error('Tipo de reporte no reconocido');
+      }
+      
+      toast.success('PDF generado exitosamente');
+    } catch (error) {
+      console.error('Error al generar PDF:', error);
+      toast.error('Error al generar PDF: ' + error.message);
     }
   };
 

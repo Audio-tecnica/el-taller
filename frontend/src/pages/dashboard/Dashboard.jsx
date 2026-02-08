@@ -768,7 +768,7 @@ export default function Dashboard() {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-white">
-                Sistema Kardex Premium
+                Sistema Kardex
               </h3>
               <span className="px-3 py-1 bg-gradient-to-r from-[#D4B896] to-[#C4A576] text-[#0a0a0a] text-xs font-bold rounded-full">
                 NUEVO
