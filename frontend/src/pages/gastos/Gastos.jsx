@@ -101,7 +101,7 @@ export default function Gastos() {
       }
 
       // Obtener usuario del localStorage
-      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      const userData = JSON.parse(localStorage.getItem('usuario') || '{}');
       const usuario_id = userData.id;
 
       if (!usuario_id) {
