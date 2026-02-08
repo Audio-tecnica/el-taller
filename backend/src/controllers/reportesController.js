@@ -28,7 +28,7 @@ module.exports = {
         }
       });
       
-      const ventasHoy = pedidosHoy.reduce((sum, p) => sum + parseFloat(p.total || 0), 0);
+      const ventasHoy = pedidosHoy.reduce((sum, p) => sum + parseFloat(p.total_final || 0), 0);
       
       // Productos más vendidos del día
       const itemsHoy = await ItemPedido.findAll({
@@ -100,7 +100,7 @@ module.exports = {
         }]
       });
 
-      const totalVentas = pedidos.reduce((sum, p) => sum + parseFloat(p.total || 0), 0);
+      const totalVentas = pedidos.reduce((sum, p) => sum + parseFloat(p.total_final || 0), 0);
       const totalPedidos = pedidos.length;
       const ticketPromedio = totalPedidos > 0 ? totalVentas / totalPedidos : 0;
 
@@ -133,7 +133,7 @@ module.exports = {
         }
       });
 
-      const total = pedidos.reduce((sum, p) => sum + parseFloat(p.total || 0), 0);
+      const total = pedidos.reduce((sum, p) => sum + parseFloat(p.total_final || 0), 0);
 
       res.json({
         total,
@@ -315,7 +315,7 @@ module.exports = {
       
       const pedidos = await Pedido.findAll({
         where: {
-          es_cortesia: true,
+          tiene_cortesia: true,  // ✅ CORREGIDO: era es_cortesia
           estado: 'cerrado',
           created_at: {
             [Op.between]: [
@@ -334,7 +334,7 @@ module.exports = {
         ]
       });
 
-      const total = pedidos.reduce((sum, p) => sum + parseFloat(p.total || 0), 0);
+      const total = pedidos.reduce((sum, p) => sum + parseFloat(p.monto_cortesia || 0), 0);  // ✅ Usar monto_cortesia en lugar de total
 
       res.json({
         total,
@@ -396,9 +396,10 @@ module.exports = {
           mesero: p.usuario?.nombre || 'Sin mesero',
           subtotal: parseFloat(p.subtotal || 0),
           descuento: parseFloat(p.descuento || 0),
-          total: parseFloat(p.total || 0),
+          total: parseFloat(p.total_final || 0),  // ✅ CORREGIDO: usar total_final
           metodo_pago: p.metodo_pago || 'efectivo',
-          es_cortesia: p.es_cortesia || false,
+          tiene_cortesia: p.tiene_cortesia || false,  // ✅ CORREGIDO: era es_cortesia
+          monto_cortesia: parseFloat(p.monto_cortesia || 0),  // ✅ AGREGADO
           items: p.items?.map(i => ({
             producto: i.producto?.nombre,
             cantidad: i.cantidad,
@@ -584,7 +585,7 @@ module.exports = {
         : pedidos;
 
       const ventasBrutas = pedidosFiltrados.reduce((sum, p) => 
-        sum + parseFloat(p.total || 0), 0
+        sum + parseFloat(p.total_final || 0), 0
       );
 
       const descuentos = pedidosFiltrados.reduce((sum, p) => 
@@ -670,12 +671,12 @@ module.exports = {
           acc[metodo] = { cantidad: 0, total: 0 };
         }
         acc[metodo].cantidad += 1;
-        acc[metodo].total += parseFloat(p.total || 0);
+        acc[metodo].total += parseFloat(p.total_final || 0);
         return acc;
       }, {});
 
       const totalVentas = pedidosFiltrados.reduce((sum, p) => 
-        sum + parseFloat(p.total || 0), 0
+        sum + parseFloat(p.total_final || 0), 0
       );
 
       res.json({
