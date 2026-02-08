@@ -12,6 +12,74 @@ const Proveedor = require('../models/Proveedor');
 module.exports = {
   // ==================== REPORTES EXISTENTES ====================
   
+  // 🆕 Dashboard - AGREGADO
+  getDashboard: async (req, res) => {
+    try {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      
+      // Ventas del día
+      const pedidosHoy = await Pedido.findAll({
+        where: {
+          estado: 'cerrado',
+          created_at: {
+            [Op.gte]: hoy
+          }
+        }
+      });
+      
+      const ventasHoy = pedidosHoy.reduce((sum, p) => sum + parseFloat(p.total || 0), 0);
+      
+      // Productos más vendidos del día
+      const itemsHoy = await ItemPedido.findAll({
+        include: [
+          {
+            model: Producto,
+            as: 'producto',
+            attributes: ['id', 'nombre']
+          },
+          {
+            model: Pedido,
+            as: 'pedido',
+            where: {
+              estado: 'cerrado',
+              created_at: {
+                [Op.gte]: hoy
+              }
+            },
+            attributes: []
+          }
+        ]
+      });
+      
+      const productosAgrupados = itemsHoy.reduce((acc, item) => {
+        const id = item.producto_id;
+        if (!acc[id]) {
+          acc[id] = {
+            nombre: item.producto?.nombre || 'Sin nombre',
+            cantidad: 0
+          };
+        }
+        acc[id].cantidad += item.cantidad;
+        return acc;
+      }, {});
+      
+      const topProductos = Object.values(productosAgrupados)
+        .sort((a, b) => b.cantidad - a.cantidad)
+        .slice(0, 5);
+      
+      res.json({
+        ventas_hoy: ventasHoy,
+        pedidos_hoy: pedidosHoy.length,
+        ticket_promedio: pedidosHoy.length > 0 ? ventasHoy / pedidosHoy.length : 0,
+        productos_top: topProductos
+      });
+    } catch (error) {
+      console.error('Error en getDashboard:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+  
   // Ventas del día
   getVentasHoy: async (req, res) => {
     try {
@@ -78,7 +146,61 @@ module.exports = {
     }
   },
 
-  // Productos más vendidos
+  // 🆕 Productos más vendidos - AGREGADO (alias de getProductosTop)
+  getProductosMasVendidos: async (req, res) => {
+    try {
+      const { fecha_inicio, fecha_fin, limite = 10 } = req.query;
+      
+      const items = await ItemPedido.findAll({
+        include: [
+          {
+            model: Producto,
+            as: 'producto',
+            attributes: ['id', 'nombre', 'precio_venta']
+          },
+          {
+            model: Pedido,
+            as: 'pedido',
+            where: {
+              estado: 'cerrado',
+              created_at: {
+                [Op.between]: [
+                  new Date(fecha_inicio + ' 00:00:00'),
+                  new Date(fecha_fin + ' 23:59:59')
+                ]
+              }
+            },
+            attributes: []
+          }
+        ]
+      });
+
+      const productosAgrupados = items.reduce((acc, item) => {
+        const id = item.producto_id;
+        if (!acc[id]) {
+          acc[id] = {
+            producto: item.producto?.nombre || 'Sin nombre',
+            cantidad: 0,
+            total: 0
+          };
+        }
+        acc[id].cantidad += item.cantidad;
+        acc[id].total += parseFloat(item.subtotal || 0);
+        return acc;
+      }, {});
+
+      const resultado = Object.values(productosAgrupados)
+        .sort((a, b) => b.cantidad - a.cantidad)
+        .slice(0, parseInt(limite));
+
+      res.json(resultado);
+    } catch (error) {
+      console.error('Error en getProductosMasVendidos:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Productos más vendidos (función original)
   getProductosTop: async (req, res) => {
     try {
       const { fecha_inicio, fecha_fin, limite = 10 } = req.query;
@@ -276,7 +398,8 @@ module.exports = {
           descuento: parseFloat(p.descuento || 0),
           total: parseFloat(p.total || 0),
           metodo_pago: p.metodo_pago || 'efectivo',
-          items: p.items.map(i => ({
+          es_cortesia: p.es_cortesia || false,
+          items: p.items?.map(i => ({
             producto: i.producto?.nombre,
             cantidad: i.cantidad,
             precio: parseFloat(i.precio_unitario || 0),
@@ -294,8 +417,10 @@ module.exports = {
   // 2️⃣ Gastos
   getGastos: async (req, res) => {
     try {
-      // Por ahora retornamos un array vacío
-      // Más adelante puedes crear una tabla de gastos
+      const { fecha_inicio, fecha_fin } = req.query;
+      
+      // Por ahora devolvemos estructura vacía
+      // Puedes agregar una tabla de Gastos si lo necesitas
       res.json([]);
     } catch (error) {
       console.error('Error en getGastos:', error);
