@@ -22,4 +22,13 @@ router.get('/ventas/categorias', reportesController.getVentasPorCategoria);
 // Cortesías
 router.get('/cortesias', reportesController.getCortesias);
 
+// Reportes nuevos
+router.get('/ventas/detalladas', reportesController.getVentasDetalladas);
+router.get('/gastos', reportesController.getGastos);
+router.get('/compras/detalladas', reportesController.getComprasDetalladas);
+router.get('/inventario/valorizado', reportesController.getInventarioValorizado);
+router.get('/inventario/kardex', reportesController.getKardex);
+router.get('/utilidad', reportesController.getEstadoResultados);
+router.get('/cierre-caja', reportesController.getCierreCaja);
+
 module.exports = router;

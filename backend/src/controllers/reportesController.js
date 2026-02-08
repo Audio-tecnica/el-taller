@@ -1,4 +1,4 @@
-const { Pedido, ItemPedido, Producto, Mesa, Local, Usuario, Turno, Categoria } = require('../models');
+const { Pedido, ItemPedido, Producto, Mesa, Local, Usuario, Turno, Categoria, MovimientoInventario, Proveedor } = require('../models');
 const { Op } = require('sequelize');
 
 const reportesController = {
@@ -375,6 +375,284 @@ const reportesController = {
       });
     } catch (error) {
       console.error('Error en getDashboard:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // ========== NUEVOS REPORTES ==========
+
+  // 1️⃣ Ventas Detalladas
+  getVentasDetalladas: async (req, res) => {
+    try {
+      const { fecha_inicio, fecha_fin, cliente, metodo_pago, local_id } = req.query;
+      
+      const where = {
+        estado: 'cerrado',
+        closed_at: { 
+          [Op.between]: [
+            new Date(fecha_inicio + ' 00:00:00'), 
+            new Date(fecha_fin + ' 23:59:59')
+          ] 
+        }
+      };
+      
+      if (metodo_pago) where.metodo_pago = metodo_pago;
+      if (local_id) where.local_id = local_id;
+      
+      const pedidos = await Pedido.findAll({
+        where,
+        include: [
+          { model: Mesa, as: 'mesa' },
+          { model: Local, as: 'local' },
+          { model: Usuario, as: 'usuario' }
+        ],
+        order: [['closed_at', 'DESC']]
+      });
+      
+      const resultado = pedidos.map(p => ({
+        id: p.id,
+        fecha: p.closed_at,
+        numero_orden: p.id.toString().padStart(6, '0'),
+        mesa: p.mesa ? `Mesa ${p.mesa.numero}` : 'Para llevar',
+        cliente: p.nombre_cliente || 'Cliente General',
+        metodo_pago: p.metodo_pago,
+        subtotal: p.subtotal,
+        impuestos: 0,
+        total: p.total_final,
+        estado: 'pagada'
+      }));
+      
+      res.json(resultado);
+    } catch (error) {
+      console.error('Error en getVentasDetalladas:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // 2️⃣ Gastos
+  getGastos: async (req, res) => {
+    try {
+      res.json([]);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // 3️⃣ Compras Detalladas
+  getComprasDetalladas: async (req, res) => {
+    try {
+      const { fecha_inicio, fecha_fin, proveedor_id } = req.query;
+      
+      const where = {
+        tipo: 'entrada',
+        fecha: { 
+          [Op.between]: [
+            new Date(fecha_inicio + ' 00:00:00'), 
+            new Date(fecha_fin + ' 23:59:59')
+          ] 
+        }
+      };
+      
+      if (proveedor_id) where.proveedor_id = proveedor_id;
+      
+      const movimientos = await MovimientoInventario.findAll({
+        where,
+        include: [
+          { model: Producto, as: 'producto' },
+          { model: Proveedor, as: 'proveedor' }
+        ],
+        order: [['fecha', 'DESC']]
+      });
+      
+      const resultado = movimientos.map(m => ({
+        fecha: m.fecha,
+        proveedor: m.proveedor?.nombre || 'Sin proveedor',
+        factura: m.numero_factura || 'N/A',
+        producto: m.producto?.nombre,
+        cantidad: m.cantidad,
+        costo_unitario: m.costo_unitario,
+        total: m.cantidad * m.costo_unitario,
+        forma_pago: 'contado',
+        estado: 'pagada'
+      }));
+      
+      res.json(resultado);
+    } catch (error) {
+      console.error('Error en getComprasDetalladas:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // 4️⃣ Inventario Valorizado
+  getInventarioValorizado: async (req, res) => {
+    try {
+      const { local_id } = req.query;
+      
+      const productos = await Producto.findAll({
+        where: { activo: true },
+        include: [{ model: Categoria, as: 'categoria' }]
+      });
+      
+      const resultado = productos.map(p => {
+        const stockActual = local_id 
+          ? (local_id == 1 ? p.stock_local1 : p.stock_local2)
+          : (p.stock_local1 + p.stock_local2);
+        
+        const costoUnitario = p.costo_promedio || p.precio_compra || 0;
+        
+        return {
+          producto: p.nombre,
+          stock_inicial: stockActual,
+          entradas: 0,
+          salidas: 0,
+          stock_actual: stockActual,
+          costo_unitario: costoUnitario,
+          valor_total: stockActual * costoUnitario
+        };
+      });
+      
+      res.json(resultado);
+    } catch (error) {
+      console.error('Error en getInventarioValorizado:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // 5️⃣ Kardex
+  getKardex: async (req, res) => {
+    try {
+      const { fecha_inicio, fecha_fin, producto_id, tipo } = req.query;
+      
+      const where = {
+        fecha: { 
+          [Op.between]: [
+            new Date(fecha_inicio + ' 00:00:00'), 
+            new Date(fecha_fin + ' 23:59:59')
+          ] 
+        }
+      };
+      
+      if (producto_id) where.producto_id = producto_id;
+      if (tipo) where.tipo = tipo;
+      
+      const movimientos = await MovimientoInventario.findAll({
+        where,
+        include: [
+          { model: Producto, as: 'producto' },
+          { model: Usuario, as: 'usuario' }
+        ],
+        order: [['fecha', 'DESC']]
+      });
+      
+      const resultado = movimientos.map(m => ({
+        fecha: m.fecha,
+        producto: m.producto?.nombre,
+        tipo: m.tipo,
+        cantidad: m.cantidad,
+        saldo: m.stock_local1 + m.stock_local2,
+        origen: m.observaciones || `${m.tipo} por ${m.usuario?.nombre || 'Sistema'}`
+      }));
+      
+      res.json(resultado);
+    } catch (error) {
+      console.error('Error en getKardex:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // 6️⃣ Estado de Resultados
+  getEstadoResultados: async (req, res) => {
+    try {
+      const { fecha_inicio, fecha_fin, local_id } = req.query;
+      
+      const inicio = new Date(fecha_inicio + ' 00:00:00');
+      const fin = new Date(fecha_fin + ' 23:59:59');
+      
+      const pedidos = await Pedido.findAll({
+        where: {
+          estado: 'cerrado',
+          closed_at: { [Op.between]: [inicio, fin] },
+          ...(local_id && { local_id })
+        },
+        include: [{ 
+          model: ItemPedido, 
+          as: 'items', 
+          include: [{ model: Producto, as: 'producto' }] 
+        }]
+      });
+      
+      const totalVentas = pedidos.reduce((sum, p) => sum + parseFloat(p.total_final || 0), 0);
+      
+      let totalCostos = 0;
+      pedidos.forEach(p => {
+        p.items?.forEach(item => {
+          totalCostos += (item.producto?.costo_promedio || 0) * item.cantidad;
+        });
+      });
+      
+      const totalGastos = 0;
+      
+      const utilidadBruta = totalVentas - totalCostos;
+      const utilidadNeta = utilidadBruta - totalGastos;
+      const margenBruto = totalVentas > 0 ? ((utilidadBruta / totalVentas) * 100).toFixed(2) : 0;
+      const margenNeto = totalVentas > 0 ? ((utilidadNeta / totalVentas) * 100).toFixed(2) : 0;
+      
+      res.json({
+        totalVentas,
+        totalCostos,
+        totalGastos,
+        utilidadBruta,
+        margenBruto,
+        utilidadNeta,
+        margenNeto
+      });
+    } catch (error) {
+      console.error('Error en getEstadoResultados:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // 7️⃣ Cierre de Caja
+  getCierreCaja: async (req, res) => {
+    try {
+      const { fecha_inicio, fecha_fin, local_id, usuario_id } = req.query;
+      
+      const where = {
+        estado: 'cerrado',
+        closed_at: { 
+          [Op.between]: [
+            new Date(fecha_inicio + ' 00:00:00'), 
+            new Date(fecha_fin + ' 23:59:59')
+          ] 
+        }
+      };
+      
+      if (local_id) where.local_id = local_id;
+      if (usuario_id) where.usuario_id = usuario_id;
+      
+      const pedidos = await Pedido.findAll({ where });
+      
+      let efectivo = 0, transferencias = 0, digital = 0;
+      
+      pedidos.forEach(p => {
+        const monto = parseFloat(p.total_final || 0);
+        if (p.metodo_pago === 'efectivo') efectivo += monto;
+        else if (p.metodo_pago === 'transferencia') transferencias += monto;
+        else digital += monto;
+      });
+      
+      const total = efectivo + transferencias + digital;
+      
+      res.json({
+        efectivo,
+        transferencias,
+        digital,
+        total,
+        cantidadTransacciones: pedidos.length,
+        ticketPromedio: pedidos.length > 0 ? total / pedidos.length : 0
+      });
+    } catch (error) {
+      console.error('Error en getCierreCaja:', error);
       res.status(500).json({ error: error.message });
     }
   }
